@@ -3,8 +3,6 @@ import { DiffAnalysisResult } from "./diff-analyzer";
 import { CompetitorAnalysisSummary } from "./competitor-analysis";
 import { LLMDiffAnalysisResult } from "./llm-diff-analyzer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export interface NotificationOptions {
   to: string;
   subject?: string;
@@ -30,6 +28,9 @@ export class NotificationService {
       console.warn("[Notification] RESEND_API_KEY is not set, skipping email notification");
       return;
     }
+
+    // Resendインスタンスを遅延初期化（ビルド時のエラーを回避）
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const articleUrl = `${siteUrl}${pageUrl}`;
     const emailSubject = subject || `【ReRank AI】順位下落を検知: ${analysisResult.prioritizedKeywords[0]?.keyword || "記事分析"}`;
