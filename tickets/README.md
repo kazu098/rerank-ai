@@ -10,9 +10,10 @@
    - Google Search Console APIとOAuth 2.0で連携
    - 順位データ取得の基盤を構築
 
-2. **[#002: 順位下落検知ロジック](./002-rank-drop-detection.md)** (1日)
+2. **[#002: 順位下落検知ロジック](./002-rank-drop-detection.md)** (1日) ✅
    - 急落を自動検知
    - 分析対象のキーワードを選定
+   - **注意**: データ保存機能（Supabase）は後回し
 
 3. **[#003: 競合URL取得（ブラウジングツール）](./003-competitor-url-extraction.md)** (2-3日)
    - PlaywrightでGoogle検索を実行
