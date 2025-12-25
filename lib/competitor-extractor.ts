@@ -114,7 +114,7 @@ export class CompetitorExtractor {
 
     // ブラウジングツールで試行
     try {
-      return await this.extractWithBrowser(keyword, ownUrl, maxCompetitors, retryCount);
+      return await this.extractWithBrowser(keyword, ownUrl, maxCompetitors, retryCount, undefined);
     } catch (error: any) {
       // CAPTCHAが検出された場合、Serper APIにフォールバック
       const isCaptchaError = error.message?.includes("CAPTCHA");
@@ -138,7 +138,8 @@ export class CompetitorExtractor {
     keyword: string,
     ownUrl: string,
     maxCompetitors: number,
-    retryCount: number
+    retryCount: number,
+    ownPosition?: number // GSC APIから取得した順位（オプション）
   ): Promise<CompetitorExtractionResult> {
     await this.initialize();
 
@@ -190,17 +191,18 @@ export class CompetitorExtractor {
         // 自社URLの順位を特定
         const normalizedOwnUrl = this.normalizeUrl(ownUrl);
         const ownResult = results.find((r) => this.normalizeUrl(r.url) === normalizedOwnUrl);
-        const ownPosition = ownResult?.position;
+        // パラメータで渡されたownPositionがあればそれを使用、なければ検索結果から取得
+        const finalOwnPosition = ownPosition || ownResult?.position;
 
         console.log(
-          `[CompetitorExtractor] Own URL found at position: ${ownPosition || "not found"} (searching for: ${normalizedOwnUrl})`
+          `[CompetitorExtractor] Own URL found at position: ${finalOwnPosition || "not found"} (searching for: ${normalizedOwnUrl})`
         );
 
         // 自社URLより上位の競合URLを抽出
         // 閾値: 20位を境界に、それ以上は1ページ目（上位10サイト）のみを分析
         let competitors: SearchResult[];
-        if (ownPosition) {
-          if (ownPosition <= 10) {
+        if (finalOwnPosition) {
+          if (finalOwnPosition <= 10) {
             // 自社が1-10位の場合、自社より上位のみを取得
             competitors = results
               .filter((result) => {
@@ -210,8 +212,8 @@ export class CompetitorExtractor {
                 if (normalizedResultUrl === normalizedOwnUrl) {
                   return false;
                 }
-                // 自社より上位のサイトのみ
-                return result.position < ownPosition;
+                // 自社より上位のサイトのみ（finalOwnPositionを使用）
+                return result.position < finalOwnPosition;
               })
               .slice(0, maxCompetitors);
           } else {
@@ -344,8 +346,8 @@ export class CompetitorExtractor {
             if (normalizedResultUrl === normalizedOwnUrl) {
               return false;
             }
-            // 自社より上位のサイトのみ
-            return result.position < ownPosition;
+            // 自社より上位のサイトのみ（finalOwnPositionを使用）
+            return result.position < finalOwnPosition;
           })
           .slice(0, maxCompetitors);
       } else {

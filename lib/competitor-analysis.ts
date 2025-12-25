@@ -2,6 +2,9 @@ import { getGSCClient } from "./gsc-api";
 import { RankDropDetector, RankDropResult } from "./rank-drop-detection";
 import { KeywordPrioritizer } from "./keyword-prioritizer";
 import { CompetitorExtractor, SearchResult } from "./competitor-extractor";
+import { ArticleScraper } from "./article-scraper";
+import { DiffAnalyzer, DiffAnalysisResult } from "./diff-analyzer";
+import { LLMDiffAnalyzer, LLMDiffAnalysisResult } from "./llm-diff-analyzer";
 
 export interface CompetitorAnalysisResult {
   keyword: string;
@@ -21,6 +24,8 @@ export interface CompetitorAnalysisSummary {
   }>;
   competitorResults: CompetitorAnalysisResult[];
   uniqueCompetitorUrls: string[];
+  diffAnalysis?: DiffAnalysisResult; // 基本的な差分分析結果（オプション）
+  semanticDiffAnalysis?: LLMDiffAnalysisResult; // 意味レベルの差分分析結果（オプション）
 }
 
 /**
@@ -30,10 +35,16 @@ export interface CompetitorAnalysisSummary {
 export class CompetitorAnalyzer {
   private keywordPrioritizer: KeywordPrioritizer;
   private competitorExtractor: CompetitorExtractor;
+  private articleScraper: ArticleScraper;
+  private diffAnalyzer: DiffAnalyzer;
+  private llmDiffAnalyzer: LLMDiffAnalyzer;
 
   constructor() {
     this.keywordPrioritizer = new KeywordPrioritizer();
     this.competitorExtractor = new CompetitorExtractor();
+    this.articleScraper = new ArticleScraper();
+    this.diffAnalyzer = new DiffAnalyzer();
+    this.llmDiffAnalyzer = new LLMDiffAnalyzer();
   }
 
   /**
@@ -95,10 +106,16 @@ export class CompetitorAnalyzer {
       position: number;
     }> = [];
 
+    // 最小インプレッション数の閾値（検索ボリュームが少ないキーワードを除外）
+    const minImpressions = 10;
+
+    // 転落キーワードと通常キーワードを統合してから、正規化で重複排除
+    const allPrioritizedKeywords: typeof prioritizedKeywords = [];
+
     if (rankDropResult.droppedKeywords.length > 0) {
-      // 転落キーワードを優先
-      prioritizedKeywords = this.keywordPrioritizer
-        .prioritizeDroppedKeywords(rankDropResult.droppedKeywords, maxKeywords)
+      // 転落キーワードを優先（意味的に同じキーワードはグループ化）
+      const droppedPrioritized = this.keywordPrioritizer
+        .prioritizeDroppedKeywords(rankDropResult.droppedKeywords, maxKeywords * 2, minImpressions)
         .map((kw) => ({
           keyword: kw.keyword,
           priority: kw.priority,
@@ -106,29 +123,39 @@ export class CompetitorAnalyzer {
           clicks: kw.clicks,
           position: kw.position,
         }));
+      allPrioritizedKeywords.push(...droppedPrioritized);
     }
 
-    // 転落キーワードが少ない場合、全体から主要なキーワードを追加
-    if (prioritizedKeywords.length < maxKeywords) {
-      const additionalKeywords = this.keywordPrioritizer
-        .prioritizeKeywords(keywordList, maxKeywords - prioritizedKeywords.length)
-        .filter(
-          (kw) =>
-            !prioritizedKeywords.find((pk) => pk.keyword === kw.keyword)
-        )
-        .map((kw) => ({
-          keyword: kw.keyword,
-          priority: kw.priority,
-          impressions: kw.impressions,
-          clicks: kw.clicks,
-          position: kw.position,
-        }));
+    // 全体から主要なキーワードを追加（意味的に同じキーワードはグループ化）
+    const regularPrioritized = this.keywordPrioritizer
+      .prioritizeKeywords(keywordList, maxKeywords * 2, minImpressions)
+      .map((kw) => ({
+        keyword: kw.keyword,
+        priority: kw.priority,
+        impressions: kw.impressions,
+        clicks: kw.clicks,
+        position: kw.position,
+      }));
+    allPrioritizedKeywords.push(...regularPrioritized);
 
-      prioritizedKeywords.push(...additionalKeywords);
-    }
+    // 意味的に同じキーワードを統合（最終的な重複排除）
+    // KeywordPrioritizerの正規化メソッドを使用して統一
+    // 同じ正規化キーワードが複数ある場合、優先度が最も高いものを選定
+    const keywordMap = new Map<string, typeof prioritizedKeywords[0]>();
 
-    // 上位N個に絞る
-    prioritizedKeywords = prioritizedKeywords
+    // 優先度の高い順に処理
+    allPrioritizedKeywords
+      .sort((a, b) => b.priority - a.priority)
+      .forEach((kw) => {
+        const normalized = this.keywordPrioritizer.normalizeKeyword(kw.keyword);
+        // まだ登録されていない、または現在のキーワードの優先度が高い場合のみ更新
+        if (!keywordMap.has(normalized) || keywordMap.get(normalized)!.priority < kw.priority) {
+          keywordMap.set(normalized, kw);
+        }
+      });
+
+    // Mapから配列に変換し、優先度順にソート
+    prioritizedKeywords = Array.from(keywordMap.values())
       .sort((a, b) => b.priority - a.priority)
       .slice(0, maxKeywords);
 
@@ -258,13 +285,210 @@ export class CompetitorAnalyzer {
       }
     }
 
+    // 差分分析を実行（競合URLが取得できた場合）
+    let diffAnalysis: DiffAnalysisResult | undefined;
+    if (uniqueCompetitorUrls.size > 0 && competitorResults.length > 0) {
+      try {
+        console.log(
+          `[CompetitorAnalysis] Starting diff analysis for ${siteUrl}${pageUrl}`
+        );
+        const ownUrl = `${siteUrl}${pageUrl}`;
+        const competitorUrls = Array.from(uniqueCompetitorUrls).slice(0, 3); // 上位3サイトまで
+
+        // 自社記事を取得
+        const ownArticle = await this.articleScraper.scrapeArticle(ownUrl);
+
+        // 競合記事を取得
+        const competitorArticles = [];
+        for (const url of competitorUrls) {
+          try {
+            const content = await this.articleScraper.scrapeArticle(url);
+            competitorArticles.push(content);
+          } catch (error: any) {
+            console.error(
+              `[CompetitorAnalysis] Failed to scrape competitor ${url}:`,
+              error
+            );
+            // エラーが発生しても続行
+          }
+        }
+
+        if (competitorArticles.length > 0) {
+          // 基本的な差分分析
+          diffAnalysis = this.diffAnalyzer.analyze(ownArticle, competitorArticles);
+          console.log(
+            `[CompetitorAnalysis] Diff analysis complete: ${diffAnalysis.recommendations.length} recommendations`
+          );
+
+          // 意味レベルの差分分析（LLM APIが利用可能な場合）
+          if (LLMDiffAnalyzer.isAvailable() && prioritizedKeywords.length > 0) {
+            try {
+              const providerType = process.env.LLM_PROVIDER || "groq";
+              
+              // 各キーワードごとに分析を実行
+              const keywordSpecificAnalyses: LLMDiffAnalysisResult["keywordSpecificAnalysis"] = [];
+              let firstSemanticAnalysis: LLMDiffAnalysisResult["semanticAnalysis"] | undefined;
+
+              for (const prioritizedKeyword of prioritizedKeywords) {
+                try {
+                  console.log(
+                    `[CompetitorAnalysis] Starting semantic diff analysis with ${providerType.toUpperCase()} API for keyword: "${prioritizedKeyword.keyword}"`
+                  );
+
+                  // このキーワードに対応する競合URLを取得
+                  const keywordCompetitorUrls = competitorResults
+                    .find((result) => result.keyword === prioritizedKeyword.keyword)
+                    ?.competitors.map((comp) => comp.url)
+                    .slice(0, 3) || []; // 上位3サイトまで
+
+                  if (keywordCompetitorUrls.length === 0) {
+                    console.log(
+                      `[CompetitorAnalysis] No competitors found for keyword: "${prioritizedKeyword.keyword}", skipping analysis`
+                    );
+                    continue;
+                  }
+
+                  // このキーワードに対応する競合記事を取得
+                  const keywordCompetitorArticles = [];
+                  for (const url of keywordCompetitorUrls) {
+                    try {
+                      const content = await this.articleScraper.scrapeArticle(url);
+                      keywordCompetitorArticles.push(content);
+                    } catch (error: any) {
+                      console.error(
+                        `[CompetitorAnalysis] Failed to scrape competitor ${url} for keyword "${prioritizedKeyword.keyword}":`,
+                        error
+                      );
+                      // エラーが発生しても続行
+                    }
+                  }
+
+                  if (keywordCompetitorArticles.length === 0) {
+                    console.warn(
+                      `[CompetitorAnalysis] No competitor articles scraped for keyword: "${prioritizedKeyword.keyword}" (${keywordCompetitorUrls.length} URLs attempted), adding placeholder`
+                    );
+                    // 競合記事がスクレイピングできなかった場合でも、エラーメッセージを表示
+                    keywordSpecificAnalyses.push({
+                      keyword: prioritizedKeyword.keyword,
+                      whyRankingDropped: `競合記事の取得に失敗しました。競合URLは取得できましたが、記事内容のスクレイピングに失敗した可能性があります。`,
+                      whatToAdd: [],
+                    });
+                    continue;
+                  }
+
+                  // このキーワードで意味レベルの分析を実行
+                  const keywordAnalysis = await this.llmDiffAnalyzer.analyzeSemanticDiff(
+                    prioritizedKeyword.keyword,
+                    ownArticle,
+                    keywordCompetitorArticles
+                  );
+
+                  // 最初のキーワードのsemanticAnalysisを保存（全体の分析として使用）
+                  if (!firstSemanticAnalysis) {
+                    firstSemanticAnalysis = keywordAnalysis.semanticAnalysis;
+                  }
+
+                  // keywordSpecificAnalysisを追加
+                  if (keywordAnalysis.keywordSpecificAnalysis && keywordAnalysis.keywordSpecificAnalysis.length > 0) {
+                    keywordSpecificAnalyses.push(...keywordAnalysis.keywordSpecificAnalysis);
+                    console.log(
+                      `[CompetitorAnalysis] Added ${keywordAnalysis.keywordSpecificAnalysis.length} keyword-specific analysis items for "${prioritizedKeyword.keyword}"`
+                    );
+                  } else {
+                    console.warn(
+                      `[CompetitorAnalysis] No keyword-specific analysis items returned for "${prioritizedKeyword.keyword}" (LLM response may be invalid)`
+                    );
+                    // キーワード固有の分析結果が空の場合でも、空の結果を追加して表示されるようにする
+                    keywordSpecificAnalyses.push({
+                      keyword: prioritizedKeyword.keyword,
+                      whyRankingDropped: "LLM分析の結果が取得できませんでした。APIのレスポンス形式が不正な可能性があります。",
+                      whatToAdd: [],
+                    });
+                  }
+
+                  console.log(
+                    `[CompetitorAnalysis] Semantic diff analysis complete for keyword "${prioritizedKeyword.keyword}": ${keywordAnalysis.keywordSpecificAnalysis.length} keyword-specific items, total analyses: ${keywordSpecificAnalyses.length}`
+                  );
+                } catch (error: any) {
+                  console.error(
+                    `[CompetitorAnalysis] Semantic diff analysis failed for keyword "${prioritizedKeyword.keyword}":`,
+                    error
+                  );
+                  // エラーが発生した場合でも、空の結果を追加して表示されるようにする
+                  keywordSpecificAnalyses.push({
+                    keyword: prioritizedKeyword.keyword,
+                    whyRankingDropped: `分析中にエラーが発生しました: ${error.message || "Unknown error"}`,
+                    whatToAdd: [],
+                  });
+                  // エラーが発生しても次のキーワードの分析を続行
+                }
+              }
+
+              // すべての分析結果を統合
+              // すべてのキーワードの分析結果が含まれているか確認
+              console.log(
+                `[CompetitorAnalysis] Total keyword-specific analyses collected: ${keywordSpecificAnalyses.length}, expected: ${prioritizedKeywords.length}`
+              );
+              
+              // 分析結果が不足しているキーワードを確認
+              const analyzedKeywords = new Set(keywordSpecificAnalyses.map((a) => a.keyword));
+              for (const kw of prioritizedKeywords) {
+                if (!analyzedKeywords.has(kw.keyword)) {
+                  console.warn(
+                    `[CompetitorAnalysis] Missing analysis for keyword: "${kw.keyword}", adding placeholder`
+                  );
+                  keywordSpecificAnalyses.push({
+                    keyword: kw.keyword,
+                    whyRankingDropped: "分析結果が取得できませんでした。",
+                    whatToAdd: [],
+                  });
+                }
+              }
+
+              if (firstSemanticAnalysis && keywordSpecificAnalyses.length > 0) {
+                const semanticDiffAnalysis: LLMDiffAnalysisResult = {
+                  semanticAnalysis: firstSemanticAnalysis,
+                  keywordSpecificAnalysis: keywordSpecificAnalyses,
+                };
+
+                console.log(
+                  `[CompetitorAnalysis] All semantic diff analyses complete: ${keywordSpecificAnalyses.length} keyword-specific analyses for keywords: ${keywordSpecificAnalyses.map((a) => a.keyword).join(", ")}`
+                );
+
+                // クリーンアップ
+                await this.competitorExtractor.close();
+                await this.articleScraper.close();
+
+                return {
+                  prioritizedKeywords,
+                  competitorResults,
+                  uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
+                  diffAnalysis,
+                  semanticDiffAnalysis,
+                };
+              }
+            } catch (error: any) {
+              console.error("[CompetitorAnalysis] Semantic diff analysis failed:", error);
+              // 意味レベルの分析が失敗しても続行
+            }
+          }
+        }
+      } catch (error: any) {
+        console.error("[CompetitorAnalysis] Diff analysis failed:", error);
+        // 差分分析が失敗しても続行
+      }
+    }
+
     // クリーンアップ
     await this.competitorExtractor.close();
+    await this.articleScraper.close();
 
     return {
       prioritizedKeywords,
       competitorResults,
       uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
+      diffAnalysis,
+      semanticDiffAnalysis: undefined,
     };
   }
 
