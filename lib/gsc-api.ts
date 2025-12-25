@@ -150,7 +150,10 @@ export class GSCApiClient {
 export async function getGSCClient() {
   const session = await auth();
   if (!session?.accessToken) {
-    throw new Error("Not authenticated or access token not available");
+    throw new Error(
+      "認証が必要です。Googleアカウントでログインしてください。\n" +
+      "Not authenticated or access token not available. Please sign in with your Google account."
+    );
   }
   return new GSCApiClient(session.accessToken);
 }
