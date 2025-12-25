@@ -19,21 +19,37 @@
 1. ダッシュボードで「Add New...」→「Project」をクリック
 2. GitHubリポジトリを選択
 3. プロジェクト設定:
+   - **Project Name**: プロジェクト名を入力（既存のプロジェクト名と重複しないように）
+     - 例: `rerank-ai`, `rerank-ai-prod`, `rerank-ai-app` など
+     - **注意**: 既に同名のプロジェクトが存在する場合は、別の名前を選択してください
    - **Framework Preset**: Next.js（自動検出）
    - **Root Directory**: `./`（デフォルト）
    - **Build Command**: `npm run build`（デフォルト）
    - **Output Directory**: `.next`（デフォルト）
    - **Install Command**: `npm install`（デフォルト）
 
+**既存のプロジェクトを使用する場合**:
+- 既に同名のプロジェクトが存在する場合は、既存のプロジェクトを選択して使用することもできます
+- または、プロジェクト名を変更して新しいプロジェクトとして作成してください
+
 ### 1.3 環境変数を設定
+
+**重要**: ドメインをまだ取得していない場合でも、Vercelは自動的に `.vercel.app` のサブドメインを割り当てます。まずはそのURLを使って環境変数を設定し、後でドメインを取得したら更新します。
+
+#### デプロイ前の環境変数設定（ドメイン未取得の場合）
+
+1. **まずデプロイを実行**（環境変数なしでも可能）
+2. デプロイ完了後、Vercelが自動的に割り当てるURLを確認
+   - 例: `rerank-ai-xxxxx.vercel.app`
+3. そのURLを使って環境変数を設定
 
 「Environment Variables」セクションで以下を追加:
 
-#### 必須環境変数
-
 ```env
 # NextAuth.js
-NEXTAUTH_URL=https://your-domain.com
+# 注意: デプロイ後にVercelが割り当てるURLを使用
+# 例: NEXTAUTH_URL=https://rerank-ai-xxxxx.vercel.app
+NEXTAUTH_URL=https://your-project-name.vercel.app
 NEXTAUTH_SECRET=<openssl rand -base64 32で生成>
 GOOGLE_CLIENT_ID=<Google Cloud Consoleから取得>
 GOOGLE_CLIENT_SECRET=<Google Cloud Consoleから取得>
@@ -49,14 +65,34 @@ GEMINI_MODEL=gemini-2.0-flash-lite
 
 # Resend
 RESEND_API_KEY=<Resendから取得>
-RESEND_FROM_EMAIL=noreply@your-domain.com
+# ドメイン未取得の場合は、Resendの検証済みドメインを使用
+# または後で更新（Resendはドメイン検証が必要な場合あり）
+RESEND_FROM_EMAIL=noreply@your-verified-domain.com
 ```
 
-**注意**: 環境変数は「Production」「Preview」「Development」の3つの環境で設定できます。本番環境用は「Production」に設定してください。
+**環境変数の設定手順**:
+
+1. デプロイ後、Vercelダッシュボード → プロジェクト → Settings → Environment Variables
+2. 各環境変数を追加
+3. **重要**: `NEXTAUTH_URL` はデプロイ後に確認したVercelのURLを使用
+4. 環境を選択（Production / Preview / Development）
+5. 「Save」をクリック
+6. 環境変数を更新したら、再デプロイが必要な場合があります
+
+#### ドメイン取得後の更新手順
+
+1. ドメインを取得（Cloudflare等）
+2. Vercelでカスタムドメインを追加（ステップ2を参照）
+3. 環境変数を更新:
+   - `NEXTAUTH_URL`: カスタムドメインのURLに更新
+   - `RESEND_FROM_EMAIL`: カスタムドメインのメールアドレスに更新（Resendで検証後）
+4. Google OAuthのリダイレクトURIを更新（ステップ3を参照）
 
 ### 1.4 デプロイ
 
 「Deploy」ボタンをクリックしてデプロイを開始
+
+**注意**: 初回デプロイ時は環境変数が設定されていなくてもデプロイは可能です。デプロイ後に環境変数を設定し、必要に応じて再デプロイしてください。
 
 ---
 
