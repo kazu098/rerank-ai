@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReRank AI - MVPデモ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.9); }
+        .tab-active { border-bottom: 2px solid #764ba2; color: #764ba2; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans text-gray-900">
+
+    <div class="max-w-4xl mx-auto py-12 px-4">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-4">ReRank AI <span class="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP Demo</span></h1>
+            <p class="text-gray-600 italic">「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。</p>
+        </header>
+
+        <div class="card p-8 rounded-2xl shadow-xl mb-8 border border-purple-200">
+            <div class="flex border-b mb-6 text-sm font-bold text-gray-400">
+                <button class="pb-2 mr-6 tab-active">下落を検知して修正</button>
+                <button class="pb-2 mr-6">現状の順位を上げる</button>
+                <button class="pb-2">新規記事の構成を作る</button>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-gray-700 mb-2">分析したい記事のURL</label>
+                <input id="target-url" type="text" value="https://mia-cat.com/blog/poketomo-review/" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+            </div>
+            
+            <button onclick="simulateProcess()" id="start-btn" class="w-full gradient-bg text-white font-bold py-4 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center">
+                <span id="btn-text">AIによる差分スキャンを開始</span>
+                <div id="loader" class="hidden ml-3 animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            </button>
+        </div>
+
+        <!-- タイムライン・プロセス -->
+        <div id="process-log" class="hidden space-y-4 mb-8 text-sm text-gray-500 bg-white p-6 rounded-xl border">
+            <p id="log-1" class="flex items-center">○ GSCデータからキーワード「ポケトモ デメリット」を特定...</p>
+            <p id="log-2" class="flex items-center hidden">○ 現在の順位は15位。上位1〜3位の記事との構造比較を開始...</p>
+            <p id="log-3" class="flex items-center hidden">○ 競合記事に共通する「独自の悩み解決」セクションの欠落を特定...</p>
+            <p id="log-4" class="flex items-center hidden">○ AIが1位を奪取するための追記コンテンツを生成しました。</p>
+        </div>
+
+        <!-- 結果：現状低迷からの引き上げ案 -->
+        <div id="result-card" class="hidden animate-bounce-in">
+            <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-purple-500">
+                <div class="bg-purple-600 text-white p-4 flex items-center justify-between shadow-inner">
+                    <span class="font-bold">🚀 ランクアップ・ブースター案</span>
+                    <span class="text-xs bg-white text-purple-600 px-2 py-1 rounded font-bold">15位 → 3位以内を目指す</span>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center mb-6 text-purple-700 font-bold p-3 bg-purple-50 rounded-lg border border-purple-100">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        チャンス：上位記事と比較して「ユーザーのリアルな不満への回答」が不足しています。
+                    </div>
+
+                    <h3 class="font-bold text-lg mb-4 text-gray-800 border-l-4 border-purple-500 pl-3">AIの分析結果</h3>
+                    <p class="text-gray-600 mb-6 leading-relaxed text-sm">
+                        現在の15位から上位に上がるためには、スペック比較だけでなく<b>「実際に使ってみてわかったデメリットの解消法」</b>を構造化して記述する必要があります。上位サイトは「サポートの遅延」や「音声感度」について詳しく触れています。
+                    </p>
+
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-gray-400 uppercase">以下の「デメリット解消法」を追記してください</span>
+                            <button class="text-xs text-purple-600 font-bold hover:underline" onclick="copyCode()">コピー</button>
+                        </div>
+                        <pre id="rewrite-code" class="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+### 実際にわかったデメリットと賢い解決策
+
+ポケともを導入する前に知っておきたい「注意点」と、その対策をまとめました。
+
+1. **周囲の音を拾いすぎる**
+   - **対策:** テレビの近くを避け、マナースイッチを活用しましょう。
+2. **サポートの返信が遅い場合がある**
+   - **対策:** 公式の「使いこなしサポート」ページに、主要なQ&Aが網羅されています。
+3. **会話回数に制限がある**
+   - **対策:** 1日13回以上の会話を予定しているなら、最初からプレミアムプラン（月990円）を選ぶのがお得です。
+                        </pre>
+                    </div>
+                    
+                    <button class="mt-8 w-full gradient-bg text-white font-bold py-4 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center">
+                        修正内容をワンクリックで記事に反映（β）
+                    </button>
+                    <p class="text-center text-xs text-gray-400 mt-4">※WordPress API連携が必要です</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function simulateProcess() {
+            const btn = document.getElementById('start-btn');
+            const loader = document.getElementById('loader');
+            const log = document.getElementById('process-log');
+            const result = document.getElementById('result-card');
+
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+            log.classList.remove('hidden');
+
+            const steps = [
+                {id: 'log-1', delay: 1200},
+                {id: 'log-2', delay: 2800},
+                {id: 'log-3', delay: 4800},
+                {id: 'log-4', delay: 6500},
+            ];
+
+            steps.forEach(step => {
+                setTimeout(() => {
+                    const el = document.getElementById(step.id);
+                    el.classList.remove('hidden', 'text-gray-500');
+                    el.classList.add('text-green-600', 'font-bold');
+                    el.innerHTML = '<span class="mr-2">✓</span>' + el.innerText.substring(2);
+                }, step.delay);
+            });
+
+            setTimeout(() => {
+                result.classList.remove('hidden');
+                loader.classList.add('hidden');
+                btn.classList.add('hidden');
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }, 7200);
+        }
+
+        function copyCode() {
+            const text = document.getElementById('rewrite-code').innerText;
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            alert('コピーしました！');
+        }
+    </script>
+</body>
+</html>
+
