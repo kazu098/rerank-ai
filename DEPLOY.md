@@ -7,30 +7,51 @@
 - [ ] Cloudflareアカウントを作成済み（ドメイン管理用）
 - [ ] ドメインを取得済み（または取得予定）
 
-## ステップ1: Vercelでプロジェクトを作成
+## ステップ1: Vercelでプロジェクトを設定
 
-### 1.1 Vercelにログイン
+### 1.1 既存プロジェクトの整理
 
-1. [Vercel](https://vercel.com/) にアクセス
-2. GitHubアカウントでログイン
+**重要**: 複数のプロジェクトが作成されている場合は、1つに統一してください。
 
-### 1.2 プロジェクトをインポート
+推奨: **`rerank-ai`** を本番環境として使用
 
-1. ダッシュボードで「Add New...」→「Project」をクリック
-2. GitHubリポジトリを選択
-3. プロジェクト設定:
-   - **Project Name**: プロジェクト名を入力（既存のプロジェクト名と重複しないように）
-     - 例: `rerank-ai`, `rerank-ai-prod`, `rerank-ai-app` など
-     - **注意**: 既に同名のプロジェクトが存在する場合は、別の名前を選択してください
-   - **Framework Preset**: Next.js（自動検出）
-   - **Root Directory**: `./`（デフォルト）
-   - **Build Command**: `npm run build`（デフォルト）
-   - **Output Directory**: `.next`（デフォルト）
-   - **Install Command**: `npm install`（デフォルト）
+**不要なプロジェクトの削除**:
+1. Vercelダッシュボードで各プロジェクトを開く
+2. Settings → General → Delete Project
+3. 以下のプロジェクトは削除を検討:
+   - `rerank-ai-9wg6`
+   - `rerank-ai-app`
+   - `rerank-ai-notm`
+   - `rerank-ai-prd`
+   - `rerank-ai-production`
 
-**既存のプロジェクトを使用する場合**:
-- 既に同名のプロジェクトが存在する場合は、既存のプロジェクトを選択して使用することもできます
-- または、プロジェクト名を変更して新しいプロジェクトとして作成してください
+
+### 1.2 GitHub連携の設定（自動デプロイ用）
+
+**`rerank-ai` プロジェクトで以下を設定**:
+
+1. **Settings → Git**
+   - Connected Git Repository: `kazu098/rerank-ai` が連携されているか確認
+   - 連携されていない場合:
+     - 「Connect Git Repository」をクリック
+     - GitHubリポジトリ `kazu098/rerank-ai` を選択
+     - 権限を付与
+   - Production Branch: `main` に設定
+   - Preview Branches: すべてのブランチ（デフォルト）
+
+2. **自動デプロイの動作**:
+   - **PR作成時**: プレビューデプロイが自動的に作成され、PRにコメントとしてプレビューURLが追加されます
+   - **mainブランチへのマージ時**: 本番デプロイが自動的に実行されます
+
+### 1.3 プロジェクト設定の確認
+
+1. **Settings → General**
+   - Project Name: `rerank-ai`（変更不要）
+   - Framework Preset: Next.js（自動検出）
+   - Root Directory: `./`（デフォルト）
+   - Build Command: `npm run build`（デフォルト）
+   - Output Directory: `.next`（デフォルト）
+   - Install Command: `npm install`（デフォルト）
 
 ### 1.3 環境変数を設定
 
@@ -72,12 +93,20 @@ RESEND_FROM_EMAIL=noreply@your-verified-domain.com
 
 **環境変数の設定手順**:
 
-1. デプロイ後、Vercelダッシュボード → プロジェクト → Settings → Environment Variables
+1. Vercelダッシュボード → プロジェクト → Settings → Environment Variables
 2. 各環境変数を追加
 3. **重要**: `NEXTAUTH_URL` はデプロイ後に確認したVercelのURLを使用
-4. 環境を選択（Production / Preview / Development）
+4. **環境を選択**:
+   - **Production**: mainブランチの本番デプロイ用
+   - **Preview**: PRのプレビューデプロイ用
+   - **Development**: ローカル開発用（通常は設定不要）
 5. 「Save」をクリック
 6. 環境変数を更新したら、再デプロイが必要な場合があります
+
+**注意**: 
+- Production環境とPreview環境で異なる環境変数を設定できます
+- PRのプレビューデプロイでは、Preview環境の環境変数が使用されます
+- 本番デプロイでは、Production環境の環境変数が使用されます
 
 #### ドメイン取得後の更新手順
 
