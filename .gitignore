@@ -27,6 +27,8 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+# .env.production はテンプレートとしてGitにコミットする（実際の値は含めない）
+!.env.production
 
 # vercel
 .vercel
