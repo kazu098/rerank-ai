@@ -19,11 +19,18 @@
 1. ダッシュボードで「Add New...」→「Project」をクリック
 2. GitHubリポジトリを選択
 3. プロジェクト設定:
+   - **Project Name**: プロジェクト名を入力（既存のプロジェクト名と重複しないように）
+     - 例: `rerank-ai`, `rerank-ai-prod`, `rerank-ai-app` など
+     - **注意**: 既に同名のプロジェクトが存在する場合は、別の名前を選択してください
    - **Framework Preset**: Next.js（自動検出）
    - **Root Directory**: `./`（デフォルト）
    - **Build Command**: `npm run build`（デフォルト）
    - **Output Directory**: `.next`（デフォルト）
    - **Install Command**: `npm install`（デフォルト）
+
+**既存のプロジェクトを使用する場合**:
+- 既に同名のプロジェクトが存在する場合は、既存のプロジェクトを選択して使用することもできます
+- または、プロジェクト名を変更して新しいプロジェクトとして作成してください
 
 ### 1.3 環境変数を設定
 
