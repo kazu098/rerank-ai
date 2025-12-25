@@ -26,6 +26,21 @@ export interface CompetitorAnalysisSummary {
   uniqueCompetitorUrls: string[];
   diffAnalysis?: DiffAnalysisResult; // 基本的な差分分析結果（オプション）
   semanticDiffAnalysis?: LLMDiffAnalysisResult; // 意味レベルの差分分析結果（オプション）
+  topRankingKeywords?: Array<{
+    keyword: string;
+    position: number;
+    impressions: number;
+    clicks: number;
+  }>; // 上位を保てているキーワード（1-5位）
+  keywordTimeSeries?: Array<{
+    keyword: string;
+    data: Array<{
+      date: string;
+      position: number;
+      impressions: number;
+      clicks: number;
+    }>;
+  }>; // キーワードの時系列データ（グラフ用）
 }
 
 /**
@@ -459,12 +474,67 @@ export class CompetitorAnalyzer {
                 await this.competitorExtractor.close();
                 await this.articleScraper.close();
 
+                // 上位を保てているキーワードを抽出（1-5位）
+                const topRankingKeywords = keywordList
+                  .filter((kw) => kw.position >= 1 && kw.position <= 5 && kw.impressions >= 10)
+                  .sort((a, b) => a.position - b.position)
+                  .slice(0, 5)
+                  .map((kw) => ({
+                    keyword: kw.keyword,
+                    position: kw.position,
+                    impressions: kw.impressions,
+                    clicks: kw.clicks,
+                  }));
+
+                // 選定されたキーワードの時系列データを取得（グラフ用）
+                let keywordTimeSeries: CompetitorAnalysisSummary["keywordTimeSeries"] = [];
+                try {
+                  const selectedKeywords = prioritizedKeywords.map((kw) => kw.keyword);
+                  const timeSeriesData = await client.getKeywordTimeSeriesData(
+                    siteUrl,
+                    pageUrl,
+                    startDate,
+                    endDate,
+                    selectedKeywords
+                  );
+
+                  // キーワードごとに時系列データをグループ化
+                  const timeSeriesMap = new Map<string, Array<{ date: string; position: number; impressions: number; clicks: number }>>();
+                  
+                  for (const row of timeSeriesData.rows) {
+                    const keyword = row.keys[1]; // keys[0] = date, keys[1] = query
+                    const date = row.keys[0];
+                    
+                    if (!timeSeriesMap.has(keyword)) {
+                      timeSeriesMap.set(keyword, []);
+                    }
+                    
+                    timeSeriesMap.get(keyword)!.push({
+                      date,
+                      position: row.position,
+                      impressions: row.impressions,
+                      clicks: row.clicks,
+                    });
+                  }
+
+                  // 日付順にソート
+                  for (const [keyword, data] of timeSeriesMap.entries()) {
+                    data.sort((a, b) => a.date.localeCompare(b.date));
+                    keywordTimeSeries.push({ keyword, data });
+                  }
+                } catch (error: any) {
+                  console.error("[CompetitorAnalysis] Failed to get keyword time series data:", error);
+                  // 時系列データの取得に失敗しても続行
+                }
+
                 return {
                   prioritizedKeywords,
                   competitorResults,
                   uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
                   diffAnalysis,
                   semanticDiffAnalysis,
+                  topRankingKeywords: topRankingKeywords.length > 0 ? topRankingKeywords : undefined,
+                  keywordTimeSeries: keywordTimeSeries.length > 0 ? keywordTimeSeries : undefined,
                 };
               }
             } catch (error: any) {
@@ -479,6 +549,61 @@ export class CompetitorAnalyzer {
       }
     }
 
+    // 上位を保てているキーワードを抽出（1-5位）
+    const topRankingKeywords = keywordList
+      .filter((kw) => kw.position >= 1 && kw.position <= 5 && kw.impressions >= 10)
+      .sort((a, b) => a.position - b.position)
+      .slice(0, 5)
+      .map((kw) => ({
+        keyword: kw.keyword,
+        position: kw.position,
+        impressions: kw.impressions,
+        clicks: kw.clicks,
+      }));
+
+    // 選定されたキーワードの時系列データを取得（グラフ用）
+    let keywordTimeSeries: CompetitorAnalysisSummary["keywordTimeSeries"] = [];
+    if (prioritizedKeywords.length > 0) {
+      try {
+        const selectedKeywords = prioritizedKeywords.map((kw) => kw.keyword);
+        const timeSeriesData = await client.getKeywordTimeSeriesData(
+          siteUrl,
+          pageUrl,
+          startDate,
+          endDate,
+          selectedKeywords
+        );
+
+        // キーワードごとに時系列データをグループ化
+        const timeSeriesMap = new Map<string, Array<{ date: string; position: number; impressions: number; clicks: number }>>();
+        
+        for (const row of timeSeriesData.rows) {
+          const keyword = row.keys[1]; // keys[0] = date, keys[1] = query
+          const date = row.keys[0];
+          
+          if (!timeSeriesMap.has(keyword)) {
+            timeSeriesMap.set(keyword, []);
+          }
+          
+          timeSeriesMap.get(keyword)!.push({
+            date,
+            position: row.position,
+            impressions: row.impressions,
+            clicks: row.clicks,
+          });
+        }
+
+        // 日付順にソート
+        for (const [keyword, data] of timeSeriesMap.entries()) {
+          data.sort((a, b) => a.date.localeCompare(b.date));
+          keywordTimeSeries.push({ keyword, data });
+        }
+      } catch (error: any) {
+        console.error("[CompetitorAnalysis] Failed to get keyword time series data:", error);
+        // 時系列データの取得に失敗しても続行
+      }
+    }
+
     // クリーンアップ
     await this.competitorExtractor.close();
     await this.articleScraper.close();
@@ -489,6 +614,8 @@ export class CompetitorAnalyzer {
       uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
       diffAnalysis,
       semanticDiffAnalysis: undefined,
+      topRankingKeywords: topRankingKeywords.length > 0 ? topRankingKeywords : undefined,
+      keywordTimeSeries: keywordTimeSeries.length > 0 ? keywordTimeSeries : undefined,
     };
   }
 

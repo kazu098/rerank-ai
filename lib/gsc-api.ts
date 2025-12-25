@@ -71,6 +71,41 @@ export class GSCApiClient {
   }
 
   /**
+   * キーワードの時系列データを取得（グラフ用）
+   * date + queryのdimensionsで取得
+   */
+  async getKeywordTimeSeriesData(
+    siteUrl: string,
+    pageUrl: string,
+    startDate: string,
+    endDate: string,
+    keywords?: string[] // 特定のキーワードのみ取得する場合
+  ): Promise<GSCResponse> {
+    const params: GSCQueryParams = {
+      startDate,
+      endDate,
+      dimensions: ["date", "query"],
+      rowLimit: 10000, // 時系列データは多めに取得
+    };
+
+    // 特定のキーワードのみ取得する場合のフィルタ
+    if (keywords && keywords.length > 0) {
+      params.dimensionFilterGroups = [
+        {
+          filters: keywords.map((keyword) => ({
+            dimension: "query",
+            expression: keyword,
+            operator: "equals",
+          })),
+          groupType: "or",
+        },
+      ];
+    }
+
+    return this.query(siteUrl, params, pageUrl);
+  }
+
+  /**
    * GSC APIにクエリを送信
    */
   private async query(
