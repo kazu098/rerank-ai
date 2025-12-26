@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { getOrCreateUser, getUserByEmail } from "@/lib/db/users";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -14,13 +15,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, account, trigger }) {
+    async jwt({ token, account, user, trigger }) {
       // 初回ログイン時にアクセストークンを保存
-      if (account) {
+      if (account && user) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000; // ミリ秒に変換
-        console.log("[Auth] New token received, expires at:", new Date(token.expiresAt as number));
+        
+        // ユーザー情報をDBに保存
+        if (user.email) {
+          try {
+            const dbUser = await getOrCreateUser(
+              user.email,
+              user.name || null,
+              account.provider,
+              account.providerAccountId
+            );
+            token.userId = dbUser.id;
+          } catch (error) {
+            console.error("[Auth] Failed to save user to database:", error);
+            // エラーが発生してもログインは続行
+          }
+        }
+        
         return token;
       }
 
@@ -36,7 +53,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // トークンが期限切れまたは期限切れ間近の場合、リフレッシュ
       if (token.refreshToken) {
         try {
-          console.log("[Auth] Token expired or expiring soon, refreshing...");
           const response = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
             headers: {
@@ -54,7 +70,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const refreshedTokens = await response.json();
             token.accessToken = refreshedTokens.access_token;
             token.expiresAt = Date.now() + (refreshedTokens.expires_in * 1000);
-            console.log("[Auth] Access token refreshed successfully, new expiry:", new Date(token.expiresAt as number));
             
             // リフレッシュトークンが更新された場合は保存
             if (refreshedTokens.refresh_token) {
@@ -74,16 +89,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.refreshToken = null;
           token.expiresAt = null;
         }
-      } else {
-        console.warn("[Auth] No refresh token available, token may expire");
       }
 
       return token;
     },
     async session({ session, token }) {
-      // セッションにアクセストークンを追加
+      // セッションにアクセストークンとユーザーIDを追加
       if (token) {
         session.accessToken = token.accessToken as string;
+        
+        // userIdが設定されていない場合、メールアドレスから取得
+        if (!token.userId && session.user?.email) {
+          try {
+            const dbUser = await getUserByEmail(session.user.email);
+            if (dbUser) {
+              token.userId = dbUser.id;
+              session.userId = dbUser.id;
+            }
+          } catch (error) {
+            console.error("[Auth] Failed to get user from database:", error);
+          }
+        } else {
+          session.userId = token.userId as string | undefined;
+        }
       }
       return session;
     },
