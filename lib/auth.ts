@@ -96,7 +96,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       // セッションにアクセストークンとユーザーIDを追加
       if (token) {
-        session.accessToken = token.accessToken as string;
+        if (token.accessToken) {
+          (session as any).accessToken = token.accessToken;
+        }
         
         // userIdが設定されていない場合、メールアドレスから取得
         if (!token.userId && session.user?.email) {
@@ -104,13 +106,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const dbUser = await getUserByEmail(session.user.email);
             if (dbUser) {
               token.userId = dbUser.id;
-              session.userId = dbUser.id;
+              (session as any).userId = dbUser.id;
             }
           } catch (error) {
             console.error("[Auth] Failed to get user from database:", error);
           }
-        } else {
-          session.userId = token.userId as string | undefined;
+        } else if (token.userId) {
+          (session as any).userId = token.userId;
         }
       }
       return session;
