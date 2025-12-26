@@ -136,6 +136,7 @@ export default function Home() {
   const [selectedSiteUrl, setSelectedSiteUrl] = useState<string | null>(null);
   const [loadingProperties, setLoadingProperties] = useState(false);
   const [showPropertySelection, setShowPropertySelection] = useState(false);
+  const [propertiesLoaded, setPropertiesLoaded] = useState(false);
 
   // プロセスログを1項目ずつ順番に表示（ポーリング方式）
   useEffect(() => {
@@ -148,6 +149,7 @@ export default function Home() {
   }, [processLog, displayedLogIndex, loading]);
 
   const loadGSCProperties = async () => {
+    if (propertiesLoaded) return; // 既に読み込み済みの場合はスキップ
     setLoadingProperties(true);
     setError(null);
     try {
@@ -156,6 +158,7 @@ export default function Home() {
       if (response.ok) {
         const result = await response.json();
         setGscProperties(result.properties || []);
+        setPropertiesLoaded(true); // 読み込み完了フラグを設定
         if (result.properties && result.properties.length > 0) {
           setShowPropertySelection(true);
         }
@@ -226,11 +229,11 @@ export default function Home() {
 
   // GSCプロパティ一覧を取得
   useEffect(() => {
-    if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties) {
+    if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
       loadGSCProperties();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session?.accessToken, selectedSiteUrl, loadingProperties]);
+  }, [status, session?.accessToken, selectedSiteUrl]);
 
   // ローカルストレージから選択済みプロパティを読み込む
   useEffect(() => {
