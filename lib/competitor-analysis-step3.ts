@@ -1,6 +1,6 @@
 import { ArticleScraper } from "./article-scraper";
-import { DiffAnalyzer } from "./diff-analyzer";
-import { LLMDiffAnalyzer } from "./llm-diff-analyzer";
+import { DiffAnalyzer, type DiffAnalysisResult } from "./diff-analyzer";
+import { LLMDiffAnalyzer, type LLMDiffAnalysisResult } from "./llm-diff-analyzer";
 import type { Step1Result, Step2Result, Step3Result } from "./competitor-analysis";
 
 /**
