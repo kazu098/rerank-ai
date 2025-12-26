@@ -42,6 +42,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("Error analyzing competitors:", error);
+    
+    // Vercelのタイムアウトエラーを検出
+    if (error.message?.includes("timeout") || error.message?.includes("Task timed out")) {
+      return NextResponse.json(
+        { 
+          error: "処理がタイムアウトしました。分析に時間がかかりすぎています。",
+          hint: "maxKeywordsやmaxCompetitorsPerKeywordを減らすか、しばらく時間をおいて再度お試しください。"
+        },
+        { status: 504 }
+      );
+    }
+    
     return NextResponse.json(
       { error: error.message || "Failed to analyze competitors" },
       { status: 500 }

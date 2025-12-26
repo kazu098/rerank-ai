@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "app/api/competitors/analyze/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
+
