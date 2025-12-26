@@ -113,8 +113,17 @@ export class GSCApiClient {
     params: GSCQueryParams,
     pageUrl?: string
   ): Promise<GSCResponse> {
-    // サイトURLの末尾にスラッシュを追加（OAuth Playgroundの形式に合わせる）
-    const normalizedSiteUrl = siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`;
+    // サイトURLの正規化
+    // sc-domain:で始まるドメインプロパティは末尾にスラッシュを付けない
+    // https://で始まるURLプロパティは末尾にスラッシュを追加
+    let normalizedSiteUrl: string;
+    if (siteUrl.startsWith("sc-domain:")) {
+      // ドメインプロパティの場合、末尾のスラッシュを削除
+      normalizedSiteUrl = siteUrl.replace(/\/$/, "");
+    } else {
+      // URLプロパティの場合、末尾にスラッシュを追加
+      normalizedSiteUrl = siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`;
+    }
     // OAuth Playgroundの形式: /sites/https%3A%2F%2Fmia-cat.com%2F/searchAnalytics/query
     const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
       normalizedSiteUrl
@@ -131,9 +140,15 @@ export class GSCApiClient {
       // ページURLが相対パスの場合、完全なURL形式に変換
       let normalizedPageUrl = pageUrl;
       if (pageUrl.startsWith("/")) {
-        // サイトURLからプロトコルとドメインを抽出
-        const siteUrlWithoutSlash = normalizedSiteUrl.replace(/\/$/, "");
-        normalizedPageUrl = `${siteUrlWithoutSlash}${pageUrl}`;
+        // sc-domain:の場合は、https://形式に変換してから結合
+        if (normalizedSiteUrl.startsWith("sc-domain:")) {
+          const domain = normalizedSiteUrl.replace("sc-domain:", "");
+          normalizedPageUrl = `https://${domain}${pageUrl}`;
+        } else {
+          // URLプロパティの場合、末尾のスラッシュを削除して結合
+          const siteUrlWithoutSlash = normalizedSiteUrl.replace(/\/$/, "");
+          normalizedPageUrl = `${siteUrlWithoutSlash}${pageUrl}`;
+        }
       }
       
       requestBody.dimensionFilterGroups = [
