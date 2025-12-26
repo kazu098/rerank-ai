@@ -108,6 +108,64 @@ export default function Home() {
     }
   }, [processLog, displayedLogIndex, loading]);
 
+  const loadGSCProperties = async () => {
+    setLoadingProperties(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/gsc/properties");
+      if (response.ok) {
+        const result = await response.json();
+        setGscProperties(result.properties || []);
+        if (result.properties && result.properties.length > 0) {
+          setShowPropertySelection(true);
+        }
+      } else {
+        const error = await response.json();
+        // トークン期限切れの場合は再ログインを促す
+        if (error.code === "TOKEN_EXPIRED" || response.status === 401) {
+          setError(
+            error.error || "認証トークンが期限切れです。再度ログインしてください。"
+          );
+          // セッションをクリアして再ログインを促す
+          setTimeout(() => {
+            signOut({ callbackUrl: "/" });
+          }, 2000);
+        } else {
+          setError(error.error || "プロパティの取得に失敗しました");
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "プロパティの取得中にエラーが発生しました");
+    } finally {
+      setLoadingProperties(false);
+    }
+  };
+
+  const handleSelectProperty = (siteUrl: string) => {
+    setSelectedSiteUrl(siteUrl);
+    setShowPropertySelection(false);
+    // ローカルストレージに保存（次回アクセス時に使用）
+    localStorage.setItem("selectedGSCSiteUrl", siteUrl);
+  };
+
+  // GSCプロパティ一覧を取得
+  useEffect(() => {
+    if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties) {
+      loadGSCProperties();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+  // ローカルストレージから選択済みプロパティを読み込む
+  useEffect(() => {
+    if (status === "authenticated") {
+      const savedSiteUrl = localStorage.getItem("selectedGSCSiteUrl");
+      if (savedSiteUrl) {
+        setSelectedSiteUrl(savedSiteUrl);
+      }
+    }
+  }, [status]);
+
   const startAnalysis = async () => {
     setLoading(true);
     setError(null);
@@ -146,36 +204,67 @@ export default function Home() {
       // 分析実行（段階的に実行）
       
       // Step 1: GSCデータ取得 + キーワード選定
-        setProcessLog((prev) => [...prev, "記事の検索順位データを取得中..."]);
-        const step1Response = await fetch("/api/competitors/analyze-step1", {
+      setProcessLog((prev) => [...prev, "記事の検索順位データを取得中..."]);
+      const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            siteUrl,
-            pageUrl,
-            maxKeywords,
-          }),
-        });
+        body: JSON.stringify({
+          siteUrl,
+          pageUrl,
+          maxKeywords,
+        }),
+      });
 
-        if (!step1Response.ok) {
-          const errorData = await step1Response.json();
-          throw new Error(errorData.error || "Step 1に失敗しました");
-        }
+      if (!step1Response.ok) {
+        const errorData = await step1Response.json();
+        throw new Error(errorData.error || "Step 1に失敗しました");
+      }
 
-        const step1Result = await step1Response.json();
-        // Step 1の結果をすぐに表示
-        setData({
-          ...step1Result,
-          competitorResults: [],
-          uniqueCompetitorUrls: [],
-        });
-        setProcessLog((prev) => [...prev, "✓ キーワード選定が完了しました"]);
+      const step1Result = await step1Response.json();
+      // Step 1の結果をすぐに表示
+      setData({
+        ...step1Result,
+        competitorResults: [],
+        uniqueCompetitorUrls: [],
+      });
+      setProcessLog((prev) => [...prev, "✓ キーワード選定が完了しました"]);
 
-        // Step 2: 競合URL抽出
-        setProcessLog((prev) => [...prev, "競合サイトのURLを収集中..."]);
-        const step2Response = await fetch("/api/competitors/analyze-step2", {
+      // Step 2: 競合URL抽出
+      setProcessLog((prev) => [...prev, "競合サイトのURLを収集中..."]);
+      const step2Response = await fetch("/api/competitors/analyze-step2", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          siteUrl,
+          pageUrl,
+          prioritizedKeywords: step1Result.prioritizedKeywords,
+          maxCompetitorsPerKeyword,
+        }),
+      });
+
+      if (!step2Response.ok) {
+        const errorData = await step2Response.json();
+        throw new Error(errorData.error || "Step 2に失敗しました");
+      }
+
+      const step2Result = await step2Response.json();
+      // Step 2の結果を更新
+      setData((prev: any) => ({
+        ...prev,
+        ...step2Result,
+      }));
+      setProcessLog((prev) => [...prev, "✓ 競合URL抽出が完了しました"]);
+
+      // Step 3: 記事スクレイピング + LLM分析
+      if (step2Result.uniqueCompetitorUrls.length > 0) {
+        setProcessLog((prev) => [...prev, "競合記事の内容を読み込み中..."]);
+        setProcessLog((prev) => [...prev, "AIが記事の差分を分析中..."]);
+        
+        const step3Response = await fetch("/api/competitors/analyze-step3", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -184,62 +273,31 @@ export default function Home() {
             siteUrl,
             pageUrl,
             prioritizedKeywords: step1Result.prioritizedKeywords,
-            maxCompetitorsPerKeyword,
+            competitorResults: step2Result.competitorResults,
+            uniqueCompetitorUrls: step2Result.uniqueCompetitorUrls,
+            skipLLMAnalysis: false,
           }),
         });
 
-        if (!step2Response.ok) {
-          const errorData = await step2Response.json();
-          throw new Error(errorData.error || "Step 2に失敗しました");
-        }
-
-        const step2Result = await step2Response.json();
-        // Step 2の結果を更新
-        setData((prev: any) => ({
-          ...prev,
-          ...step2Result,
-        }));
-        setProcessLog((prev) => [...prev, "✓ 競合URL抽出が完了しました"]);
-
-        // Step 3: 記事スクレイピング + LLM分析
-        if (step2Result.uniqueCompetitorUrls.length > 0) {
-          setProcessLog((prev) => [...prev, "競合記事の内容を読み込み中..."]);
-          setProcessLog((prev) => [...prev, "AIが記事の差分を分析中..."]);
-          
-          const step3Response = await fetch("/api/competitors/analyze-step3", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              siteUrl,
-              pageUrl,
-              prioritizedKeywords: step1Result.prioritizedKeywords,
-              competitorResults: step2Result.competitorResults,
-              uniqueCompetitorUrls: step2Result.uniqueCompetitorUrls,
-              skipLLMAnalysis: false,
-            }),
-          });
-
-          if (!step3Response.ok) {
-            const errorData = await step3Response.json();
-            // Step 3が失敗しても、Step 1とStep 2の結果は表示
-            console.error("Step 3 failed:", errorData);
-            setProcessLog((prev) => [...prev, `⚠ Step 3でエラー: ${errorData.error || "分析に失敗しました"}`]);
-          } else {
-            const step3Result = await step3Response.json();
-            // Step 3の結果を更新
-            setData((prev: any) => ({
-              ...prev,
-              ...step3Result,
-            }));
-            setProcessLog((prev) => [...prev, "✓ 改善提案の生成が完了しました"]);
-          }
+        if (!step3Response.ok) {
+          const errorData = await step3Response.json();
+          // Step 3が失敗しても、Step 1とStep 2の結果は表示
+          console.error("Step 3 failed:", errorData);
+          setProcessLog((prev) => [...prev, `⚠ Step 3でエラー: ${errorData.error || "分析に失敗しました"}`]);
         } else {
-          setProcessLog((prev) => [...prev, "⚠ 競合URLが取得できなかったため、Step 3をスキップしました"]);
+          const step3Result = await step3Response.json();
+          // Step 3の結果を更新
+          setData((prev: any) => ({
+            ...prev,
+            ...step3Result,
+          }));
+          setProcessLog((prev) => [...prev, "✓ 改善提案の生成が完了しました"]);
         }
+      } else {
+        setProcessLog((prev) => [...prev, "⚠ 競合URLが取得できなかったため、Step 3をスキップしました"]);
+      }
 
-        setProcessLog((prev) => [...prev, "✓ 分析が完了しました"]);
+      setProcessLog((prev) => [...prev, "✓ 分析が完了しました"]);
     } catch (err: any) {
       setError(err.message);
       setProcessLog((prev) => [...prev, `✗ エラー: ${err.message}`]);
@@ -414,6 +472,108 @@ export default function Home() {
           </p>
         </header>
 
+        {/* GSCプロパティ選択画面 */}
+        {showPropertySelection && !selectedSiteUrl && (
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-purple-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Search Consoleプロパティを選択
+            </h2>
+            <p className="text-gray-600 mb-6">
+              分析したいサイトのSearch Consoleプロパティを選択してください。
+            </p>
+
+            {loadingProperties ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                <p className="mt-4 text-gray-600">プロパティを取得中...</p>
+              </div>
+            ) : gscProperties.length === 0 ? (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">
+                      Search Consoleプロパティが見つかりませんでした
+                    </h3>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <p className="mb-2">
+                        このGoogleアカウントには、Search Consoleプロパティへのアクセス権限がありません。
+                      </p>
+                      <p>
+                        <strong>解決方法:</strong>
+                      </p>
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Search Consoleでサイトを追加する</li>
+                        <li>既存のプロパティにアクセス権限を付与してもらう</li>
+                        <li>プロパティにアクセス権限がある別のGoogleアカウントでログインする</li>
+                      </ul>
+                      <a 
+                        href="https://search.google.com/search-console" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="mt-3 inline-block text-purple-600 hover:underline font-semibold"
+                      >
+                        Search Consoleを開く →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {gscProperties.map((property: any) => (
+                  <button
+                    key={property.siteUrl}
+                    onClick={() => handleSelectProperty(property.siteUrl)}
+                    className="w-full text-left p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-900">{property.siteUrl}</p>
+                        {property.permissionLevel && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            権限: {property.permissionLevel}
+                          </p>
+                        )}
+                      </div>
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 選択済みプロパティの表示 */}
+        {selectedSiteUrl && (
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-green-800">
+                  選択中のプロパティ: {selectedSiteUrl}
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedSiteUrl(null);
+                    setShowPropertySelection(true);
+                    localStorage.removeItem("selectedGSCSiteUrl");
+                  }}
+                  className="text-sm text-green-600 hover:underline mt-1"
+                >
+                  別のプロパティを選択
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* メインコンテンツ（プロパティ選択済みの場合のみ表示） */}
         {selectedSiteUrl && (
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-purple-200">
@@ -501,6 +661,7 @@ export default function Home() {
             )}
           </button>
         </div>
+        )}
 
         {/* プロセスログ */}
         {processLog.length > 0 && (

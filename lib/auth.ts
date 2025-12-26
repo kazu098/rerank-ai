@@ -20,20 +20,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000; // ミリ秒に変換
+        console.log("[Auth] New token received, expires at:", new Date(token.expiresAt as number));
+        return token;
       }
 
-      // トークンの有効期限をチェック（5分前を閾値としてリフレッシュ）
+      // トークンの有効期限をチェック（10分前を閾値としてリフレッシュ）
       const now = Date.now();
       const expiresAt = token.expiresAt as number;
       
-      if (expiresAt && now < expiresAt - 5 * 60 * 1000) {
-        // トークンがまだ有効（5分以上残っている）
+      // トークンがまだ有効（10分以上残っている）場合はそのまま返す
+      if (expiresAt && now < expiresAt - 10 * 60 * 1000) {
         return token;
       }
 
       // トークンが期限切れまたは期限切れ間近の場合、リフレッシュ
       if (token.refreshToken) {
         try {
+          console.log("[Auth] Token expired or expiring soon, refreshing...");
           const response = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
             headers: {
@@ -51,9 +54,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const refreshedTokens = await response.json();
             token.accessToken = refreshedTokens.access_token;
             token.expiresAt = Date.now() + (refreshedTokens.expires_in * 1000);
-            console.log("[Auth] Access token refreshed successfully");
+            console.log("[Auth] Access token refreshed successfully, new expiry:", new Date(token.expiresAt as number));
+            
+            // リフレッシュトークンが更新された場合は保存
+            if (refreshedTokens.refresh_token) {
+              token.refreshToken = refreshedTokens.refresh_token;
+            }
           } else {
-            console.error("[Auth] Failed to refresh token:", await response.text());
+            const errorText = await response.text();
+            console.error("[Auth] Failed to refresh token:", response.status, errorText);
             // リフレッシュに失敗した場合、トークンをクリアして再ログインを促す
             token.accessToken = null;
             token.refreshToken = null;
@@ -65,6 +74,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.refreshToken = null;
           token.expiresAt = null;
         }
+      } else {
+        console.warn("[Auth] No refresh token available, token may expire");
       }
 
       return token;

@@ -7,11 +7,15 @@ import { auth } from "@/lib/auth";
  */
 export async function GET(request: NextRequest) {
   try {
+    // セッションを取得（JWTコールバックでトークンが自動リフレッシュされる）
     const session = await auth();
 
     if (!session?.accessToken) {
       return NextResponse.json(
-        { error: "認証が必要です。Googleアカウントでログインしてください。" },
+        { 
+          error: "認証が必要です。Googleアカウントでログインしてください。",
+          code: "UNAUTHORIZED"
+        },
         { status: 401 }
       );
     }
@@ -27,12 +31,37 @@ export async function GET(request: NextRequest) {
     );
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error("[GSC] Failed to fetch properties:", error);
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+
+      console.error("[GSC] Failed to fetch properties:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+      });
+
+      // 401エラーの場合、トークンが期限切れまたは無効
+      if (response.status === 401) {
+        return NextResponse.json(
+          {
+            error: "認証トークンが期限切れです。再度ログインしてください。",
+            code: "TOKEN_EXPIRED",
+            details: errorData,
+          },
+          { status: 401 }
+        );
+      }
+
       return NextResponse.json(
         {
           error: "Search Consoleプロパティの取得に失敗しました。",
-          details: error,
+          code: "GSC_API_ERROR",
+          details: errorData,
         },
         { status: response.status }
       );
@@ -43,7 +72,10 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("[GSC] Error fetching properties:", error);
     return NextResponse.json(
-      { error: error.message || "プロパティの取得中にエラーが発生しました。" },
+      { 
+        error: error.message || "プロパティの取得中にエラーが発生しました。",
+        code: "INTERNAL_ERROR"
+      },
       { status: 500 }
     );
   }
