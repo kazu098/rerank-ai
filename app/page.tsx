@@ -152,6 +152,7 @@ export default function Home() {
     setError(null);
     try {
       const response = await fetch("/api/gsc/properties");
+      
       if (response.ok) {
         const result = await response.json();
         setGscProperties(result.properties || []);
@@ -174,17 +175,53 @@ export default function Home() {
         }
       }
     } catch (err: any) {
+      console.error("[GSC] Error loading properties:", err);
       setError(err.message || "プロパティの取得中にエラーが発生しました");
     } finally {
       setLoadingProperties(false);
     }
   };
 
-  const handleSelectProperty = (siteUrl: string) => {
-    setSelectedSiteUrl(siteUrl);
-    setShowPropertySelection(false);
-    // ローカルストレージに保存（次回アクセス時に使用）
-    localStorage.setItem("selectedGSCSiteUrl", siteUrl);
+  const handleSelectProperty = async (siteUrl: string) => {
+    try {
+      // データベースに保存
+      const response = await fetch("/api/sites/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          siteUrl,
+          displayName: siteUrl,
+        }),
+      });
+
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        let error;
+        try {
+          error = JSON.parse(responseText);
+        } catch {
+          error = { error: responseText };
+        }
+        console.error("[GSC] Failed to save site:", error);
+        setError(error.error || "プロパティの保存に失敗しました");
+        return;
+      }
+
+      const result = JSON.parse(responseText);
+
+      // 状態を更新
+      setSelectedSiteUrl(siteUrl);
+      setShowPropertySelection(false);
+      
+      // ローカルストレージに保存（次回アクセス時に使用）
+      localStorage.setItem("selectedGSCSiteUrl", siteUrl);
+    } catch (err: any) {
+      console.error("[GSC] Error saving site:", err);
+      setError(err.message || "プロパティの保存中にエラーが発生しました");
+    }
   };
 
   // GSCプロパティ一覧を取得
@@ -193,17 +230,47 @@ export default function Home() {
       loadGSCProperties();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, session?.accessToken, selectedSiteUrl, loadingProperties]);
 
   // ローカルストレージから選択済みプロパティを読み込む
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && session?.accessToken && session?.userId) {
       const savedSiteUrl = localStorage.getItem("selectedGSCSiteUrl");
-      if (savedSiteUrl) {
-        setSelectedSiteUrl(savedSiteUrl);
+      if (savedSiteUrl && !selectedSiteUrl) {
+        // データベースに保存されているか確認し、保存されていない場合は保存する
+        (async () => {
+          try {
+            const response = await fetch("/api/sites/save", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                siteUrl: savedSiteUrl,
+                displayName: savedSiteUrl,
+              }),
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              setSelectedSiteUrl(savedSiteUrl);
+            } else {
+              const error = await response.json();
+              console.error("[GSC] Failed to save site from localStorage:", error);
+              // エラーが発生した場合は、ローカルストレージをクリアしてプロパティ選択画面を表示
+              localStorage.removeItem("selectedGSCSiteUrl");
+              setShowPropertySelection(true);
+            }
+          } catch (err: any) {
+            console.error("[GSC] Error saving site from localStorage:", err);
+            // エラーが発生した場合は、ローカルストレージをクリアしてプロパティ選択画面を表示
+            localStorage.removeItem("selectedGSCSiteUrl");
+            setShowPropertySelection(true);
+          }
+        })();
       }
     }
-  }, [status]);
+  }, [status, session?.accessToken, session?.userId]);
 
   const startAnalysis = async () => {
     setLoading(true);
