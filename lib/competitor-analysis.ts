@@ -310,19 +310,28 @@ export class CompetitorAnalyzer {
         const ownUrl = `${siteUrl}${pageUrl}`;
         const competitorUrls = Array.from(uniqueCompetitorUrls).slice(0, 3); // 上位3サイトまで
 
-        // 自社記事を取得
-        const ownArticle = await this.articleScraper.scrapeArticle(ownUrl);
+        // 自社記事と競合記事を並列で取得（処理時間を短縮）
+        const [ownArticle, ...competitorArticlesResults] = await Promise.allSettled([
+          this.articleScraper.scrapeArticle(ownUrl),
+          ...competitorUrls.map((url) => this.articleScraper.scrapeArticle(url)),
+        ]);
 
-        // 競合記事を取得
+        // 自社記事の取得結果を処理
+        if (ownArticle.status === "rejected") {
+          throw new Error(`Failed to scrape own article: ${ownArticle.reason}`);
+        }
+        const ownArticleContent = ownArticle.value;
+
+        // 競合記事の取得結果を処理
         const competitorArticles = [];
-        for (const url of competitorUrls) {
-          try {
-            const content = await this.articleScraper.scrapeArticle(url);
-            competitorArticles.push(content);
-          } catch (error: any) {
+        for (let i = 0; i < competitorArticlesResults.length; i++) {
+          const result = competitorArticlesResults[i];
+          if (result.status === "fulfilled") {
+            competitorArticles.push(result.value);
+          } else {
             console.error(
-              `[CompetitorAnalysis] Failed to scrape competitor ${url}:`,
-              error
+              `[CompetitorAnalysis] Failed to scrape competitor ${competitorUrls[i]}:`,
+              result.reason
             );
             // エラーが発生しても続行
           }
@@ -330,7 +339,7 @@ export class CompetitorAnalyzer {
 
         if (competitorArticles.length > 0) {
           // 基本的な差分分析
-          diffAnalysis = this.diffAnalyzer.analyze(ownArticle, competitorArticles);
+          diffAnalysis = this.diffAnalyzer.analyze(ownArticleContent, competitorArticles);
           console.log(
             `[CompetitorAnalysis] Diff analysis complete: ${diffAnalysis.recommendations.length} recommendations`
           );
@@ -363,16 +372,20 @@ export class CompetitorAnalyzer {
                     continue;
                   }
 
-                  // このキーワードに対応する競合記事を取得
+                  // このキーワードに対応する競合記事を並列で取得（処理時間を短縮）
+                  const keywordCompetitorArticlesResults = await Promise.allSettled(
+                    keywordCompetitorUrls.map((url) => this.articleScraper.scrapeArticle(url))
+                  );
+
                   const keywordCompetitorArticles = [];
-                  for (const url of keywordCompetitorUrls) {
-                    try {
-                      const content = await this.articleScraper.scrapeArticle(url);
-                      keywordCompetitorArticles.push(content);
-                    } catch (error: any) {
+                  for (let i = 0; i < keywordCompetitorArticlesResults.length; i++) {
+                    const result = keywordCompetitorArticlesResults[i];
+                    if (result.status === "fulfilled") {
+                      keywordCompetitorArticles.push(result.value);
+                    } else {
                       console.error(
-                        `[CompetitorAnalysis] Failed to scrape competitor ${url} for keyword "${prioritizedKeyword.keyword}":`,
-                        error
+                        `[CompetitorAnalysis] Failed to scrape competitor ${keywordCompetitorUrls[i]} for keyword "${prioritizedKeyword.keyword}":`,
+                        result.reason
                       );
                       // エラーが発生しても続行
                     }
@@ -394,7 +407,7 @@ export class CompetitorAnalyzer {
                   // このキーワードで意味レベルの分析を実行
                   const keywordAnalysis = await this.llmDiffAnalyzer.analyzeSemanticDiff(
                     prioritizedKeyword.keyword,
-                    ownArticle,
+                    ownArticleContent,
                     keywordCompetitorArticles
                   );
 

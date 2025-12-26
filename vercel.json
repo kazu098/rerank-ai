@@ -6,7 +6,9 @@
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 60
+    },
+    "app/api/competitors/analyze/route.ts": {
+      "maxDuration": 60
     }
   }
 }
-
