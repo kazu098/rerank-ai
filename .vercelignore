@@ -1,0 +1,14 @@
+# Vercelで無視するファイル
+.env.local
+.env*.local
+node_modules
+.next
+.git
+.DS_Store
+*.log
+test-*.sh
+test-*.js
+docs/
+tickets/
+demo.html
+
