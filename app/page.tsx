@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-type AnalysisMode = "detect-drop" | "improve-rank";
+// 分析モードは統一（タブを削除）
 
 // キーワードの推移グラフコンポーネント
 function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[] }) {
@@ -85,7 +85,6 @@ export default function Home() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [articleUrl, setArticleUrl] = useState("https://mia-cat.com/blog/poketomo-review/");
-  const [mode, setMode] = useState<AnalysisMode>("detect-drop");
   const [notificationEmail, setNotificationEmail] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
   const [processLog, setProcessLog] = useState<string[]>([]);
@@ -144,10 +143,9 @@ export default function Home() {
         setProcessLog((prev) => [...prev, logMessages[i]]);
       }
       
-      if (mode === "detect-drop") {
-        // モード1: 下落を検知して修正（段階的に実行）
-        
-        // Step 1: GSCデータ取得 + キーワード選定
+      // 分析実行（段階的に実行）
+      
+      // Step 1: GSCデータ取得 + キーワード選定
         setProcessLog((prev) => [...prev, "記事の検索順位データを取得中..."]);
         const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
@@ -242,10 +240,6 @@ export default function Home() {
         }
 
         setProcessLog((prev) => [...prev, "✓ 分析が完了しました"]);
-      } else {
-        // モード2: 順位を上げる（将来実装）
-        throw new Error("このモードは現在実装中です");
-      }
     } catch (err: any) {
       setError(err.message);
       setProcessLog((prev) => [...prev, `✗ エラー: ${err.message}`]);
@@ -423,29 +417,12 @@ export default function Home() {
         {/* メインコンテンツ（プロパティ選択済みの場合のみ表示） */}
         {selectedSiteUrl && (
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-purple-200">
-          {/* タブ切り替え */}
-          <div className="flex border-b mb-6 text-sm font-bold text-gray-400">
-            <button
-              onClick={() => setMode("detect-drop")}
-              className={`pb-2 mr-6 ${
-                mode === "detect-drop"
-                  ? "tab-active border-b-2 border-purple-600 text-purple-600"
-                  : "hover:text-gray-600"
-              }`}
-            >
-              下落を検知して修正
-            </button>
-            <button
-              onClick={() => setMode("improve-rank")}
-              className={`pb-2 mr-6 ${
-                mode === "improve-rank"
-                  ? "tab-active border-b-2 border-purple-600 text-purple-600"
-                  : "hover:text-gray-600"
-              }`}
-            >
-              現状の順位を上げる
-            </button>
-          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            記事を分析する
+          </h2>
+          <p className="text-gray-600 mb-6">
+            記事のURLを入力すると、順位データを取得して競合との差分を分析し、改善案を提示します。
+          </p>
 
           {/* 入力フォーム */}
           <div className="mb-6">
