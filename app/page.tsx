@@ -9,6 +9,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 // キーワードの推移グラフコンポーネント
 function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[] }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [displayedCount, setDisplayedCount] = useState(10); // 一度に表示するキーワード数
+  const ITEMS_PER_PAGE = 10; // 1回あたりの追加表示数
+  
   const topKeywords = keywordTimeSeries.slice(0, 3);
   const remainingKeywords = keywordTimeSeries.slice(3);
 
@@ -52,6 +55,14 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
     );
   };
 
+  // 表示するキーワードを制限
+  const displayedRemainingKeywords = remainingKeywords.slice(0, displayedCount);
+  const hasMore = remainingKeywords.length > displayedCount;
+
+  const handleShowMore = () => {
+    setDisplayedCount(prev => Math.min(prev + ITEMS_PER_PAGE, remainingKeywords.length));
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-purple-200">
       <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-purple-500 pl-3">
@@ -61,19 +72,47 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
         {topKeywords.map((kwSeries: any, index: number) => renderChart(kwSeries, index))}
       </div>
       
-      {/* 残りのキーワードを展開表示 */}
+      {/* 残りのキーワードを展開表示（ページネーション対応） */}
       {remainingKeywords.length > 0 && (
-        <details 
-          className="mt-6"
-          onToggle={(e) => setIsExpanded((e.target as HTMLDetailsElement).open)}
-        >
-          <summary className="cursor-pointer text-purple-600 hover:text-purple-800 font-semibold text-sm mb-4">
-            {isExpanded ? "折りたたむ" : `もっと見る（残り${remainingKeywords.length}件）`}
-          </summary>
-          <div className="space-y-6 mt-4">
-            {remainingKeywords.map((kwSeries: any, index: number) => renderChart(kwSeries, index + 3))}
-          </div>
-        </details>
+        <div className="mt-6">
+          <details 
+            className="mt-6"
+            onToggle={(e) => {
+              const isOpen = (e.target as HTMLDetailsElement).open;
+              setIsExpanded(isOpen);
+              // 展開時に表示数をリセット
+              if (isOpen && displayedCount > ITEMS_PER_PAGE) {
+                setDisplayedCount(ITEMS_PER_PAGE);
+              }
+            }}
+          >
+            <summary className="cursor-pointer text-purple-600 hover:text-purple-800 font-semibold text-sm mb-4">
+              {isExpanded ? "折りたたむ" : `もっと見る（残り${remainingKeywords.length}件）`}
+            </summary>
+            <div className="space-y-6 mt-4">
+              {displayedRemainingKeywords.map((kwSeries: any, index: number) => renderChart(kwSeries, index + 3))}
+              
+              {/* さらに見るボタン */}
+              {hasMore && (
+                <div className="text-center mt-6">
+                  <button
+                    onClick={handleShowMore}
+                    className="px-6 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-semibold text-sm"
+                  >
+                    さらに見る（あと{remainingKeywords.length - displayedCount}件）
+                  </button>
+                </div>
+              )}
+              
+              {/* すべて表示済みの場合 */}
+              {!hasMore && displayedCount > 0 && (
+                <div className="text-center mt-4 text-sm text-gray-500">
+                  すべてのキーワードを表示しました（全{remainingKeywords.length}件）
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
       )}
     </div>
   );
