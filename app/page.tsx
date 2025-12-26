@@ -132,8 +132,11 @@ export default function Home() {
       }
       
       if (mode === "detect-drop") {
-        // モード1: 下落を検知して修正
-        const response = await fetch("/api/competitors/analyze", {
+        // モード1: 下落を検知して修正（段階的に実行）
+        
+        // Step 1: GSCデータ取得 + キーワード選定
+        setProcessLog((prev) => [...prev, "記事の検索順位データを取得中..."]);
+        const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -142,17 +145,89 @@ export default function Home() {
             siteUrl,
             pageUrl,
             maxKeywords,
+          }),
+        });
+
+        if (!step1Response.ok) {
+          const errorData = await step1Response.json();
+          throw new Error(errorData.error || "Step 1に失敗しました");
+        }
+
+        const step1Result = await step1Response.json();
+        // Step 1の結果をすぐに表示
+        setData({
+          ...step1Result,
+          competitorResults: [],
+          uniqueCompetitorUrls: [],
+        });
+        setProcessLog((prev) => [...prev, "✓ キーワード選定が完了しました"]);
+
+        // Step 2: 競合URL抽出
+        setProcessLog((prev) => [...prev, "競合サイトのURLを収集中..."]);
+        const step2Response = await fetch("/api/competitors/analyze-step2", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            siteUrl,
+            pageUrl,
+            prioritizedKeywords: step1Result.prioritizedKeywords,
             maxCompetitorsPerKeyword,
           }),
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "分析に失敗しました");
+        if (!step2Response.ok) {
+          const errorData = await step2Response.json();
+          throw new Error(errorData.error || "Step 2に失敗しました");
         }
 
-        const result = await response.json();
-        setData(result);
+        const step2Result = await step2Response.json();
+        // Step 2の結果を更新
+        setData((prev: any) => ({
+          ...prev,
+          ...step2Result,
+        }));
+        setProcessLog((prev) => [...prev, "✓ 競合URL抽出が完了しました"]);
+
+        // Step 3: 記事スクレイピング + LLM分析
+        if (step2Result.uniqueCompetitorUrls.length > 0) {
+          setProcessLog((prev) => [...prev, "競合記事の内容を読み込み中..."]);
+          setProcessLog((prev) => [...prev, "AIが記事の差分を分析中..."]);
+          
+          const step3Response = await fetch("/api/competitors/analyze-step3", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              siteUrl,
+              pageUrl,
+              prioritizedKeywords: step1Result.prioritizedKeywords,
+              competitorResults: step2Result.competitorResults,
+              uniqueCompetitorUrls: step2Result.uniqueCompetitorUrls,
+              skipLLMAnalysis: false,
+            }),
+          });
+
+          if (!step3Response.ok) {
+            const errorData = await step3Response.json();
+            // Step 3が失敗しても、Step 1とStep 2の結果は表示
+            console.error("Step 3 failed:", errorData);
+            setProcessLog((prev) => [...prev, `⚠ Step 3でエラー: ${errorData.error || "分析に失敗しました"}`]);
+          } else {
+            const step3Result = await step3Response.json();
+            // Step 3の結果を更新
+            setData((prev: any) => ({
+              ...prev,
+              ...step3Result,
+            }));
+            setProcessLog((prev) => [...prev, "✓ 改善提案の生成が完了しました"]);
+          }
+        } else {
+          setProcessLog((prev) => [...prev, "⚠ 競合URLが取得できなかったため、Step 3をスキップしました"]);
+        }
+
         setProcessLog((prev) => [...prev, "✓ 分析が完了しました"]);
       } else {
         // モード2: 順位を上げる（将来実装）
@@ -685,7 +760,6 @@ export default function Home() {
                     📋 修正内容をコピー
                   </button>
                   <p className="text-center text-xs text-gray-400 mt-2">
-                    ※WordPress API連携は今後実装予定です
                   </p>
                 </div>
               </div>
