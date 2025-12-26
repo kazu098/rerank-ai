@@ -92,6 +92,12 @@ export default function Home() {
   const [displayedLogIndex, setDisplayedLogIndex] = useState(0);
   const [maxKeywords, setMaxKeywords] = useState(3);
   const [maxCompetitorsPerKeyword, setMaxCompetitorsPerKeyword] = useState(3);
+  
+  // GSCプロパティ選択関連
+  const [gscProperties, setGscProperties] = useState<any[]>([]);
+  const [selectedSiteUrl, setSelectedSiteUrl] = useState<string | null>(null);
+  const [loadingProperties, setLoadingProperties] = useState(false);
+  const [showPropertySelection, setShowPropertySelection] = useState(false);
 
   // プロセスログを1項目ずつ順番に表示（ポーリング方式）
   useEffect(() => {
@@ -121,9 +127,16 @@ export default function Home() {
       "改善提案を生成中...",
     ];
 
+    if (!selectedSiteUrl) {
+      setError("Search Consoleプロパティが選択されていません");
+      setLoading(false);
+      return;
+    }
+
     try {
       const urlObj = new URL(articleUrl);
-      const siteUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+      // GSCプロパティとして選択されたsiteUrlを使用
+      const siteUrl = selectedSiteUrl.replace(/\/$/, ""); // 末尾のスラッシュを削除
       const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
 
       // プロセスログを順番に追加（ポーリングで表示される）
@@ -291,20 +304,95 @@ export default function Home() {
             <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
               ReRank AI <span className="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP</span>
             </h1>
-            <p className="text-gray-600 italic">
+            <p className="text-gray-600 italic mb-8">
               「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。
             </p>
           </header>
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <p className="text-gray-600 mb-8">
-              まず、Googleアカウントでログインしてください。
+          
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Google Search Consoleと連携して始める
+              </h2>
+              <p className="text-gray-600 mb-6">
+                あなたのサイトの順位データを取得し、自動で分析・改善案を提示します
+              </p>
+            </div>
+
+            {/* 重要な注意事項 */}
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-semibold text-blue-800 mb-2">
+                    使用するGoogleアカウントについて
+                  </h3>
+                  <p className="text-sm text-blue-700">
+                    <strong>Search Consoleプロパティにアクセス権限が付与されているGoogleアカウント</strong>でログインしてください。
+                    <br />
+                    権限がないアカウントでは、サイトの順位データを取得できません。
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 連携の流れ */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">連携の流れ</h3>
+              <div className="space-y-3">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                    1
+                  </div>
+                  <p className="text-sm text-gray-600 pt-0.5">Googleアカウントでログイン</p>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                    2
+                  </div>
+                  <p className="text-sm text-gray-600 pt-0.5">Search Consoleプロパティを選択</p>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                    3
+                  </div>
+                  <p className="text-sm text-gray-600 pt-0.5">記事URLを入力して分析開始</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <button
+                onClick={() => signIn("google")}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg font-bold text-lg inline-flex items-center"
+              >
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Googleでログインして始める
+              </button>
+            </div>
+          </div>
+
+          {/* 補足情報 */}
+          <div className="bg-gray-50 rounded-lg p-6 text-sm text-gray-600">
+            <p className="mb-2">
+              <strong>Search Consoleプロパティにアクセス権限がない場合</strong>
             </p>
-            <button
-              onClick={() => signIn("google")}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg font-bold text-lg"
-            >
-              Googleでログイン
-            </button>
+            <p>
+              Search Consoleでサイトを追加するか、既存のプロパティにアクセス権限を付与してください。
+              <br />
+              <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
+                Search Consoleを開く →
+              </a>
+            </p>
           </div>
         </div>
       </div>
@@ -332,7 +420,8 @@ export default function Home() {
           </p>
         </header>
 
-        {/* メインコンテンツ */}
+        {/* メインコンテンツ（プロパティ選択済みの場合のみ表示） */}
+        {selectedSiteUrl && (
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-purple-200">
           {/* タブ切り替え */}
           <div className="flex border-b mb-6 text-sm font-bold text-gray-400">
@@ -422,7 +511,7 @@ export default function Home() {
           {/* 実行ボタン */}
           <button
             onClick={startAnalysis}
-            disabled={loading || !articleUrl}
+            disabled={loading || !articleUrl || !selectedSiteUrl}
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
