@@ -43,6 +43,44 @@ export interface CompetitorAnalysisSummary {
   }>; // キーワードの時系列データ（グラフ用）
 }
 
+// Step 1の結果
+export interface Step1Result {
+  prioritizedKeywords: Array<{
+    keyword: string;
+    priority: number;
+    impressions: number;
+    clicks: number;
+    position: number;
+  }>;
+  topRankingKeywords?: Array<{
+    keyword: string;
+    position: number;
+    impressions: number;
+    clicks: number;
+  }>;
+  keywordTimeSeries?: Array<{
+    keyword: string;
+    data: Array<{
+      date: string;
+      position: number;
+      impressions: number;
+      clicks: number;
+    }>;
+  }>;
+}
+
+// Step 2の結果
+export interface Step2Result {
+  competitorResults: CompetitorAnalysisResult[];
+  uniqueCompetitorUrls: string[];
+}
+
+// Step 3の結果
+export interface Step3Result {
+  diffAnalysis?: DiffAnalysisResult;
+  semanticDiffAnalysis?: LLMDiffAnalysisResult;
+}
+
 /**
  * 競合分析クラス
  * 主要なキーワードのみで競合URLを取得
@@ -73,14 +111,20 @@ export class CompetitorAnalyzer {
     siteUrl: string,
     pageUrl: string,
     maxKeywords: number = 3,
-    maxCompetitorsPerKeyword: number = 10
+    maxCompetitorsPerKeyword: number = 10,
+    skipLLMAnalysis: boolean = false
   ): Promise<CompetitorAnalysisSummary> {
+    const startTime = Date.now();
+    console.log(`[CompetitorAnalysis] ⏱️ Starting analysis at ${new Date().toISOString()}`);
+    
     // GSCクライアントを取得
     const client = await getGSCClient();
     const detector = new RankDropDetector(client);
 
     // 順位下落を検知
+    const step1Start = Date.now();
     const rankDropResult = await detector.detectRankDrop(siteUrl, pageUrl);
+    console.log(`[CompetitorAnalysis] ⏱️ Step 1 (Rank drop detection): ${Date.now() - step1Start}ms`);
 
     // キーワードデータを取得
     const endDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
@@ -90,14 +134,17 @@ export class CompetitorAnalyzer {
       .toISOString()
       .split("T")[0];
 
+    const step2Start = Date.now();
     const keywordData = await client.getKeywordData(
       siteUrl,
       pageUrl,
       startDate,
       endDate
     );
+    console.log(`[CompetitorAnalysis] ⏱️ Step 2 (GSC keyword data): ${Date.now() - step2Start}ms`);
 
     // キーワードを優先順位付け
+    const step3Start = Date.now();
     const keywordList: Array<{
       keyword: string;
       position: number;
@@ -153,6 +200,8 @@ export class CompetitorAnalyzer {
       }));
     allPrioritizedKeywords.push(...regularPrioritized);
 
+    console.log(`[CompetitorAnalysis] ⏱️ Step 3 (Keyword prioritization): ${Date.now() - step3Start}ms`);
+    
     // 意味的に同じキーワードを統合（最終的な重複排除）
     // KeywordPrioritizerの正規化メソッドを使用して統一
     // 同じ正規化キーワードが複数ある場合、優先度が最も高いものを選定
@@ -175,6 +224,7 @@ export class CompetitorAnalyzer {
       .slice(0, maxKeywords);
 
     // 各キーワードで競合URLを取得
+    const step4Start = Date.now();
     const competitorResults: CompetitorAnalysisResult[] = [];
     const uniqueCompetitorUrls = new Set<string>();
 
@@ -344,16 +394,19 @@ export class CompetitorAnalyzer {
             `[CompetitorAnalysis] Diff analysis complete: ${diffAnalysis.recommendations.length} recommendations`
           );
 
-          // 意味レベルの差分分析（LLM APIが利用可能な場合）
-          if (LLMDiffAnalyzer.isAvailable() && prioritizedKeywords.length > 0) {
+          // 意味レベルの差分分析（LLM APIが利用可能な場合、かつスキップフラグがfalseの場合）
+          const step6Start = Date.now();
+          if (!skipLLMAnalysis && LLMDiffAnalyzer.isAvailable() && prioritizedKeywords.length > 0) {
             try {
               const providerType = process.env.LLM_PROVIDER || "groq";
+              console.log(`[CompetitorAnalysis] ⏱️ Step 6 (LLM analysis) starting with ${providerType.toUpperCase()}`);
               
-              // 各キーワードごとに分析を実行
+              // 各キーワードごとに分析を実行（並列化して処理時間を短縮）
               const keywordSpecificAnalyses: LLMDiffAnalysisResult["keywordSpecificAnalysis"] = [];
               let firstSemanticAnalysis: LLMDiffAnalysisResult["semanticAnalysis"] | undefined;
 
-              for (const prioritizedKeyword of prioritizedKeywords) {
+              // まず、すべてのキーワードの競合記事を並列で取得（処理時間を短縮）
+              const keywordAnalysisPromises = prioritizedKeywords.map(async (prioritizedKeyword) => {
                 try {
                   console.log(
                     `[CompetitorAnalysis] Starting semantic diff analysis with ${providerType.toUpperCase()} API for keyword: "${prioritizedKeyword.keyword}"`
@@ -369,7 +422,11 @@ export class CompetitorAnalyzer {
                     console.log(
                       `[CompetitorAnalysis] No competitors found for keyword: "${prioritizedKeyword.keyword}", skipping analysis`
                     );
-                    continue;
+                    return {
+                      keyword: prioritizedKeyword.keyword,
+                      analysis: null,
+                      skipped: true,
+                    };
                   }
 
                   // このキーワードに対応する競合記事を並列で取得（処理時間を短縮）
@@ -393,15 +450,13 @@ export class CompetitorAnalyzer {
 
                   if (keywordCompetitorArticles.length === 0) {
                     console.warn(
-                      `[CompetitorAnalysis] No competitor articles scraped for keyword: "${prioritizedKeyword.keyword}" (${keywordCompetitorUrls.length} URLs attempted), adding placeholder`
+                      `[CompetitorAnalysis] No competitor articles scraped for keyword: "${prioritizedKeyword.keyword}" (${keywordCompetitorUrls.length} URLs attempted)`
                     );
-                    // 競合記事がスクレイピングできなかった場合でも、エラーメッセージを表示
-                    keywordSpecificAnalyses.push({
+                    return {
                       keyword: prioritizedKeyword.keyword,
-                      whyRankingDropped: `競合記事の取得に失敗しました。競合URLは取得できましたが、記事内容のスクレイピングに失敗した可能性があります。`,
-                      whatToAdd: [],
-                    });
-                    continue;
+                      analysis: null,
+                      error: "競合記事の取得に失敗しました。競合URLは取得できましたが、記事内容のスクレイピングに失敗した可能性があります。",
+                    };
                   }
 
                   // このキーワードで意味レベルの分析を実行
@@ -411,44 +466,71 @@ export class CompetitorAnalyzer {
                     keywordCompetitorArticles
                   );
 
-                  // 最初のキーワードのsemanticAnalysisを保存（全体の分析として使用）
-                  if (!firstSemanticAnalysis) {
-                    firstSemanticAnalysis = keywordAnalysis.semanticAnalysis;
-                  }
-
-                  // keywordSpecificAnalysisを追加
-                  if (keywordAnalysis.keywordSpecificAnalysis && keywordAnalysis.keywordSpecificAnalysis.length > 0) {
-                    keywordSpecificAnalyses.push(...keywordAnalysis.keywordSpecificAnalysis);
-                    console.log(
-                      `[CompetitorAnalysis] Added ${keywordAnalysis.keywordSpecificAnalysis.length} keyword-specific analysis items for "${prioritizedKeyword.keyword}"`
-                    );
-                  } else {
-                    console.warn(
-                      `[CompetitorAnalysis] No keyword-specific analysis items returned for "${prioritizedKeyword.keyword}" (LLM response may be invalid)`
-                    );
-                    // キーワード固有の分析結果が空の場合でも、空の結果を追加して表示されるようにする
-                    keywordSpecificAnalyses.push({
-                      keyword: prioritizedKeyword.keyword,
-                      whyRankingDropped: "LLM分析の結果が取得できませんでした。APIのレスポンス形式が不正な可能性があります。",
-                      whatToAdd: [],
-                    });
-                  }
-
                   console.log(
-                    `[CompetitorAnalysis] Semantic diff analysis complete for keyword "${prioritizedKeyword.keyword}": ${keywordAnalysis.keywordSpecificAnalysis.length} keyword-specific items, total analyses: ${keywordSpecificAnalyses.length}`
+                    `[CompetitorAnalysis] Semantic diff analysis complete for keyword "${prioritizedKeyword.keyword}": ${keywordAnalysis.keywordSpecificAnalysis?.length || 0} keyword-specific items`
                   );
+
+                  return {
+                    keyword: prioritizedKeyword.keyword,
+                    analysis: keywordAnalysis,
+                    firstSemanticAnalysis: keywordAnalysis.semanticAnalysis,
+                  };
                 } catch (error: any) {
                   console.error(
                     `[CompetitorAnalysis] Semantic diff analysis failed for keyword "${prioritizedKeyword.keyword}":`,
                     error
                   );
-                  // エラーが発生した場合でも、空の結果を追加して表示されるようにする
-                  keywordSpecificAnalyses.push({
+                  return {
                     keyword: prioritizedKeyword.keyword,
-                    whyRankingDropped: `分析中にエラーが発生しました: ${error.message || "Unknown error"}`,
-                    whatToAdd: [],
-                  });
-                  // エラーが発生しても次のキーワードの分析を続行
+                    analysis: null,
+                    error: error.message || "Unknown error",
+                  };
+                }
+              });
+
+              // すべてのキーワード分析を並列で実行（処理時間を大幅に短縮）
+              console.log(`[CompetitorAnalysis] Running ${prioritizedKeywords.length} keyword analyses in parallel...`);
+              const keywordAnalysisResults = await Promise.allSettled(keywordAnalysisPromises);
+
+              // 結果を処理
+              for (const result of keywordAnalysisResults) {
+                if (result.status === "fulfilled") {
+                  const { keyword, analysis, firstSemanticAnalysis: fsAnalysis, error, skipped } = result.value;
+                  
+                  if (skipped) {
+                    continue; // スキップされたキーワードは無視
+                  }
+
+                  if (analysis) {
+                    // 最初のキーワードのsemanticAnalysisを保存
+                    if (fsAnalysis && !firstSemanticAnalysis) {
+                      firstSemanticAnalysis = fsAnalysis;
+                    }
+
+                    // keywordSpecificAnalysisを追加
+                    if (analysis.keywordSpecificAnalysis && analysis.keywordSpecificAnalysis.length > 0) {
+                      keywordSpecificAnalyses.push(...analysis.keywordSpecificAnalysis);
+                      console.log(
+                        `[CompetitorAnalysis] Added ${analysis.keywordSpecificAnalysis.length} keyword-specific analysis items for "${keyword}"`
+                      );
+                    } else {
+                      keywordSpecificAnalyses.push({
+                        keyword,
+                        whyRankingDropped: "LLM分析の結果が取得できませんでした。APIのレスポンス形式が不正な可能性があります。",
+                        whatToAdd: [],
+                      });
+                    }
+                  } else {
+                    // エラーが発生した場合
+                    keywordSpecificAnalyses.push({
+                      keyword,
+                      whyRankingDropped: `分析中にエラーが発生しました: ${error || "Unknown error"}`,
+                      whatToAdd: [],
+                    });
+                  }
+                } else {
+                  // Promiseがrejectedされた場合
+                  console.error(`[CompetitorAnalysis] Promise rejected for keyword analysis:`, result.reason);
                 }
               }
 
@@ -480,7 +562,7 @@ export class CompetitorAnalyzer {
                 };
 
                 console.log(
-                  `[CompetitorAnalysis] All semantic diff analyses complete: ${keywordSpecificAnalyses.length} keyword-specific analyses for keywords: ${keywordSpecificAnalyses.map((a) => a.keyword).join(", ")}`
+                  `[CompetitorAnalysis] ⏱️ Step 6 (LLM analysis) complete: ${Date.now() - step6Start}ms, ${keywordSpecificAnalyses.length} keyword-specific analyses for keywords: ${keywordSpecificAnalyses.map((a) => a.keyword).join(", ")}`
                 );
 
                 // クリーンアップ

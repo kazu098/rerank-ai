@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       pageUrl,
       maxKeywords = 3,
       maxCompetitorsPerKeyword = 10, // 1ページ目（上位10サイト）の上限
+      skipLLMAnalysis = false, // LLM分析をスキップするか（タイムアウト回避用）
     } = body;
 
     if (!siteUrl || !pageUrl) {
@@ -23,20 +24,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const apiStartTime = Date.now();
     console.log(
-      `[API] Starting competitor analysis for ${siteUrl}${pageUrl}, maxKeywords: ${maxKeywords}, maxCompetitorsPerKeyword: ${maxCompetitorsPerKeyword}`
+      `[API] ⏱️ Starting competitor analysis for ${siteUrl}${pageUrl}, maxKeywords: ${maxKeywords}, maxCompetitorsPerKeyword: ${maxCompetitorsPerKeyword} at ${new Date().toISOString()}`
     );
 
     const analyzer = new CompetitorAnalyzer();
+    
+    // 環境変数でLLM分析をスキップする設定を確認
+    const shouldSkipLLM = skipLLMAnalysis || process.env.SKIP_LLM_ANALYSIS === "true";
+    
     const result = await analyzer.analyzeCompetitors(
       siteUrl,
       pageUrl,
       maxKeywords,
-      maxCompetitorsPerKeyword
+      maxCompetitorsPerKeyword,
+      shouldSkipLLM
     );
 
+    const apiTotalTime = Date.now() - apiStartTime;
     console.log(
-      `[API] Analysis complete: ${result.competitorResults.length} keyword results, ${result.uniqueCompetitorUrls.length} unique competitor URLs`
+      `[API] ⏱️ Analysis complete: ${apiTotalTime}ms (${(apiTotalTime / 1000).toFixed(2)}s), ${result.competitorResults.length} keyword results, ${result.uniqueCompetitorUrls.length} unique competitor URLs`
     );
 
     return NextResponse.json(result);
