@@ -2,9 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { exchangeSlackCodeForToken, getSlackUserId } from "@/lib/slack-oauth";
 import { saveOrUpdateNotificationSettings } from "@/lib/db/notification-settings";
+import { routing } from "@/src/i18n/routing";
+import { getUserById } from "@/lib/db/users";
 
 // 動的ルートとして明示（request.urlを使用するため）
 export const dynamic = 'force-dynamic';
+
+/**
+ * ロケールを取得（referer、セッション、デフォルトの順で試行）
+ */
+async function getLocale(request: NextRequest, sessionUserId?: string): Promise<string> {
+  // 1. refererヘッダーからロケールを抽出
+  const referer = request.headers.get('referer');
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      const pathSegments = refererUrl.pathname.split('/').filter(Boolean);
+      if (pathSegments.length > 0 && routing.locales.includes(pathSegments[0] as any)) {
+        return pathSegments[0];
+      }
+    } catch (e) {
+      // URL解析に失敗した場合は次の方法を試す
+    }
+  }
+
+  // 2. セッションからユーザー情報を取得してロケールを取得
+  if (sessionUserId) {
+    try {
+      const user = await getUserById(sessionUserId);
+      if (user?.locale && routing.locales.includes(user.locale as any)) {
+        return user.locale;
+      }
+    } catch (e) {
+      console.error("[Slack OAuth] Failed to get user locale:", e);
+    }
+  }
+
+  // 3. デフォルトロケールを使用
+  return routing.defaultLocale;
+}
 
 /**
  * Slack OAuth認証コールバック
@@ -33,11 +69,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // セッションを取得（早期に取得してロケール判定に使用）
+    const session = await auth();
+    const locale = await getLocale(request, session?.userId as string | undefined);
+
     // リダイレクト先URLを生成（新しいタブで開いた場合の処理を含む）
     const getRedirectHtml = (success: boolean, message?: string, error?: string) => {
       const redirectUrl = success
-        ? new URL("/dashboard/notifications?slack_connected=true", request.url)
-        : new URL(`/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error || message || "Unknown error")}`, request.url);
+        ? new URL(`/${locale}/dashboard/notifications?slack_connected=true`, request.url)
+        : new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error || message || "Unknown error")}`, request.url);
       
       return `<!DOCTYPE html>
 <html>
@@ -132,8 +172,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // セッションを取得（ユーザーがログインしている必要がある）
-    const session = await auth();
+    // セッションが取得できているか確認（ユーザーがログインしている必要がある）
     if (!session?.userId) {
       return new NextResponse(getRedirectHtml(false, undefined, "認証が必要です"), {
         status: 200,
@@ -192,6 +231,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[Slack OAuth] Callback error:", error);
+    // エラー時もロケールを取得を試みる
+    const session = await auth().catch(() => null);
+    const locale = await getLocale(request, session?.userId as string | undefined).catch(() => routing.defaultLocale);
+    const errorRedirectUrl = new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url);
     return new NextResponse(
       `<!DOCTYPE html>
 <html>
@@ -208,7 +251,7 @@ export async function GET(request: NextRequest) {
       }, '*');
       window.close();
     } else {
-      window.location.href = '${new URL(`/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url).toString()}';
+      window.location.href = '${errorRedirectUrl.toString()}';
     }
   </script>
   <p>エラーが発生しました: ${error.message}。このウィンドウは自動的に閉じられます。</p>
