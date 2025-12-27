@@ -155,7 +155,33 @@
     "dropReasonKeywords": "Keywords such as \"{keywords}\" have dropped below 10th place",
     "itemsToAdd": "Items to Add",
     "viewDetails": "View details in dashboard",
-    "dashboardLink": "Open Dashboard",
+    "dashboardLink": "Open Dashboard"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "startAnalysis": "Start Analysis",
+    "stats": {
+      "totalArticles": "Total Articles",
+      "monitoringArticles": "Monitoring",
+      "totalAnalyses": "Total Analyses"
+    },
+    "articles": {
+      "title": "Articles",
+      "noArticles": "No articles registered",
+      "startAnalysisToRegister": "Start analysis to register articles",
+      "averagePosition": "Average Position",
+      "previousPosition": "Previous",
+      "lastAnalyzed": "Last Analyzed",
+      "monitoring": "Monitoring",
+      "viewDetails": "Details"
+    },
+    "notifications": {
+      "title": "Unread Notifications",
+      "noNotifications": "No unread notifications",
+      "rankDropDetected": "Rank Drop Detected"
+    }
+  },
+  "notification": {
     "checker": {
       "fixedArticle": "Article is marked as fixed and within cooldown period ({days} days), notification skipped",
       "recentNotification": "Notification was sent within the past {days} days, skipping ({daysAgo} days ago)",

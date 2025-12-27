@@ -157,7 +157,33 @@
     "dropReasonKeywords": "「{keywords}」などのキーワードが10位以下に転落",
     "itemsToAdd": "追加すべき項目",
     "viewDetails": "詳細はダッシュボードで確認",
-    "dashboardLink": "ダッシュボードを開く",
+    "dashboardLink": "ダッシュボードを開く"
+  },
+  "dashboard": {
+    "title": "ダッシュボード",
+    "startAnalysis": "分析を開始",
+    "stats": {
+      "totalArticles": "登録記事数",
+      "monitoringArticles": "監視中",
+      "totalAnalyses": "分析実行回数"
+    },
+    "articles": {
+      "title": "記事一覧",
+      "noArticles": "記事が登録されていません",
+      "startAnalysisToRegister": "分析を開始して記事を登録",
+      "averagePosition": "平均順位",
+      "previousPosition": "前回",
+      "lastAnalyzed": "最終分析",
+      "monitoring": "監視中",
+      "viewDetails": "詳細"
+    },
+    "notifications": {
+      "title": "未読通知",
+      "noNotifications": "未読通知はありません",
+      "rankDropDetected": "順位下落を検知"
+    }
+  },
+  "notification": {
     "checker": {
       "fixedArticle": "修正済みフラグが設定されており、クールダウン期間（{days}日）内のため通知しません",
       "recentNotification": "過去{days}日以内に通知を送信済みのため、通知しません（{daysAgo}日前に送信）",
