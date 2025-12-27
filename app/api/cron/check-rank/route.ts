@@ -4,13 +4,12 @@ import { NotificationChecker } from "@/lib/notification-checker";
 import { getMonitoringArticles, updateArticleNotificationSent } from "@/lib/db/articles";
 import { getSitesByUserId } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
-import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
 
 /**
  * Cronジョブ: 順位下落をチェックして通知を送信
- * 実行頻度: 毎日午前9時（JST）
+ * 実行頻度: 1日1回（UTC 0時、GSC APIのデータは1日単位で更新されるため）
  * 
  * 処理フロー:
  * 1. 監視対象の記事を取得
@@ -18,6 +17,10 @@ import { createSupabaseClient } from "@/lib/supabase";
  * 3. 通知が必要な記事をユーザーごとにまとめる
  * 4. まとめ通知を送信
  * 5. 通知履歴をDBに保存
+ * 
+ * 注意: タイムゾーンチェックは省略（GSC APIのデータ更新が1日単位のため、
+ * 通知時刻のチェックは実質的に意味がない。ユーザーは設定した時刻に近い時間に
+ * 通知を受信するが、データの更新タイミングに依存する）
  */
 export async function GET(request: NextRequest) {
   // Cronジョブの認証（Vercel Cronからのリクエストか確認）
@@ -100,6 +103,8 @@ export async function GET(request: NextRequest) {
         }
 
         // 通知判定を実行
+        // 注意: GSC APIのデータは1日単位で更新されるため、タイムゾーンチェックは省略
+        // 通知は1日1回実行時に送信される（ユーザーが設定した時刻とは異なる可能性がある）
         const checker = new NotificationChecker(gscClient);
         const checkResult = await checker.checkNotificationNeeded(
           article.user_id,
