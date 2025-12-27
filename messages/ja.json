@@ -181,6 +181,13 @@
       "title": "未読通知",
       "noNotifications": "未読通知はありません",
       "rankDropDetected": "順位下落を検知"
+    },
+    "sidebar": {
+      "overview": "概要",
+      "articles": "記事",
+      "notifications": "通知",
+      "settings": "設定",
+      "billing": "課金"
     }
   },
   "notification": {

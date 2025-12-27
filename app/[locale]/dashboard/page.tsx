@@ -117,29 +117,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ヘッダー */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">{t("dashboard.title")}</h1>
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="text-gray-600 hover:text-gray-900"
-              >
-                {t("dashboard.startAnalysis")}
-              </Link>
-              <span className="text-gray-400">|</span>
-              <span className="text-sm text-gray-600">
-                {session?.user?.email}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
         {/* 統計情報 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -279,8 +257,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </>
   );
 }
 
