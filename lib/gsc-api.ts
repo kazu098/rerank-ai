@@ -164,6 +164,16 @@ export class GSCApiClient {
       ];
     }
 
+    // デバッグログ（本番環境では削除推奨）
+    console.log("[GSC API] Request:", {
+      siteUrl: normalizedSiteUrl,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      dimensions: params.dimensions,
+      pageUrl: pageUrl ? (requestBody.dimensionFilterGroups?.[0]?.filters?.[0]?.expression || pageUrl) : undefined,
+      rowLimit: params.rowLimit || 1000,
+    });
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -175,12 +185,24 @@ export class GSCApiClient {
 
     if (!response.ok) {
       const error = await response.json();
+      console.error("[GSC API] Error response:", {
+        status: response.status,
+        statusText: response.statusText,
+        error,
+      });
       throw new Error(
         `GSC API Error: ${response.status} ${response.statusText} - ${JSON.stringify(error)}`
       );
     }
 
-    return response.json();
+    const data = await response.json();
+    // デバッグログ（本番環境では削除推奨）
+    console.log("[GSC API] Response:", {
+      rowsCount: data?.rows?.length || 0,
+      responseAggregationType: data?.responseAggregationType,
+      hasRows: !!data?.rows,
+    });
+    return data;
   }
 
   /**

@@ -26,9 +26,13 @@ export async function analyzeStep2(
     keywordPositionMap.set(kw.keyword, kw.position);
   });
 
+  console.log(`[CompetitorAnalysis] Processing ${prioritizedKeywords.length} keywords`);
+  
   for (const prioritizedKeyword of prioritizedKeywords) {
     // このキーワードでの自社の順位を取得
-    const ownKeywordPosition = keywordPositionMap.get(prioritizedKeyword.keyword);
+    const ownKeywordPosition = keywordPositionMap.get(prioritizedKeyword.keyword) || prioritizedKeyword.position;
+    
+    console.log(`[CompetitorAnalysis] Processing keyword: "${prioritizedKeyword.keyword}", ownPosition: ${ownKeywordPosition}`);
 
     try {
       // 本番環境ではSerper APIを優先（環境変数で制御可能）
@@ -48,14 +52,10 @@ export async function analyzeStep2(
       let maxCompetitors = maxCompetitorsPerKeyword;
       if (ownKeywordPosition) {
         if (ownKeywordPosition <= 1) {
-          // 自社が1位の場合、競合URLは取得しない
-          competitorResults.push({
-            keyword: prioritizedKeyword.keyword,
-            competitors: [],
-            ownPosition: ownKeywordPosition,
-            totalResults: 0,
-          });
-          continue;
+          // 自社が1位の場合でも、競合URLを取得して分析に使用する
+          // （1位を維持するための参考情報として）
+          console.log(`[CompetitorAnalysis] Own position is ${ownKeywordPosition}, but still extracting competitors for analysis`);
+          maxCompetitors = maxCompetitorsPerKeyword; // 上位10サイトを取得
         } else if (ownKeywordPosition <= 10) {
           // 自社が2-10位の場合、自社より上位のみ
           maxCompetitors = Math.min(ownKeywordPosition - 1, maxCompetitorsPerKeyword);

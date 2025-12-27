@@ -56,6 +56,14 @@ export class RankDropDetector {
     const endDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0];
+    // キーワードデータを取得する際は、より長い期間を使用（最低30日間）
+    // これにより、データが少ないページでもキーワードを取得できる
+    const keywordDataStartDate = new Date(
+      Date.now() - Math.max(comparisonDays + 2, 30) * 24 * 60 * 60 * 1000
+    )
+      .toISOString()
+      .split("T")[0];
+    // 時系列データは比較期間のみを使用
     const startDate = new Date(
       Date.now() - (comparisonDays + 2) * 24 * 60 * 60 * 1000
     )
@@ -70,31 +78,33 @@ export class RankDropDetector {
       endDate
     );
 
-    // 過去N日間の平均順位を計算
+    // 過去N日間の平均順位を計算（rowsが存在することを確認）
+    const timeSeriesRows = Array.isArray(timeSeriesData?.rows) ? timeSeriesData.rows : [];
     const baseAveragePosition = this.calculateAveragePosition(
-      timeSeriesData.rows,
+      timeSeriesRows,
       comparisonDays
     );
 
     // 現在（直近）の平均順位を計算
     const currentAveragePosition = this.calculateAveragePosition(
-      timeSeriesData.rows,
+      timeSeriesRows,
       1
     );
 
     const dropAmount = currentAveragePosition - baseAveragePosition;
 
-    // キーワードデータを取得
+    // キーワードデータを取得（より長い期間を使用）
     const keywordData = await this.client.getKeywordData(
       siteUrl,
       pageUrl,
-      startDate,
+      keywordDataStartDate,
       endDate
     );
 
-    // 転落したキーワードを特定
+    // 転落したキーワードを特定（rowsが存在することを確認）
+    const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
     const droppedKeywords = this.identifyDroppedKeywords(
-      keywordData.rows,
+      keywordRows,
       keywordDropThreshold
     );
 
@@ -164,8 +174,13 @@ export class RankDropDetector {
     }>,
     threshold: number
   ): DroppedKeyword[] {
+    // keywordRowsが配列でない場合は空配列を返す
+    if (!Array.isArray(keywordRows)) {
+      return [];
+    }
+    
     return keywordRows
-      .filter((row) => row.position >= threshold)
+      .filter((row) => row && row.position >= threshold)
       .map((row) => ({
         keyword: row.keys[0],
         position: row.position,

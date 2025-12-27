@@ -24,12 +24,66 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
       clicks: d.clicks,
     }));
 
+    // メタデータから警告情報を取得
+    const metadata = kwSeries.metadata;
+    const hasWarning = metadata?.hasRecentDrop || (metadata?.daysSinceLastData !== null && metadata?.daysSinceLastData >= 3);
+    const isDataMissing = kwSeries.data.length === 0;
+
     return (
       <div key={index} className="mb-6">
-        <h4 className="font-semibold text-sm mb-3 text-gray-700">
-          {kwSeries.keyword}
-        </h4>
-        <ResponsiveContainer width="100%" height={200}>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-sm text-gray-700">
+            {kwSeries.keyword}
+          </h4>
+          {hasWarning && (
+            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-semibold">
+              ⚠️ 転落の可能性
+            </span>
+          )}
+        </div>
+        
+        {/* 警告メッセージ */}
+        {hasWarning && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-3 rounded">
+            <p className="text-sm text-yellow-800">
+              {metadata?.serperApiNotFound ? (
+                <>
+                  <strong>⚠️ 転落検出:</strong> 実際の検索結果ではこのページが見つかりませんでした。
+                  {metadata.lastPosition && (
+                    <> GSCでは最後に{metadata.lastPosition}位でしたが、現在は100位以下に転落している可能性が高いです。</>
+                  )}
+                </>
+              ) : isDataMissing ? (
+                <>
+                  <strong>注意:</strong> このキーワードのデータが取得されていません。
+                  {metadata?.lastPosition && (
+                    <> 最後に記録された順位は{metadata.lastPosition}位でしたが、現在は100位以下に転落している可能性があります。</>
+                  )}
+                </>
+              ) : metadata?.daysSinceLastData !== null && metadata.daysSinceLastData >= 3 ? (
+                <>
+                  <strong>注意:</strong> 最後のデータ取得から{metadata.daysSinceLastData}日経過しています。
+                  {metadata.lastPosition && (
+                    <> 最後に記録された順位は{metadata.lastPosition}位でしたが、現在は100位以下に転落している可能性があります。</>
+                  )}
+                  {metadata.lastDataDate && (
+                    <> （最終データ: {metadata.lastDataDate}）</>
+                  )}
+                </>
+              ) : null}
+            </p>
+            <p className="text-xs text-yellow-700 mt-1">
+              Googleの検索結果では、100位以内に表示されたページのデータのみが記録されます。データが取得されない期間がある場合、検索結果の100位以下に順位が下がった可能性があります。
+            </p>
+          </div>
+        )}
+        
+        {isDataMissing ? (
+          <div className="bg-gray-50 border border-gray-200 rounded p-4 text-center text-sm text-gray-500">
+            データが取得されていません
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" tick={{ fontSize: 12 }} />
@@ -51,6 +105,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
             />
           </LineChart>
         </ResponsiveContainer>
+        )}
       </div>
     );
   };
@@ -123,7 +178,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [articleUrl, setArticleUrl] = useState("https://mia-cat.com/blog/poketomo-review/");
+  const [articleUrl, setArticleUrl] = useState("");
   const [notificationEmail, setNotificationEmail] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
   const [processLog, setProcessLog] = useState<string[]>([]);
@@ -361,11 +416,44 @@ export default function Home() {
       }
 
       const step2Result = await step2Response.json();
-      // Step 2の結果を更新
-      setData((prev: any) => ({
-        ...prev,
-        ...step2Result,
-      }));
+      
+      // Step 2の結果から、Serper APIで見つからなかったキーワードを検出
+      // （100位以下に転落している可能性）
+      if (step2Result.competitorResults && data?.keywordTimeSeries) {
+        const updatedTimeSeries = data.keywordTimeSeries.map((kwSeries: any) => {
+          const competitorResult = step2Result.competitorResults.find(
+            (cr: any) => cr.keyword === kwSeries.keyword
+          );
+          
+          // Serper APIで自社URLが見つからなかった場合、100位以下に転落している可能性が高い
+          const isNotFoundInSerper = competitorResult && !competitorResult.ownPosition;
+          
+          if (isNotFoundInSerper && kwSeries.metadata) {
+            return {
+              ...kwSeries,
+              metadata: {
+                ...kwSeries.metadata,
+                hasRecentDrop: true, // Serper APIで見つからない場合は転落とみなす
+                serperApiNotFound: true, // Serper APIで見つからなかったフラグ
+              }
+            };
+          }
+          return kwSeries;
+        });
+        
+        // 時系列データを更新
+        setData((prev: any) => ({
+          ...prev,
+          ...step2Result,
+          keywordTimeSeries: updatedTimeSeries,
+        }));
+      } else {
+        // Step 2の結果を更新
+        setData((prev: any) => ({
+          ...prev,
+          ...step2Result,
+        }));
+      }
       setProcessLog((prev) => [...prev, "✓ 競合URL抽出が完了しました"]);
 
       // Step 3: 記事スクレイピング + LLM分析

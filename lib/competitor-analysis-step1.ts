@@ -43,13 +43,15 @@ export async function analyzeStep1(
 
   // キーワードを優先順位付け
   const step3Start = Date.now();
+  // keywordData.rowsが存在することを確認
+  const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
   const keywordList: Array<{
     keyword: string;
     position: number;
     impressions: number;
     clicks: number;
     ctr: number;
-  }> = keywordData.rows.map((row) => ({
+  }> = keywordRows.map((row) => ({
     keyword: row.keys[0],
     position: row.position,
     impressions: row.impressions,
@@ -67,7 +69,16 @@ export async function analyzeStep1(
   }> = [];
 
   // 最小インプレッション数の閾値（検索ボリュームが少ないキーワードを除外）
-  const minImpressions = 10;
+  // データが少ないページでもキーワードを取得できるように、閾値を下げる
+  const minImpressions = 1; // 10から1に変更
+
+  // デバッグログ
+  console.log(`[CompetitorAnalysis] Keyword data:`, {
+    keywordListCount: keywordList.length,
+    keywordListSample: keywordList.slice(0, 5).map(kw => ({ keyword: kw.keyword, impressions: kw.impressions, position: kw.position })),
+    droppedKeywordsCount: rankDropResult.droppedKeywords.length,
+    minImpressions,
+  });
 
   // 転落キーワードと通常キーワードを統合してから、正規化で重複排除
   const allPrioritizedKeywords: typeof prioritizedKeywords = [];
@@ -83,6 +94,7 @@ export async function analyzeStep1(
         clicks: kw.clicks,
         position: kw.position,
       }));
+    console.log(`[CompetitorAnalysis] Dropped prioritized:`, droppedPrioritized.length);
     allPrioritizedKeywords.push(...droppedPrioritized);
   }
 
@@ -96,6 +108,7 @@ export async function analyzeStep1(
       clicks: kw.clicks,
       position: kw.position,
     }));
+  console.log(`[CompetitorAnalysis] Regular prioritized:`, regularPrioritized.length);
   allPrioritizedKeywords.push(...regularPrioritized);
 
   // 意味的に同じキーワードを統合（最終的な重複排除）
@@ -132,6 +145,8 @@ export async function analyzeStep1(
     }));
 
   // 選定されたキーワードの時系列データを取得（グラフ用）
+  // 注意: この時点ではSerper APIの結果はまだ取得していないため、
+  // 後でStep 2の結果と統合して転落を検出する必要がある
   let keywordTimeSeries: Step1Result["keywordTimeSeries"] = [];
   if (prioritizedKeywords.length > 0) {
     try {
@@ -147,7 +162,9 @@ export async function analyzeStep1(
       // キーワードごとに時系列データをグループ化
       const timeSeriesMap = new Map<string, Array<{ date: string; position: number; impressions: number; clicks: number }>>();
       
-      for (const row of timeSeriesData.rows) {
+      // timeSeriesData.rowsが存在することを確認
+      const timeSeriesRows = Array.isArray(timeSeriesData?.rows) ? timeSeriesData.rows : [];
+      for (const row of timeSeriesRows) {
         const keyword = row.keys[1]; // keys[0] = date, keys[1] = query
         const date = row.keys[0];
         
@@ -163,10 +180,48 @@ export async function analyzeStep1(
         });
       }
 
-      // 日付順にソート
+      // 日付順にソートし、データ欠落を検出
       for (const [keyword, data] of timeSeriesMap.entries()) {
         data.sort((a, b) => a.date.localeCompare(b.date));
-        keywordTimeSeries.push({ keyword, data });
+        
+        // データ欠落の検出と警告フラグの追加
+        const lastDataDate = data.length > 0 ? new Date(data[data.length - 1].date) : null;
+        const endDateObj = new Date(endDate);
+        const daysSinceLastData = lastDataDate 
+          ? Math.floor((endDateObj.getTime() - lastDataDate.getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+        
+        // 最後のデータから3日以上経過している場合、転落の可能性が高い
+        const hasRecentDrop = daysSinceLastData !== null && daysSinceLastData >= 3;
+        
+        keywordTimeSeries.push({ 
+          keyword, 
+          data,
+          // メタデータを追加（フロントエンドで警告表示に使用）
+          metadata: {
+            lastDataDate: lastDataDate?.toISOString().split('T')[0] || null,
+            daysSinceLastData,
+            hasRecentDrop,
+            // 最後のデータの順位
+            lastPosition: data.length > 0 ? data[data.length - 1].position : null,
+          }
+        });
+      }
+      
+      // データが全く取得されていないキーワードも追加（警告表示用）
+      for (const kw of prioritizedKeywords) {
+        if (!timeSeriesMap.has(kw.keyword)) {
+          keywordTimeSeries.push({
+            keyword: kw.keyword,
+            data: [],
+            metadata: {
+              lastDataDate: null,
+              daysSinceLastData: null,
+              hasRecentDrop: true, // データが全くない場合は転落とみなす
+              lastPosition: kw.position, // キーワードデータから取得した順位
+            }
+          });
+        }
       }
     } catch (error: any) {
       console.error("[CompetitorAnalysis] Failed to get keyword time series data:", error);
@@ -176,6 +231,14 @@ export async function analyzeStep1(
 
   const totalTime = Date.now() - startTime;
   console.log(`[CompetitorAnalysis] ⏱️ Step 1 complete: ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)`);
+  
+  // デバッグログ
+  console.log(`[CompetitorAnalysis] Step 1 result:`, {
+    prioritizedKeywordsCount: prioritizedKeywords.length,
+    prioritizedKeywords: prioritizedKeywords.map(kw => ({ keyword: kw.keyword, priority: kw.priority, position: kw.position, impressions: kw.impressions })),
+    topRankingKeywordsCount: topRankingKeywords.length,
+    keywordTimeSeriesCount: keywordTimeSeries.length,
+  });
 
   return {
     prioritizedKeywords,
