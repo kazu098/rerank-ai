@@ -58,7 +58,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // リダイレクトURLが相対パスの場合、baseUrlを追加
       if (url.startsWith("/")) {
         // 既にロケールが含まれている場合はそのまま返す
-        if (url.match(/^\/(ja|en)\//)) {
+        // /ja, /ja/, /ja/dashboard などに対応
+        if (url.match(/^\/(ja|en)(\/|$)/)) {
           return `${baseUrl}${url}`;
         }
         // ロケールが含まれていない場合は、デフォルトロケール（ja）を追加
