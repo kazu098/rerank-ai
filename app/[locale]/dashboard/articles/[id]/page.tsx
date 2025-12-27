@@ -50,7 +50,6 @@ export default function ArticleDetailPage({
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ArticleDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [expandedAnalysisId, setExpandedAnalysisId] = useState<string | null>(null);
   const [detailedData, setDetailedData] = useState<Record<string, any>>({});
   const [loadingDetailed, setLoadingDetailed] = useState<Set<string>>(new Set());
   const articleId = params.id;
@@ -80,6 +79,15 @@ export default function ArticleDetailPage({
 
       const articleData = await response.json();
       setData(articleData);
+
+      // すべての分析結果の詳細データを自動的に取得
+      if (articleData.analysisResults) {
+        articleData.analysisResults.forEach((result: any) => {
+          if (result.detailed_result_storage_key) {
+            fetchDetailedAnalysis(result.id, result.detailed_result_storage_key);
+          }
+        });
+      }
     } catch (err: any) {
       console.error("[Article Detail] Error:", err);
       setError(err.message || "エラーが発生しました");
@@ -294,23 +302,8 @@ export default function ArticleDetailPage({
                       </div>
                     )}
                   </div>
-                  {result.detailed_result_storage_key && (
-                    <button
-                      onClick={() => {
-                        if (expandedAnalysisId === result.id) {
-                          setExpandedAnalysisId(null);
-                        } else {
-                          setExpandedAnalysisId(result.id);
-                          fetchDetailedAnalysis(result.id, result.detailed_result_storage_key!);
-                        }
-                      }}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      {expandedAnalysisId === result.id ? "詳細を閉じる" : "詳細を見る"}
-                    </button>
-                  )}
                 </div>
-                {expandedAnalysisId === result.id && result.detailed_result_storage_key && (
+                {result.detailed_result_storage_key && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     {loadingDetailed.has(result.id) ? (
                       <div className="text-center py-4">
