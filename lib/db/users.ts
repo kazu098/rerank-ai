@@ -13,6 +13,7 @@ export interface User {
   plan_ends_at: string | null;
   trial_ends_at: string | null;
   timezone: string | null;
+  locale: string | null;
   password_hash: string | null;
   email_verified: boolean | null;
   email_verification_token: string | null;
@@ -49,19 +50,25 @@ export async function getOrCreateUser(
     throw new Error(`Failed to search user: ${searchError.message}`);
   }
 
-  // 既存ユーザーがいる場合は更新
-  if (existingUser) {
-    const updateData: any = {
-      name: name || existingUser.name,
-      provider,
-      provider_id: providerId,
-      updated_at: new Date().toISOString(),
-    };
+    // 既存ユーザーがいる場合は更新
+    if (existingUser) {
+      const updateData: any = {
+        name: name || existingUser.name,
+        provider,
+        provider_id: providerId,
+        updated_at: new Date().toISOString(),
+        email_verified: existingUser.email_verified || (provider === 'google' ? true : false),
+      };
 
-    // タイムゾーンが提供されていて、既存ユーザーにタイムゾーンが設定されていない場合のみ更新
-    if (timezone && !existingUser.timezone) {
-      updateData.timezone = timezone;
-    }
+      // タイムゾーンが提供されていて、既存ユーザーにタイムゾーンが設定されていない場合のみ更新
+      if (timezone && !existingUser.timezone) {
+        updateData.timezone = timezone;
+      }
+
+      // ロケールが設定されていない場合はデフォルト値（'ja'）を設定
+      if (!existingUser.locale) {
+        updateData.locale = 'ja';
+      }
 
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
@@ -106,6 +113,7 @@ export async function getOrCreateUser(
       plan_id: freePlan.id,
       trial_ends_at: trialEndsAt.toISOString(),
       timezone: timezone || 'UTC', // タイムゾーンが提供されていない場合はUTC
+      locale: 'ja', // デフォルトロケールは'ja'
       email_verified: emailVerified, // Google OAuthの場合はtrue、それ以外はfalse
       // password_hashは設定しない（NULLのまま）- Google OAuthの場合は不要
     })
@@ -185,6 +193,30 @@ export async function updateUserTimezone(userId: string, timezone: string): Prom
 }
 
 /**
+ * ユーザーのロケールを更新
+ */
+export async function updateUserLocale(userId: string, locale: string): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  // ロケールの検証（'ja' または 'en' のみ許可）
+  if (locale !== 'ja' && locale !== 'en') {
+    throw new Error(`Invalid locale: ${locale}. Only 'ja' and 'en' are supported.`);
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      locale,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update user locale: ${error.message}`);
+  }
+}
+
+/**
  * パスワードをハッシュ化
  */
 export async function hashPassword(password: string): Promise<string> {
@@ -241,18 +273,19 @@ export async function createUserWithPassword(
   // ユーザーを作成
   const { data: newUser, error: createError } = await supabase
     .from('users')
-    .insert({
-      email,
-      name: name || null,
-      password_hash: passwordHash,
-      email_verified: false,
-      email_verification_token: verificationToken,
-      email_verification_token_expires_at: verificationTokenExpiresAt.toISOString(),
-      provider: 'credentials',
-      plan_id: freePlan.id,
-      trial_ends_at: trialEndsAt.toISOString(),
-      timezone: 'UTC',
-    })
+          .insert({
+            email,
+            name: name || null,
+            password_hash: passwordHash,
+            email_verified: false,
+            email_verification_token: verificationToken,
+            email_verification_token_expires_at: verificationTokenExpiresAt.toISOString(),
+            provider: 'credentials',
+            plan_id: freePlan.id,
+            trial_ends_at: trialEndsAt.toISOString(),
+            timezone: 'UTC',
+            locale: 'ja', // デフォルトロケールは'ja'
+          })
     .select()
     .single();
 
