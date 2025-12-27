@@ -495,10 +495,10 @@ export class NotificationService {
           ` : ''}
 
           <!-- 追加すべき項目（簡潔版） -->
-          ${analysisResult.semanticDiffAnalysis?.semanticAnalysis.recommendedAdditions.length > 0 ? `
+          ${analysisResult.semanticDiffAnalysis?.semanticAnalysis?.recommendedAdditions && analysisResult.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0 ? `
             <div style="margin-top: 12px;">
               <strong>${t('notification.email.recommendedAdditions')}:</strong>
-              ${analysisResult.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.slice(0, 3).map((rec) => `
+              ${(analysisResult.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions || []).slice(0, 3).map((rec) => `
                 <div class="recommendation">
                   <div class="recommendation-title">${t('notification.email.section', { section: rec.section })}</div>
                   <p style="font-size: 14px; margin-top: 4px; color: #6B7280;">${rec.reason}</p>
