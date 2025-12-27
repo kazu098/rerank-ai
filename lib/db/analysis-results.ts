@@ -1,5 +1,6 @@
 import { createSupabaseClient } from "@/lib/supabase";
 import { CompetitorAnalysisSummary } from "../competitor-analysis";
+import { put } from "@vercel/blob";
 
 export interface AnalysisRun {
   id: string;
@@ -27,6 +28,7 @@ export interface AnalysisResult {
   detailed_result_storage_key: string | null;
   detailed_result_expires_at: string | null;
   competitor_count: number | null;
+  competitor_urls: string[] | null; // 競合URL一覧（JSONB）
   analysis_duration_seconds: number | null;
   created_at: string;
 }
@@ -121,7 +123,12 @@ export async function saveAnalysisResult(
     // 競合サイト数
     const competitorCount = analysisResult.uniqueCompetitorUrls.length;
 
-    // 3. analysis_results テーブルに分析結果サマリーを保存
+    // 競合URL一覧（通知メールに必要）
+    const competitorUrls = analysisResult.uniqueCompetitorUrls.length > 0
+      ? analysisResult.uniqueCompetitorUrls
+      : null;
+
+    // 3. analysis_results テーブルに分析結果サマリーを保存（まず作成）
     const { data: result, error: resultError } = await supabase
       .from("analysis_results")
       .insert({
@@ -137,7 +144,10 @@ export async function saveAnalysisResult(
           recommendedAdditions.length > 0 ? recommendedAdditions : null,
         missing_content_summary: missingContentSummary,
         competitor_count: competitorCount,
+        competitor_urls: competitorUrls, // 競合URL一覧を保存
         analysis_duration_seconds: analysisDurationSeconds || null,
+        detailed_result_storage_key: null, // 一時的にnull、後で更新
+        detailed_result_expires_at: null, // 一時的にnull、後で更新
       })
       .select()
       .single();
@@ -146,7 +156,64 @@ export async function saveAnalysisResult(
       throw new Error(`Failed to save analysis result: ${resultError.message}`);
     }
 
-    // 4. analysis_runs のステータスを 'completed' に更新
+    // 4. 詳細データをVercel Blob Storageに保存（LLM分析の詳細のみ）
+    let storageKey: string | null = null;
+    let expiresAt: string | null = null;
+
+    if (analysisResult.semanticDiffAnalysis) {
+      try {
+        // 30日間の有効期限を設定
+        const expiresInSeconds = 30 * 24 * 60 * 60; // 30日
+        const expiresAtDate = new Date(Date.now() + expiresInSeconds * 1000);
+
+        // 保存する詳細データ（LLM分析の詳細のみ）
+        const detailedData = {
+          semanticDiffAnalysis: analysisResult.semanticDiffAnalysis,
+        };
+
+        // Vercel Blob Storageに保存
+        const blob = await put(
+          `analysis/${result.id}/detailed.json`,
+          JSON.stringify(detailedData),
+          {
+            access: "public",
+            addRandomSuffix: false,
+          }
+        );
+
+        storageKey = blob.url;
+        expiresAt = expiresAtDate.toISOString();
+        console.log(
+          `[Analysis Results] Detailed data saved to blob storage: ${storageKey}`
+        );
+
+        // ストレージキーと有効期限を更新
+        const { error: updateError } = await supabase
+          .from("analysis_results")
+          .update({
+            detailed_result_storage_key: storageKey,
+            detailed_result_expires_at: expiresAt,
+          })
+          .eq("id", result.id);
+
+        if (updateError) {
+          console.error(
+            "[Analysis Results] Failed to update storage key:",
+            updateError
+          );
+          // 更新に失敗しても処理は続行
+        }
+      } catch (blobError: any) {
+        console.error(
+          "[Analysis Results] Failed to save detailed data to blob storage:",
+          blobError
+        );
+        // 詳細データの保存に失敗しても、サマリーは保存する
+        // エラーをログに記録するが、処理は続行
+      }
+    }
+
+    // 5. analysis_runs のステータスを 'completed' に更新
     await supabase
       .from("analysis_runs")
       .update({
@@ -246,5 +313,66 @@ export async function getAnalysisRunsByArticleId(
   }
 
   return data || [];
+}
+
+/**
+ * 詳細データを取得（Vercel Blob Storageから）
+ */
+export async function getDetailedAnalysisData(
+  analysisResultId: string,
+  storageKey: string
+): Promise<{
+  semanticDiffAnalysis: CompetitorAnalysisSummary["semanticDiffAnalysis"];
+} | null> {
+  try {
+    // 有効期限をチェック
+    const supabase = createSupabaseClient();
+    const { data: result, error } = await supabase
+      .from("analysis_results")
+      .select("detailed_result_expires_at")
+      .eq("id", analysisResultId)
+      .single();
+
+    if (error) {
+      throw new Error(
+        `Failed to get analysis result: ${error.message}`
+      );
+    }
+
+    if (!result?.detailed_result_expires_at) {
+      console.warn(
+        `[Analysis Results] No expiration date found for analysis result ${analysisResultId}`
+      );
+      return null;
+    }
+
+    const expiresAt = new Date(result.detailed_result_expires_at);
+    if (expiresAt < new Date()) {
+      console.warn(
+        `[Analysis Results] Detailed data has expired for analysis result ${analysisResultId}`
+      );
+      return null;
+    }
+
+    // Vercel Blob Storageから取得（URLから直接fetch）
+    const response = await fetch(storageKey);
+
+    if (!response.ok) {
+      console.warn(
+        `[Analysis Results] Failed to fetch blob: ${response.status} ${response.statusText}`
+      );
+      return null;
+    }
+
+    // JSONとしてパース
+    const detailedData = await response.json();
+
+    return detailedData;
+  } catch (error: any) {
+    console.error(
+      `[Analysis Results] Failed to get detailed data: ${error.message}`
+    );
+    return null;
+  }
 }
 
