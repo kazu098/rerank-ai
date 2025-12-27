@@ -1,8 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSlackOAuthUrl } from "@/lib/slack-oauth";
+import { routing } from "@/src/i18n/routing";
 
 // 動的ルートとして明示（request.urlを使用するため）
 export const dynamic = 'force-dynamic';
+
+/**
+ * refererからロケールを抽出
+ */
+function getLocaleFromReferer(request: NextRequest): string {
+  const referer = request.headers.get('referer');
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      const pathSegments = refererUrl.pathname.split('/').filter(Boolean);
+      if (pathSegments.length > 0 && routing.locales.includes(pathSegments[0] as any)) {
+        return pathSegments[0];
+      }
+    } catch (e) {
+      // URL解析に失敗した場合はデフォルトを使用
+    }
+  }
+  return routing.defaultLocale;
+}
 
 /**
  * Slack OAuth認証開始
@@ -31,8 +51,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(oauthUrl);
   } catch (error: any) {
     console.error("[Slack OAuth] Authorization error:", error);
+    const locale = getLocaleFromReferer(request);
     return NextResponse.redirect(
-      new URL(`/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url)
+      new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url)
     );
   }
 }
