@@ -1,5 +1,6 @@
 import { CompetitorExtractor, SearchResult } from "./competitor-extractor";
 import { CompetitorAnalysisResult, Step1Result, Step2Result } from "./competitor-analysis";
+import { filterCompetitorUrls } from "./competitor-filter";
 
 /**
  * Step 2: 競合URL抽出
@@ -100,15 +101,38 @@ export async function analyzeStep2(
         `[CompetitorAnalysis] Filtered to ${competitorsAboveOwn.length} competitors above own position`
       );
 
+      // 競合URLをフィルタリング（Wikipedia、ECサイト等を除外）
+      const competitorUrls = competitorsAboveOwn.map((comp) => comp.url);
+      const { filteredUrls, excludedUrls } = filterCompetitorUrls(competitorUrls, {
+        useGlobalExclusion: true,
+        useDefaultExclusion: true,
+        ownSiteUrl: normalizedOwnUrl,
+      });
+
+      if (excludedUrls.length > 0) {
+        console.log(
+          `[CompetitorAnalysis] Excluded ${excludedUrls.length} URLs: ${excludedUrls.map((e) => e.domain).join(", ")}`
+        );
+      }
+
+      // フィルタリング後のURLのみを保持
+      const filteredCompetitors = competitorsAboveOwn.filter((comp) =>
+        filteredUrls.includes(comp.url)
+      );
+
+      console.log(
+        `[CompetitorAnalysis] After filtering: ${filteredCompetitors.length} competitors (excluded ${competitorsAboveOwn.length - filteredCompetitors.length})`
+      );
+
       competitorResults.push({
         keyword: prioritizedKeyword.keyword,
-        competitors: competitorsAboveOwn,
+        competitors: filteredCompetitors,
         ownPosition: result.ownPosition || ownKeywordPosition,
         totalResults: result.totalResults,
       });
 
-      // ユニークな競合URLを収集
-      competitorsAboveOwn.forEach((comp) => {
+      // ユニークな競合URLを収集（フィルタリング後）
+      filteredCompetitors.forEach((comp) => {
         uniqueCompetitorUrls.add(comp.url);
       });
     } catch (error: any) {
