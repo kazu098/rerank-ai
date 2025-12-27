@@ -16,6 +16,12 @@ export interface NotificationSettings {
   notification_cooldown_days: number;
   notification_time: string | null; // TIME型（例: '09:00:00'）
   timezone: string | null; // タイムゾーン（例: 'Asia/Tokyo'）
+  slack_webhook_url: string | null; // Slack Webhook URL（旧方式）
+  slack_bot_token: string | null; // Slack Bot Token（OAuth方式）
+  slack_user_id: string | null; // Slack User ID（Uで始まる）
+  slack_team_id: string | null; // Slack Team ID（Tで始まる）
+  slack_channel_id: string | null; // チャンネルIDまたはUser ID（DM送信の場合）
+  slack_notification_type: string | null; // 'channel' or 'dm'
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +39,12 @@ export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'u
   notification_cooldown_days: 7,
   notification_time: '09:00:00',
   timezone: null,
+  slack_webhook_url: null,
+  slack_bot_token: null,
+  slack_user_id: null,
+  slack_team_id: null,
+  slack_channel_id: null,
+  slack_notification_type: null,
 };
 
 /**
@@ -90,7 +102,7 @@ export async function saveOrUpdateNotificationSettings(
 ): Promise<NotificationSettings> {
   const supabase = createSupabaseClient();
 
-  const settingsData = {
+  const settingsData: any = {
     user_id: userId,
     article_id: articleId || null,
     notification_type: settings.notification_type,
@@ -105,8 +117,26 @@ export async function saveOrUpdateNotificationSettings(
     notification_cooldown_days: settings.notification_cooldown_days ?? DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days,
     notification_time: settings.notification_time ?? '09:00:00',
     timezone: settings.timezone ?? null, // NULLの場合はusersテーブルのタイムゾーンを使用
+    slack_webhook_url: settings.slack_webhook_url ?? null,
     updated_at: new Date().toISOString(),
   };
+
+  // Slack OAuth関連のフィールドを追加（提供されている場合）
+  if (settings.slack_bot_token !== undefined) {
+    settingsData.slack_bot_token = settings.slack_bot_token;
+  }
+  if (settings.slack_user_id !== undefined) {
+    settingsData.slack_user_id = settings.slack_user_id;
+  }
+  if (settings.slack_team_id !== undefined) {
+    settingsData.slack_team_id = settings.slack_team_id;
+  }
+  if (settings.slack_channel_id !== undefined) {
+    settingsData.slack_channel_id = settings.slack_channel_id;
+  }
+  if (settings.slack_notification_type !== undefined) {
+    settingsData.slack_notification_type = settings.slack_notification_type;
+  }
 
   // 既存の設定を検索
   const { data: existing } = await supabase

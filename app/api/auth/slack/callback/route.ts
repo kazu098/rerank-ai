@@ -1,0 +1,225 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { exchangeSlackCodeForToken, getSlackUserId } from "@/lib/slack-oauth";
+import { saveOrUpdateNotificationSettings } from "@/lib/db/notification-settings";
+
+// 動的ルートとして明示（request.urlを使用するため）
+export const dynamic = 'force-dynamic';
+
+/**
+ * Slack OAuth認証コールバック
+ * GET /api/auth/slack/callback?code=xxx&state=xxx
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+    const error = searchParams.get("error");
+    
+    // デバッグログ
+    const requestUrl = new URL(request.url);
+    console.log("[Slack OAuth] Callback received:", {
+      fullUrl: request.url,
+      origin: requestUrl.origin,
+      hostname: requestUrl.hostname,
+      code: code ? "present" : "missing",
+      codeLength: code?.length,
+      state,
+      error,
+      headers: {
+        host: request.headers.get('host'),
+        referer: request.headers.get('referer'),
+      },
+    });
+
+    // リダイレクト先URLを生成（新しいタブで開いた場合の処理を含む）
+    const getRedirectHtml = (success: boolean, message?: string, error?: string) => {
+      const redirectUrl = success
+        ? new URL("/dashboard/notifications?slack_connected=true", request.url)
+        : new URL(`/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error || message || "Unknown error")}`, request.url);
+      
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${success ? "Slack連携完了" : "Slack連携エラー"}</title>
+</head>
+<body>
+  <script>
+    (function() {
+      // Chrome拡張機能によるエラーを抑制
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+        // Chrome拡張機能関連のエラーは無視
+        const message = args.join(' ');
+        if (message.includes('message port closed') || 
+            message.includes('content.js') || 
+            message.includes('multi-tabs.js')) {
+          return; // エラーを無視
+        }
+        originalConsoleError.apply(console, args);
+      };
+      
+      try {
+        // 親ウィンドウにメッセージを送信してリロード
+        if (window.opener && !window.opener.closed) {
+          try {
+            window.opener.postMessage({ 
+              type: 'slack_connected', 
+              success: ${success},
+              ${error ? `error: '${error.replace(/'/g, "\\'")}',` : ''}
+            }, '*');
+            // メッセージ送信後、少し待ってからウィンドウを閉じる
+            setTimeout(function() {
+              try {
+                window.close();
+              } catch (closeError) {
+                // ウィンドウを閉じられない場合（ポップアップブロッカーなど）、リダイレクト
+                window.location.href = '${redirectUrl.toString()}';
+              }
+            }, 100);
+          } catch (e) {
+            // postMessageが失敗した場合、通常のリダイレクトにフォールバック
+            // Chrome拡張機能によるエラーは無視
+            if (!e.message || (!e.message.includes('message port') && !e.message.includes('port closed'))) {
+              console.error('Failed to send message to parent:', e);
+            }
+            window.location.href = '${redirectUrl.toString()}';
+          }
+        } else {
+          // 親ウィンドウがない、または既に閉じられている場合
+          window.location.href = '${redirectUrl.toString()}';
+        }
+      } catch (e) {
+        // エラーが発生した場合、通常のリダイレクトにフォールバック
+        // Chrome拡張機能によるエラーは無視
+        if (!e.message || (!e.message.includes('message port') && !e.message.includes('port closed'))) {
+          console.error('Error in callback handler:', e);
+        }
+        window.location.href = '${redirectUrl.toString()}';
+      }
+      
+      // タイムアウト: 5秒後に自動的にリダイレクト（フォールバック）
+      setTimeout(function() {
+        if (!document.hidden) {
+          window.location.href = '${redirectUrl.toString()}';
+        }
+      }, 5000);
+    })();
+  </script>
+  <p>${success ? "Slack連携が完了しました。このウィンドウは自動的に閉じられます。" : `エラーが発生しました: ${error || message}。このウィンドウは自動的に閉じられます。`}</p>
+  <p><a href="${redirectUrl.toString()}">ここをクリック</a>して続行してください。</p>
+</body>
+</html>`;
+    };
+
+    if (error) {
+      console.error("[Slack OAuth] Error:", error);
+      return new NextResponse(getRedirectHtml(false, undefined, error), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+
+    if (!code) {
+      return new NextResponse(getRedirectHtml(false, undefined, "認証コードが取得できませんでした"), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+
+    // セッションを取得（ユーザーがログインしている必要がある）
+    const session = await auth();
+    if (!session?.userId) {
+      return new NextResponse(getRedirectHtml(false, undefined, "認証が必要です"), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+
+    // 認証コードをトークンに交換（リクエストURLを渡して、実際のホストを使用）
+    console.log("[Slack OAuth] Exchanging code for token, request URL:", request.url);
+    let tokens;
+    try {
+      tokens = await exchangeSlackCodeForToken(code, request.url);
+      console.log("[Slack OAuth] Token exchange successful, teamId:", tokens.teamId);
+    } catch (tokenError: any) {
+      console.error("[Slack OAuth] Token exchange failed:", {
+        error: tokenError.message,
+        stack: tokenError.stack,
+        requestUrl: request.url,
+      });
+      return new NextResponse(getRedirectHtml(false, undefined, `トークン交換に失敗しました: ${tokenError.message}`), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+
+    // ユーザーIDを取得（必要に応じて）
+    const slackUserId = await getSlackUserId(tokens.botToken);
+
+    // 通知設定を保存（デフォルトはDM送信）
+    await saveOrUpdateNotificationSettings(
+      session.userId,
+      {
+        notification_type: 'rank_drop',
+        channel: 'slack',
+        recipient: tokens.userId || slackUserId || tokens.teamId,
+        is_enabled: true,
+        slack_bot_token: tokens.botToken,
+        slack_user_id: tokens.userId || slackUserId,
+        slack_team_id: tokens.teamId,
+        slack_channel_id: tokens.userId || slackUserId, // デフォルトはDM
+        slack_notification_type: 'dm', // デフォルトはDM
+      },
+      null // 記事固有の設定ではないためnull
+    );
+
+    // 成功時のリダイレクト
+    return new NextResponse(getRedirectHtml(true), {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    });
+  } catch (error: any) {
+    console.error("[Slack OAuth] Callback error:", error);
+    return new NextResponse(
+      `<!DOCTYPE html>
+<html>
+<head>
+  <title>Slack連携エラー</title>
+</head>
+<body>
+  <script>
+    if (window.opener) {
+      window.opener.postMessage({ 
+        type: 'slack_connected', 
+        success: false, 
+        error: '${error.message.replace(/'/g, "\\'")}' 
+      }, '*');
+      window.close();
+    } else {
+      window.location.href = '${new URL(`/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url).toString()}';
+    }
+  </script>
+  <p>エラーが発生しました: ${error.message}。このウィンドウは自動的に閉じられます。</p>
+</body>
+</html>`,
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      }
+    );
+  }
+}

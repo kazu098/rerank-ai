@@ -214,14 +214,30 @@
       "startMonitoring": "Get notified when rankings drop?",
       "startMonitoringDescription": "We will automatically check this article's rankings daily and send you an email notification if the rankings drop.",
       "emailNotification": "Receive email notifications",
-      "slackNotification": "Receive Slack notifications (coming soon)",
+      "slackNotification": "Receive Slack notifications",
+      "slackWebhookUrl": "Slack Webhook URL",
+      "slackWebhookUrlDescription": "Enter your Slack Incoming Webhook URL",
+      "slackWebhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "slackWebhookUrlHelp": "Create a Slack Incoming Webhook and get the URL",
+      "connectSlack": "Connect Slack",
+      "connectSlackDescription": "Click the button to log in with your Slack account and complete notification settings",
+      "slackConnected": "Connected to Slack",
+      "sendingToDM": "Sending to: Your DM",
+      "sendingToChannel": "Sending to: Channel",
+      "disconnectSlack": "Disconnect",
+      "slackDisconnected": "Slack connection disconnected",
+      "webhookMethod": "Webhook Method",
+      "notRecommended": "Not Recommended",
       "notificationTime": "Check Time",
       "notificationTimeDescription": "We will check rankings daily at this time (default: 9:00 AM)",
       "startMonitoringButton": "Start Notifications",
       "skipButton": "Skip",
       "saving": "Saving...",
       "saved": "Notification settings saved",
-      "error": "Failed to save settings"
+      "error": "Failed to save settings",
+      "title": "Settings",
+      "notificationSettings": "Notification Settings",
+      "slackSettings": "Slack Notification Settings"
     }
   }
 }

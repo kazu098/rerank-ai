@@ -216,14 +216,30 @@
       "startMonitoring": "順位下落を自動で通知しますか？",
       "startMonitoringDescription": "この記事の順位を毎日自動でチェックし、順位が下がった際にメールでお知らせします。",
       "emailNotification": "メール通知を受信する",
-      "slackNotification": "Slack通知を受信する（今後実装予定）",
+      "slackNotification": "Slack通知を受信する",
+      "slackWebhookUrl": "Slack Webhook URL",
+      "slackWebhookUrlDescription": "SlackのIncoming Webhook URLを入力してください",
+      "slackWebhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "slackWebhookUrlHelp": "SlackのIncoming Webhookを作成してURLを取得してください",
+      "connectSlack": "Slackと連携",
+      "connectSlackDescription": "ボタンをクリックしてSlackアカウントでログインし、通知設定を完了します",
+      "slackConnected": "Slackと連携済み",
+      "sendingToDM": "通知先: 自分のDM",
+      "sendingToChannel": "通知先: チャンネル",
+      "disconnectSlack": "連携解除",
+      "slackDisconnected": "Slack連携を解除しました",
+      "webhookMethod": "Webhook方式",
+      "notRecommended": "非推奨",
       "notificationTime": "チェック時刻",
       "notificationTimeDescription": "毎日この時刻に順位をチェックします（デフォルト: 午前9時）",
       "startMonitoringButton": "通知を開始する",
       "skipButton": "スキップ",
       "saving": "保存中...",
       "saved": "通知設定を保存しました",
-      "error": "設定の保存に失敗しました"
+      "error": "設定の保存に失敗しました",
+      "title": "設定",
+      "notificationSettings": "通知設定",
+      "slackSettings": "Slack通知設定"
     }
   }
 }
