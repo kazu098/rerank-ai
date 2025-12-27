@@ -176,6 +176,19 @@
       "reason": "理由",
       "referenceCompetitorSites": "参考: この内容が記載されている競合サイト",
       "footer": "ReRank AI - 順位下落の防止から上位への引き上げまで"
+    },
+    "settings": {
+      "startMonitoring": "順位下落を自動で通知しますか？",
+      "startMonitoringDescription": "この記事の順位を毎日自動でチェックし、順位が下がった際にメールでお知らせします。",
+      "emailNotification": "メール通知を受信する",
+      "slackNotification": "Slack通知を受信する（今後実装予定）",
+      "notificationTime": "チェック時刻",
+      "notificationTimeDescription": "毎日この時刻に順位をチェックします（デフォルト: 午前9時）",
+      "startMonitoringButton": "通知を開始する",
+      "skipButton": "スキップ",
+      "saving": "保存中...",
+      "saved": "通知設定を保存しました",
+      "error": "設定の保存に失敗しました"
     }
   }
 }

@@ -204,6 +204,12 @@ export default function Home() {
   const [articleSearchQuery, setArticleSearchQuery] = useState("");
   const [fetchingTitleUrls, setFetchingTitleUrls] = useState<Set<string>>(new Set());
 
+  // 通知設定関連
+  const [showMonitoringDialog, setShowMonitoringDialog] = useState(false);
+  const [monitoringEmail, setMonitoringEmail] = useState("");
+  const [monitoringTime, setMonitoringTime] = useState("09:00");
+  const [savingMonitoring, setSavingMonitoring] = useState(false);
+
   // プロセスログを1項目ずつ順番に表示（ポーリング方式）
   useEffect(() => {
     if (processLog.length > 0 && displayedLogIndex < processLog.length && loading) {
@@ -1358,8 +1364,111 @@ export default function Home() {
                   </details>
                 )}
 
+                {/* 監視開始ダイアログ */}
+                {showMonitoringDialog && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+                      <h3 className="text-xl font-bold mb-4">{t("notification.settings.startMonitoring")}</h3>
+                      <p className="text-sm text-gray-600 mb-6">{t("notification.settings.startMonitoringDescription")}</p>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-2">
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              readOnly
+                              className="mr-2"
+                            />
+                            {t("notification.settings.emailNotification")}
+                          </label>
+                          <input
+                            type="email"
+                            value={monitoringEmail}
+                            onChange={(e) => setMonitoringEmail(e.target.value)}
+                            placeholder={session?.user?.email || "your-email@example.com"}
+                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none mt-2"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold mb-2">
+                            {t("notification.settings.notificationTime")}
+                          </label>
+                          <input
+                            type="time"
+                            value={monitoringTime}
+                            onChange={(e) => setMonitoringTime(e.target.value)}
+                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">{t("notification.settings.notificationTimeDescription")}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-3 mt-6">
+                        <button
+                          onClick={async () => {
+                            if (!monitoringEmail && !session?.user?.email) {
+                              alert("メールアドレスを入力してください");
+                              return;
+                            }
+
+                            setSavingMonitoring(true);
+                            try {
+                              const response = await fetch('/api/articles/start-monitoring', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  url: articleUrl,
+                                  siteUrl: selectedSiteUrl,
+                                  email: monitoringEmail || session?.user?.email,
+                                  notificationTime: `${monitoringTime}:00`,
+                                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                                }),
+                              });
+
+                              if (response.ok) {
+                                alert(t("notification.settings.saved"));
+                                setShowMonitoringDialog(false);
+                              } else {
+                                const error = await response.json();
+                                alert(error.error || t("notification.settings.error"));
+                              }
+                            } catch (error: any) {
+                              console.error("[Monitoring] Error:", error);
+                              alert(t("notification.settings.error"));
+                            } finally {
+                              setSavingMonitoring(false);
+                            }
+                          }}
+                          disabled={savingMonitoring}
+                          className="flex-1 bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50"
+                        >
+                          {savingMonitoring ? t("notification.settings.saving") : t("notification.settings.startMonitoringButton")}
+                        </button>
+                        <button
+                          onClick={() => setShowMonitoringDialog(false)}
+                          disabled={savingMonitoring}
+                          className="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-all disabled:opacity-50"
+                        >
+                          {t("notification.settings.skipButton")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* アクションボタン */}
                 <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      setMonitoringEmail(session?.user?.email || "");
+                      setShowMonitoringDialog(true);
+                    }}
+                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-all shadow-lg"
+                  >
+                    📧 {t("notification.settings.startMonitoring")}
+                  </button>
                   {notificationEmail && (
                     <button
                       onClick={sendNotification}
