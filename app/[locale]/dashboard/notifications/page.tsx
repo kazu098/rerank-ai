@@ -34,6 +34,9 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [error, setError] = useState<string | null>(null);
+  const [slackConnected, setSlackConnected] = useState(false);
+  const [slackNotificationType, setSlackNotificationType] = useState<'channel' | 'dm' | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -43,8 +46,43 @@ export default function NotificationsPage() {
 
     if (status === "authenticated") {
       fetchNotifications();
+      fetchSlackSettings();
     }
   }, [status, filter, router, locale]);
+
+  // URLパラメータからメッセージを取得
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("slack_connected") === "true") {
+        setSuccess(t("notification.settings.slackConnected"));
+        // URLからパラメータを削除
+        window.history.replaceState({}, "", window.location.pathname);
+        fetchSlackSettings(); // 設定を再取得
+      }
+      if (params.get("error")) {
+        setError(params.get("error") || t("notification.settings.error"));
+      }
+    }
+  }, [t]);
+
+  const fetchSlackSettings = async () => {
+    try {
+      const notificationResponse = await fetch("/api/notification-settings");
+      if (notificationResponse.ok) {
+        const notificationData = await notificationResponse.json();
+        if (notificationData?.slack_bot_token) {
+          setSlackConnected(true);
+          setSlackNotificationType((notificationData.slack_notification_type as 'channel' | 'dm') || 'dm');
+        } else {
+          setSlackConnected(false);
+          setSlackNotificationType(null);
+        }
+      }
+    } catch (err: any) {
+      console.error("[Notifications] Error fetching Slack settings:", err);
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -161,6 +199,75 @@ export default function NotificationsPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Slack連携セクション */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          {t("notification.settings.slackSettings")}
+        </h2>
+        
+        {success && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded">
+            {success}
+          </div>
+        )}
+
+               {!slackConnected ? (
+                 <div>
+                   <a
+                     href={`/api/auth/slack/authorize?state=${Math.random().toString(36).substring(7)}`}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="inline-flex px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+                   >
+                     {t("notification.settings.connectSlack")}
+                   </a>
+            <p className="mt-2 text-sm text-gray-600">
+              {t("notification.settings.connectSlackDescription")}
+            </p>
+          </div>
+        ) : (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg max-w-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-800">
+                  {t("notification.settings.slackConnected")}
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  {slackNotificationType === 'dm' 
+                    ? t("notification.settings.sendingToDM")
+                    : t("notification.settings.sendingToChannel")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  // 連携解除
+                  const response = await fetch("/api/notification-settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      slackBotToken: null,
+                      slackUserId: null,
+                      slackTeamId: null,
+                      slackChannelId: null,
+                    }),
+                  });
+                  if (response.ok) {
+                    setSlackConnected(false);
+                    setSlackNotificationType(null);
+                    setSuccess(t("notification.settings.slackDisconnected"));
+                    fetchSlackSettings(); // 設定を再取得
+                  }
+                }}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                {t("notification.settings.disconnectSlack")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 通知一覧 */}

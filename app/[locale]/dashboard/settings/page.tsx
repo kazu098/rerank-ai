@@ -35,20 +35,20 @@ export default function SettingsPage() {
     }
   }, [status, router, locale]);
 
+
   const fetchSettings = async () => {
     try {
       setLoading(true);
       // ユーザー情報を取得（ロケールとタイムゾーンを含む）
-      const response = await fetch("/api/users/me");
-
-      if (!response.ok) {
+      const userResponse = await fetch("/api/users/me");
+      if (!userResponse.ok) {
         throw new Error("設定の取得に失敗しました");
       }
+      const userData = await userResponse.json();
 
-      const data = await response.json();
       setSettings({
-        locale: data.locale || "ja",
-        timezone: data.timezone || null,
+        locale: userData.locale || "ja",
+        timezone: userData.timezone || null,
       });
     } catch (err: any) {
       console.error("[Settings] Error:", err);
@@ -89,6 +89,7 @@ export default function SettingsPage() {
           throw new Error(errorData.error || "タイムゾーンの更新に失敗しました");
         }
       }
+
 
       setSuccess("設定を保存しました");
       
@@ -155,7 +156,7 @@ export default function SettingsPage() {
 
         <div className="space-y-6">
           {/* 言語設定 */}
-          <div>
+          <div className="max-w-md">
             <label htmlFor="locale" className="block text-sm font-medium text-gray-700 mb-2">
               言語 / Language
             </label>
@@ -168,14 +169,14 @@ export default function SettingsPage() {
               <option value="ja">日本語</option>
               <option value="en">English</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-sm text-gray-500">
               通知メールの言語が変更されます
             </p>
           </div>
 
           {/* タイムゾーン設定（既存の設定がある場合のみ表示） */}
           {settings.timezone && (
-            <div>
+            <div className="max-w-md">
               <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-2">
                 タイムゾーン / Timezone
               </label>
@@ -186,11 +187,12 @@ export default function SettingsPage() {
                 disabled
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-sm text-gray-500">
                 タイムゾーンは自動検出されます
               </p>
             </div>
           )}
+
         </div>
 
         {/* 保存ボタン */}
