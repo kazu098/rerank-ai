@@ -84,6 +84,9 @@
     "step2Complete": "✓ 競合URL抽出が完了しました",
     "step3Complete": "✓ 改善提案の生成が完了しました",
     "analysisComplete": "✓ 分析が完了しました",
+    "savedToDatabase": "✓ 分析結果をデータベースに保存しました",
+    "saveFailed": "⚠ 分析結果の保存に失敗しました（表示は可能です）",
+    "saveError": "⚠ 分析結果の保存中にエラーが発生しました（表示は可能です）",
     "error": "✗ エラー: {error}"
   },
   "results": {
