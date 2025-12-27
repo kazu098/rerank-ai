@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { useTranslations, useLocale } from "next-intl";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // 分析モードは統一（タブを削除）
 
 // キーワードの推移グラフコンポーネント
 function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[] }) {
+  const t = useTranslations("chart");
+  const locale = useLocale();
   const [isExpanded, setIsExpanded] = useState(false);
   const [displayedCount, setDisplayedCount] = useState(10); // 一度に表示するキーワード数
   const ITEMS_PER_PAGE = 10; // 1回あたりの追加表示数
@@ -18,7 +21,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
   const renderChart = (kwSeries: any, index: number) => {
     // グラフ用データに変換（日付をMM/DD形式に）
     const chartData = kwSeries.data.map((d: any) => ({
-      date: new Date(d.date).toLocaleDateString("ja-JP", { month: "short", day: "numeric" }),
+      date: new Date(d.date).toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US', { month: "short", day: "numeric" }),
       position: d.position,
       impressions: d.impressions,
       clicks: d.clicks,
@@ -37,7 +40,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
           </h4>
           {hasWarning && (
             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-semibold">
-              ⚠️ 転落の可能性
+              ⚠️ {t("dropPossibility")}
             </span>
           )}
         </div>
@@ -48,39 +51,39 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
             <p className="text-sm text-yellow-800">
               {metadata?.serperApiNotFound ? (
                 <>
-                  <strong>⚠️ 転落検出:</strong> 実際の検索結果ではこのページが見つかりませんでした。
+                  <strong>⚠️ {t("dropDetected")}:</strong> {t("dropDetectedMessage")}
                   {metadata.lastPosition && (
-                    <> GSCでは最後に{metadata.lastPosition}位でしたが、現在は100位以下に転落している可能性が高いです。</>
+                    <> {t("lastPositionInGSC", { position: metadata.lastPosition })}</>
                   )}
                 </>
               ) : isDataMissing ? (
                 <>
-                  <strong>注意:</strong> このキーワードのデータが取得されていません。
+                  <strong>{t("attention")}:</strong> {t("noDataForKeyword")}
                   {metadata?.lastPosition && (
-                    <> 最後に記録された順位は{metadata.lastPosition}位でしたが、現在は100位以下に転落している可能性があります。</>
+                    <> {t("lastRecordedPosition", { position: metadata.lastPosition })}</>
                   )}
                 </>
               ) : metadata?.daysSinceLastData !== null && metadata.daysSinceLastData >= 3 ? (
                 <>
-                  <strong>注意:</strong> 最後のデータ取得から{metadata.daysSinceLastData}日経過しています。
+                  <strong>{t("attention")}:</strong> {t("daysSinceLastData", { days: metadata.daysSinceLastData })}
                   {metadata.lastPosition && (
-                    <> 最後に記録された順位は{metadata.lastPosition}位でしたが、現在は100位以下に転落している可能性があります。</>
+                    <> {t("lastRecordedPosition", { position: metadata.lastPosition })}</>
                   )}
                   {metadata.lastDataDate && (
-                    <> （最終データ: {metadata.lastDataDate}）</>
+                    <> {t("lastDataDate", { date: metadata.lastDataDate })}</>
                   )}
                 </>
               ) : null}
             </p>
             <p className="text-xs text-yellow-700 mt-1">
-              Googleの検索結果では、100位以内に表示されたページのデータのみが記録されます。データが取得されない期間がある場合、検索結果の100位以下に順位が下がった可能性があります。
+              {t("gscDataNote")}
             </p>
           </div>
         )}
         
         {isDataMissing ? (
           <div className="bg-gray-50 border border-gray-200 rounded p-4 text-center text-sm text-gray-500">
-            データが取得されていません
+            {t("noData")}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
@@ -91,7 +94,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
               domain={["auto", "auto"]}
               reversed
               tick={{ fontSize: 12 }}
-              label={{ value: "順位", angle: -90, position: "insideLeft" }}
+              label={{ value: t("rank"), angle: -90, position: "insideLeft" }}
             />
             <Tooltip />
             <Legend />
@@ -100,7 +103,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
               dataKey="position"
               stroke="#8b5cf6"
               strokeWidth={2}
-              name="順位"
+              name={t("rank")}
               dot={{ r: 4 }}
             />
           </LineChart>
@@ -121,7 +124,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-purple-200">
       <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-purple-500 pl-3">
-        📈 検索キーワードの順位推移
+        📈 {t("keywordRankingTrend")}
       </h3>
       <div className="space-y-6">
         {topKeywords.map((kwSeries: any, index: number) => renderChart(kwSeries, index))}
@@ -142,7 +145,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
             }}
           >
             <summary className="cursor-pointer text-purple-600 hover:text-purple-800 font-semibold text-sm mb-4">
-              {isExpanded ? "折りたたむ" : `もっと見る（残り${remainingKeywords.length}件）`}
+              {isExpanded ? t("collapse") : t("showMore", { count: remainingKeywords.length })}
             </summary>
             <div className="space-y-6 mt-4">
               {displayedRemainingKeywords.map((kwSeries: any, index: number) => renderChart(kwSeries, index + 3))}
@@ -154,7 +157,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
                     onClick={handleShowMore}
                     className="px-6 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-semibold text-sm"
                   >
-                    さらに見る（あと{remainingKeywords.length - displayedCount}件）
+                    {t("showMoreItems", { count: remainingKeywords.length - displayedCount })}
                   </button>
                 </div>
               )}
@@ -162,7 +165,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
               {/* すべて表示済みの場合 */}
               {!hasMore && displayedCount > 0 && (
                 <div className="text-center mt-4 text-sm text-gray-500">
-                  すべてのキーワードを表示しました（全{remainingKeywords.length}件）
+                  {t("allKeywordsShown", { count: remainingKeywords.length })}
                 </div>
               )}
             </div>
@@ -174,6 +177,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
 }
 
 export default function Home() {
+  const t = useTranslations();
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -229,19 +233,19 @@ export default function Home() {
         // トークン期限切れの場合は再ログインを促す
         if (error.code === "TOKEN_EXPIRED" || response.status === 401) {
           setError(
-            error.error || "認証トークンが期限切れです。再度ログインしてください。"
+            error.error || t("errors.tokenExpired")
           );
           // セッションをクリアして再ログインを促す
           setTimeout(() => {
             signOut({ callbackUrl: "/" });
           }, 2000);
         } else {
-          setError(error.error || "プロパティの取得に失敗しました");
+          setError(error.error || t("errors.propertyLoadFailed"));
         }
       }
     } catch (err: any) {
       console.error("[GSC] Error loading properties:", err);
-      setError(err.message || "プロパティの取得中にエラーが発生しました");
+      setError(err.message || t("errors.propertyLoadFailed"));
     } finally {
       setLoadingProperties(false);
     }
@@ -271,7 +275,7 @@ export default function Home() {
           error = { error: responseText };
         }
         console.error("[GSC] Failed to save site:", error);
-        setError(error.error || "プロパティの保存に失敗しました");
+        setError(error.error || t("errors.propertySaveFailed"));
         return;
       }
 
@@ -288,7 +292,7 @@ export default function Home() {
       loadArticles(siteUrl);
     } catch (err: any) {
       console.error("[GSC] Error saving site:", err);
-      setError(err.message || "プロパティの保存中にエラーが発生しました");
+      setError(err.message || t("errors.propertySaveFailed"));
     }
   };
 
@@ -300,7 +304,7 @@ export default function Home() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "記事一覧の取得に失敗しました");
+        throw new Error(errorData.error || t("errors.articleListLoadFailed"));
       }
 
       const result = await response.json();
@@ -308,7 +312,7 @@ export default function Home() {
       setShowArticleSelection(true);
     } catch (err: any) {
       console.error("[Articles] Error loading articles:", err);
-      setError(err.message || "記事一覧の取得中にエラーが発生しました");
+      setError(err.message || t("errors.articleListLoadFailed"));
     } finally {
       setLoadingArticles(false);
     }
@@ -332,7 +336,7 @@ export default function Home() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "タイトルの取得に失敗しました");
+        throw new Error(errorData.error || t("errors.titleFetchFailed"));
       }
 
       const result = await response.json();
@@ -347,7 +351,7 @@ export default function Home() {
       );
     } catch (err: any) {
       console.error("[Articles] Error fetching title:", err);
-      alert(`タイトルの取得に失敗しました: ${err.message}`);
+      alert(`${t("errors.titleFetchFailed")}: ${err.message}`);
     } finally {
       setFetchingTitleUrls((prev) => {
         const newSet = new Set(prev);
@@ -421,17 +425,17 @@ export default function Home() {
 
     // プロセスログの定義（一般ユーザー向けのわかりやすい文言）
     const logMessages = [
-      "記事の検索順位データを取得中...",
-      "順位が下がっているキーワードを特定中...",
-      "重要なキーワードを選定中...",
-      "競合サイトのURLを収集中...",
-      "競合記事の内容を読み込み中...",
-      "AIが記事の差分を分析中...",
-      "改善提案を生成中...",
+      t("analysis.step1"),
+      t("analysis.step2"),
+      t("analysis.step3"),
+      t("analysis.step4"),
+      t("analysis.step5"),
+      t("analysis.step6"),
+      t("analysis.step7"),
     ];
 
     if (!selectedSiteUrl) {
-      setError("Search Consoleプロパティが選択されていません");
+      setError(t("errors.propertyNotSelected"));
       setLoading(false);
       return;
     }
@@ -450,7 +454,7 @@ export default function Home() {
       // 分析実行（段階的に実行）
       
       // Step 1: GSCデータ取得 + キーワード選定
-      setProcessLog((prev) => [...prev, "記事の検索順位データを取得中..."]);
+      setProcessLog((prev) => [...prev, t("analysis.step1")]);
       const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
           headers: {
@@ -475,10 +479,10 @@ export default function Home() {
         competitorResults: [],
         uniqueCompetitorUrls: [],
       });
-      setProcessLog((prev) => [...prev, "✓ キーワード選定が完了しました"]);
+      setProcessLog((prev) => [...prev, t("analysis.step1Complete")]);
 
       // Step 2: 競合URL抽出
-      setProcessLog((prev) => [...prev, "競合サイトのURLを収集中..."]);
+      setProcessLog((prev) => [...prev, t("analysis.step4")]);
       const step2Response = await fetch("/api/competitors/analyze-step2", {
         method: "POST",
         headers: {
@@ -536,12 +540,12 @@ export default function Home() {
           ...step2Result,
         }));
       }
-      setProcessLog((prev) => [...prev, "✓ 競合URL抽出が完了しました"]);
+      setProcessLog((prev) => [...prev, t("analysis.step2Complete")]);
 
       // Step 3: 記事スクレイピング + LLM分析
       if (step2Result.uniqueCompetitorUrls.length > 0) {
-        setProcessLog((prev) => [...prev, "競合記事の内容を読み込み中..."]);
-        setProcessLog((prev) => [...prev, "AIが記事の差分を分析中..."]);
+        setProcessLog((prev) => [...prev, t("analysis.step5")]);
+        setProcessLog((prev) => [...prev, t("analysis.step6")]);
         
         const step3Response = await fetch("/api/competitors/analyze-step3", {
           method: "POST",
@@ -562,7 +566,7 @@ export default function Home() {
           const errorData = await step3Response.json();
           // Step 3が失敗しても、Step 1とStep 2の結果は表示
           console.error("Step 3 failed:", errorData);
-          setProcessLog((prev) => [...prev, `⚠ Step 3でエラー: ${errorData.error || "分析に失敗しました"}`]);
+          setProcessLog((prev) => [...prev, t("errors.step3Error", { error: errorData.error || t("errors.analysisFailed") })]);
         } else {
           const step3Result = await step3Response.json();
           // Step 3の結果を更新
@@ -570,16 +574,16 @@ export default function Home() {
             ...prev,
             ...step3Result,
           }));
-          setProcessLog((prev) => [...prev, "✓ 改善提案の生成が完了しました"]);
+          setProcessLog((prev) => [...prev, t("analysis.step3Complete")]);
         }
       } else {
-        setProcessLog((prev) => [...prev, "⚠ 競合URLが取得できなかったため、Step 3をスキップしました"]);
+        setProcessLog((prev) => [...prev, t("errors.step3Skipped")]);
       }
 
-      setProcessLog((prev) => [...prev, "✓ 分析が完了しました"]);
+      setProcessLog((prev) => [...prev, t("analysis.analysisComplete")]);
     } catch (err: any) {
       setError(err.message);
-      setProcessLog((prev) => [...prev, `✗ エラー: ${err.message}`]);
+      setProcessLog((prev) => [...prev, t("analysis.error", { error: err.message })]);
     } finally {
       setLoading(false);
     }
@@ -622,7 +626,7 @@ export default function Home() {
   if (status === "loading") {
     return (
       <div className="min-h-screen p-8">
-        <div className="max-w-4xl mx-auto">読み込み中...</div>
+        <div className="max-w-4xl mx-auto">{t("common.loading")}</div>
       </div>
     );
   }
@@ -633,20 +637,20 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <header className="text-center mb-12">
             <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-              ReRank AI <span className="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP</span>
+              {t("home.title")} <span className="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP</span>
             </h1>
             <p className="text-gray-600 italic mb-8">
-              「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。
+              {t("home.subtitle")}
             </p>
           </header>
           
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Google Search Consoleと連携して始める
+                {t("auth.title")}
               </h2>
               <p className="text-gray-600 mb-6">
-                あなたのサイトの順位データを取得し、自動で分析・改善案を提示します
+                {t("auth.description")}
               </p>
             </div>
 
@@ -660,12 +664,12 @@ export default function Home() {
                 </div>
                 <div className="ml-3">
                   <h3 className="text-sm font-semibold text-blue-800 mb-2">
-                    使用するGoogleアカウントについて
+                    {t("auth.accountInfo")}
                   </h3>
                   <p className="text-sm text-blue-700">
-                    <strong>Search Consoleプロパティにアクセス権限が付与されているGoogleアカウント</strong>でログインしてください。
+                    <strong>{t("auth.accountInfoDescription")}</strong>
                     <br />
-                    権限がないアカウントでは、サイトの順位データを取得できません。
+                    {t("auth.accountInfoNote")}
                   </p>
                 </div>
               </div>
@@ -673,25 +677,25 @@ export default function Home() {
 
             {/* 連携の流れ */}
             <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">連携の流れ</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("auth.flow")}</h3>
               <div className="space-y-3">
                 <div className="flex items-start">
                   <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
                     1
                   </div>
-                  <p className="text-sm text-gray-600 pt-0.5">Googleアカウントでログイン</p>
+                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step1")}</p>
                 </div>
                 <div className="flex items-start">
                   <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
                     2
                   </div>
-                  <p className="text-sm text-gray-600 pt-0.5">Search Consoleプロパティを選択</p>
+                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step2")}</p>
                 </div>
                 <div className="flex items-start">
                   <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
                     3
                   </div>
-                  <p className="text-sm text-gray-600 pt-0.5">記事URLを入力して分析開始</p>
+                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step3")}</p>
                 </div>
               </div>
             </div>
@@ -707,23 +711,23 @@ export default function Home() {
                   <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Googleでログインして始める
+                {t("home.loginWithGoogle")}
               </button>
             </div>
           </div>
 
           {/* 補足情報 */}
           <div className="bg-gray-50 rounded-lg p-6 text-sm text-gray-600">
-            <p className="mb-2">
-              <strong>Search Consoleプロパティにアクセス権限がない場合</strong>
-            </p>
-            <p>
-              Search Consoleでサイトを追加するか、既存のプロパティにアクセス権限を付与してください。
-              <br />
-              <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                Search Consoleを開く →
-              </a>
-            </p>
+              <p className="mb-2">
+                <strong>{t("auth.noAccessRightsTitle")}</strong>
+              </p>
+              <p>
+                {t("auth.noAccessRightsDescription")}
+                <br />
+                <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
+                  {t("gsc.openSearchConsole")} →
+                </a>
+              </p>
           </div>
         </div>
       </div>
@@ -743,11 +747,11 @@ export default function Home() {
               onClick={() => signOut()}
               className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm"
             >
-              ログアウト
+              {t("common.logout")}
             </button>
           </div>
           <p className="text-gray-600 italic">
-            「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。
+            {t("home.subtitle")}
           </p>
         </header>
 
@@ -755,16 +759,16 @@ export default function Home() {
         {showPropertySelection && !selectedSiteUrl && (
           <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-purple-200">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Search Consoleプロパティを選択
+              {t("home.selectProperty")}
             </h2>
             <p className="text-gray-600 mb-6">
-              分析したいサイトのSearch Consoleプロパティを選択してください。
+              {t("home.selectPropertyDescription")}
             </p>
 
             {loadingProperties ? (
               <div className="text-center py-8">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                <p className="mt-4 text-gray-600">プロパティを取得中...</p>
+                <p className="mt-4 text-gray-600">{t("home.propertyLoading")}</p>
               </div>
             ) : gscProperties.length === 0 ? (
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
@@ -776,19 +780,19 @@ export default function Home() {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-yellow-800">
-                      Search Consoleプロパティが見つかりませんでした
+                      {t("gsc.noPropertiesFound")}
                     </h3>
                     <div className="mt-2 text-sm text-yellow-700">
                       <p className="mb-2">
-                        このGoogleアカウントには、Search Consoleプロパティへのアクセス権限がありません。
+                        {t("gsc.noAccessRights")}
                       </p>
                       <p>
-                        <strong>解決方法:</strong>
+                        <strong>{t("gsc.solution")}:</strong>
                       </p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>Search Consoleでサイトを追加する</li>
-                        <li>既存のプロパティにアクセス権限を付与してもらう</li>
-                        <li>プロパティにアクセス権限がある別のGoogleアカウントでログインする</li>
+                        <li>{t("gsc.solution1")}</li>
+                        <li>{t("gsc.solution2")}</li>
+                        <li>{t("gsc.solution3")}</li>
                       </ul>
                       <a 
                         href="https://search.google.com/search-console" 
@@ -815,7 +819,7 @@ export default function Home() {
                         <p className="font-semibold text-gray-900">{property.siteUrl}</p>
                         {property.permissionLevel && (
                           <p className="text-sm text-gray-500 mt-1">
-                            権限: {property.permissionLevel}
+                            {t("gsc.permissionLevel")}: {property.permissionLevel}
                           </p>
                         )}
                       </div>
@@ -836,7 +840,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-green-800">
-                  選択中のプロパティ: {selectedSiteUrl}
+                  {t("home.selectedProperty")}: {selectedSiteUrl}
                 </p>
                 <button
                   onClick={() => {
@@ -846,7 +850,7 @@ export default function Home() {
                   }}
                   className="text-sm text-green-600 hover:underline mt-1"
                 >
-                  別のプロパティを選択
+                  {t("home.selectAnotherProperty")}
                 </button>
               </div>
             </div>
@@ -857,17 +861,17 @@ export default function Home() {
         {selectedSiteUrl && (
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-purple-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            記事を分析する
+            {t("home.analyzeArticle")}
           </h2>
           <p className="text-gray-600 mb-6">
-            記事のURLを入力すると、順位データを取得して競合との差分を分析し、改善案を提示します。
+            {t("home.analyzeArticleDescription")}
           </p>
 
           {/* 記事選択セクション */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <label className="block text-sm font-bold text-gray-700">
-                記事を選択
+                {t("article.select")}
               </label>
               <button
                 onClick={() => {
@@ -879,7 +883,7 @@ export default function Home() {
                 }}
                 className="text-sm text-purple-600 hover:text-purple-800 font-semibold"
               >
-                {showArticleSelection ? "閉じる" : "記事一覧を表示"}
+                {showArticleSelection ? t("article.close") : t("article.showArticleList")}
               </button>
             </div>
 
@@ -888,11 +892,11 @@ export default function Home() {
                 {loadingArticles ? (
                   <div className="text-center py-8">
                     <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                    <p className="mt-2 text-sm text-gray-600">記事一覧を取得中...</p>
+                    <p className="mt-2 text-sm text-gray-600">{t("article.loadingArticles")}</p>
                   </div>
                 ) : articles.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-4">
-                    記事が見つかりませんでした
+                    {t("article.noArticlesFound")}
                   </p>
                 ) : (
                   <>
@@ -902,7 +906,7 @@ export default function Home() {
                         type="text"
                         value={articleSearchQuery}
                         onChange={(e) => setArticleSearchQuery(e.target.value)}
-                        placeholder="URLまたはタイトルで検索..."
+                        placeholder={t("article.searchPlaceholder")}
                         className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm"
                       />
                     </div>
@@ -941,10 +945,10 @@ export default function Home() {
                                   </p>
                                 )}
                                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                                  <span>インプレッション: {article.impressions.toLocaleString()}</span>
-                                  <span>クリック: {article.clicks.toLocaleString()}</span>
+                                  <span>{t("article.impressions")}: {article.impressions.toLocaleString()}</span>
+                                  <span>{t("article.clicks")}: {article.clicks.toLocaleString()}</span>
                                   {article.position && (
-                                    <span>平均順位: {article.position.toFixed(1)}位</span>
+                                    <span>{t("article.avgPosition")}: {article.position.toFixed(1)}{t("results.rankSuffix")}</span>
                                   )}
                                 </div>
                               </div>
@@ -955,14 +959,14 @@ export default function Home() {
                                     disabled={fetchingTitleUrls.has(article.url)}
                                     className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
-                                    {fetchingTitleUrls.has(article.url) ? "取得中..." : "タイトル確認"}
+                                    {fetchingTitleUrls.has(article.url) ? t("article.fetchingTitleInProgress") : t("article.fetchingTitle")}
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleSelectArticle(article.url)}
                                   className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
                                 >
-                                  選択
+                                  {t("article.selectButton")}
                                 </button>
                               </div>
                             </div>
@@ -971,7 +975,7 @@ export default function Home() {
                     </div>
                     {articles.length > 50 && (
                       <p className="text-xs text-gray-500 text-center mt-4">
-                        表示件数: 50件 / 全{articles.length}件
+                        {t("article.displayingItems", { displayed: 50, total: articles.length })}
                       </p>
                     )}
                   </>
@@ -983,7 +987,7 @@ export default function Home() {
           {/* 入力フォーム */}
           <div className="mb-6">
             <label className="block text-sm font-bold text-gray-700 mb-2">
-              分析したい記事のURL
+              {t("article.articleUrl")}
             </label>
             <input
               type="text"
@@ -993,19 +997,19 @@ export default function Home() {
               className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
             />
             <p className="text-xs text-gray-500 mt-1">
-              上記の記事一覧から選択するか、直接URLを入力してください
+              {t("article.articleUrlHint")}
             </p>
           </div>
 
           {/* オプション設定（折りたたみ可能） */}
           <details className="mb-6">
             <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 mb-2">
-              オプション設定
+              {t("options.title")}
             </summary>
             <div className="mt-4 space-y-4 bg-gray-50 p-4 rounded-lg">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  最大キーワード数: {maxKeywords}
+                  {t("options.maxKeywords")}: {maxKeywords}
                 </label>
                 <input
                   type="range"
@@ -1018,7 +1022,7 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  キーワードあたりの最大競合URL数: {maxCompetitorsPerKeyword}
+                  {t("options.maxCompetitors")}: {maxCompetitorsPerKeyword}
                 </label>
                 <input
                   type="range"
@@ -1031,13 +1035,13 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  通知先メールアドレス（オプション）
+                  {t("options.notificationEmail")}
                 </label>
                 <input
                   type="email"
                   value={notificationEmail}
                   onChange={(e) => setNotificationEmail(e.target.value)}
-                  placeholder="example@email.com"
+                  placeholder={t("options.notificationEmailPlaceholder")}
                   className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                 />
               </div>
@@ -1053,10 +1057,10 @@ export default function Home() {
             {loading ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                <span>分析中...</span>
+                <span>{t("home.analyzing")}</span>
               </>
             ) : (
-              <span>AIによる差分スキャンを開始</span>
+              <span>{t("home.startAnalysis")}</span>
             )}
           </button>
         </div>
@@ -1083,7 +1087,7 @@ export default function Home() {
         {/* エラー表示 */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-            <p className="text-red-800 font-semibold">エラー</p>
+            <p className="text-red-800 font-semibold">{t("common.error")}</p>
             <p className="text-red-600">{error}</p>
           </div>
         )}
@@ -1095,10 +1099,10 @@ export default function Home() {
             {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <h3 className="font-bold text-lg mb-3 text-green-800">
-                  ✅ 順位を維持できているキーワード
+                  {t("results.topRankingKeywords")}
                 </h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  以下のキーワードでは上位を保てています。この調子で維持していきましょう。
+                  {t("results.topRankingDescription")}
                 </p>
                 <div className="space-y-2">
                   {data.topRankingKeywords.map((kw: any, index: number) => (
@@ -1106,12 +1110,12 @@ export default function Home() {
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-sm">{kw.keyword}</span>
                         <span className="text-xs text-green-600 font-bold">
-                          {kw.position}位
+                          {kw.position}{t("results.rankSuffix")}
                         </span>
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
-                        <span>インプレッション: {kw.impressions}</span>
-                        <span className="ml-4">クリック: {kw.clicks}</span>
+                        <span>{t("article.impressions")}: {kw.impressions}</span>
+                        <span className="ml-4">{t("article.clicks")}: {kw.clicks}</span>
                       </div>
                     </div>
                   ))}
@@ -1127,10 +1131,10 @@ export default function Home() {
             {/* サマリーカード */}
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-purple-500">
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex items-center justify-between shadow-inner">
-                <span className="font-bold">🚀 ランクアップ・ブースター案</span>
+                <span className="font-bold">{t("results.rankUpBooster")}</span>
                 {data.prioritizedKeywords && data.prioritizedKeywords.length > 0 && (
                   <span className="text-xs bg-white text-purple-600 px-2 py-1 rounded font-bold">
-                    {data.prioritizedKeywords.length}個のキーワードを分析
+                    {t("results.keywordsAnalyzed", { count: data.prioritizedKeywords.length })}
                   </span>
                 )}
               </div>
@@ -1148,19 +1152,19 @@ export default function Home() {
                 {data.semanticDiffAnalysis && data.semanticDiffAnalysis.keywordSpecificAnalysis.length > 0 && (
                   <div className="mb-6">
                     <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-purple-500 pl-3">
-                      🔑 キーワード固有の分析
+                      {t("results.keywordSpecificAnalysis")}
                     </h3>
                     <div className="space-y-4">
                       {data.semanticDiffAnalysis.keywordSpecificAnalysis.map((kwAnalysis: any, i: number) => (
                         <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                          <p className="font-semibold text-sm mb-2">キーワード: {kwAnalysis.keyword}</p>
+                          <p className="font-semibold text-sm mb-2">{t("results.keyword")}: {kwAnalysis.keyword}</p>
                           <p className="text-sm mb-3">
-                            <strong>なぜ順位が下がったか:</strong> {kwAnalysis.whyRankingDropped}
+                            <strong>{t("results.whyRankingDropped")}:</strong> {kwAnalysis.whyRankingDropped}
                           </p>
                           {kwAnalysis.whatToAdd && kwAnalysis.whatToAdd.length > 0 && (
                             <>
                               <div>
-                                <strong className="text-sm">追加すべき項目:</strong>
+                                <strong className="text-sm">{t("results.whatToAdd")}:</strong>
                                 <ul className="list-none space-y-2 mt-2">
                                   {kwAnalysis.whatToAdd.map((itemData: any, j: number) => {
                                     const item = typeof itemData === 'string' ? itemData : itemData.item;
@@ -1172,7 +1176,7 @@ export default function Home() {
                                         <span className="flex-1">{item}</span>
                                         {competitorUrls && competitorUrls.length > 0 && (
                                           <span className="text-xs text-gray-500 flex-shrink-0">
-                                            ({competitorUrls.length}件の競合サイト)
+                                            {t("results.competitorSites", { count: competitorUrls.length })}
                                           </span>
                                         )}
                                       </li>
@@ -1187,7 +1191,7 @@ export default function Home() {
                               }) && (
                                 <details className="mt-3 pt-3 border-t border-gray-200">
                                   <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-800">
-                                    参考: 競合サイトURL一覧
+                                    {t("results.competitorUrls")}
                                   </summary>
                                   <div className="mt-2 space-y-2">
                                     {kwAnalysis.whatToAdd.map((itemData: any, j: number) => {
@@ -1230,16 +1234,16 @@ export default function Home() {
                 {data.competitorResults && data.competitorResults.length > 0 && (
                   <div className="mb-6">
                     <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-blue-500 pl-3">
-                      🔍 キーワードごとの競合URL
+                      {t("results.competitorUrlsPerKeyword")}
                     </h3>
                     <div className="space-y-4">
                       {data.competitorResults.map((result: any, index: number) => (
                         <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                           <div className="mb-3">
-                            <p className="font-semibold text-sm mb-1">キーワード: {result.keyword}</p>
+                            <p className="font-semibold text-sm mb-1">{t("results.keyword")}: {result.keyword}</p>
                             <div className="text-xs text-gray-600">
-                              <span>自社URLの順位: {result.ownPosition ? `${result.ownPosition}位` : "不明"}</span>
-                              <span className="ml-4">競合URL数: {result.competitors.length}件</span>
+                              <span>{t("results.ownUrlRank")}: {result.ownPosition ? `${result.ownPosition}${t("results.rankSuffix")}` : t("results.unknown")}</span>
+                              <span className="ml-4">{t("results.competitorUrlCount")}: {result.competitors.length}{t("results.items")}</span>
                             </div>
                             {result.error && (
                               <p className="text-xs text-red-600 mt-1">⚠️ {result.error}</p>
@@ -1262,7 +1266,7 @@ export default function Home() {
                                       {comp.url}
                                     </a>
                                     <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                                      {comp.position}位
+                                      {comp.position}{t("results.rankSuffix")}
                                     </span>
                                   </div>
                                   {comp.title && (
@@ -1282,12 +1286,12 @@ export default function Home() {
                 {data.semanticDiffAnalysis && (
                   <details className="mb-6">
                     <summary className="font-bold text-sm mb-2 cursor-pointer hover:text-purple-600">
-                      🔍 詳細な分析結果 - クリックで展開
+                      {t("results.detailedAnalysis")}
                     </summary>
                     <div className="mt-4 space-y-4">
                       {data.semanticDiffAnalysis.semanticAnalysis.whyCompetitorsRankHigher && (
                         <div>
-                          <h4 className="font-semibold text-sm mb-2">なぜ競合が上位なのか</h4>
+                          <h4 className="font-semibold text-sm mb-2">{t("results.whyCompetitorsRankHigher")}</h4>
                           <p className="text-sm bg-gray-50 p-3 rounded border">
                             {data.semanticDiffAnalysis.semanticAnalysis.whyCompetitorsRankHigher}
                           </p>
@@ -1298,7 +1302,7 @@ export default function Home() {
                         data.semanticDiffAnalysis.semanticAnalysis.missingContent.length > 0 && (
                           <div>
                             <h4 className="font-semibold text-sm mb-2">
-                              ❌ 不足している内容（{data.semanticDiffAnalysis.semanticAnalysis.missingContent.length}個）
+                              {t("results.missingContent", { count: data.semanticDiffAnalysis.semanticAnalysis.missingContent.length })}
                             </h4>
                             <ul className="list-disc list-inside space-y-1 bg-gray-50 p-3 rounded border">
                               {data.semanticDiffAnalysis.semanticAnalysis.missingContent.map(
@@ -1314,21 +1318,19 @@ export default function Home() {
                         data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0 && (
                           <details>
                             <summary className="font-semibold text-sm mb-2 cursor-pointer hover:text-purple-600">
-                              ✨ 追加すべき項目（詳細）（
-                              {data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length}個） -
-                              クリックで展開
+                              {t("results.recommendedAdditions", { count: data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length })}
                             </summary>
                             <div className="space-y-2 mt-2">
                               {data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.map(
                                 (rec: any, i: number) => (
                                   <div key={i} className="bg-yellow-50 p-3 rounded border border-yellow-300">
-                                    <p className="font-semibold text-sm">📝 {rec.section}</p>
-                                    <p className="text-xs text-gray-600 mt-1">理由: {rec.reason}</p>
+                                    <p className="font-semibold text-sm">{t("results.sectionLabel", { section: rec.section })}</p>
+                                    <p className="text-xs text-gray-600 mt-1">{t("results.reason")}: {rec.reason}</p>
                                     <p className="text-sm mt-2">{rec.content}</p>
                                     {rec.competitorUrls && rec.competitorUrls.length > 0 && (
                                       <div className="mt-3 pt-3 border-t border-yellow-400">
                                         <p className="text-xs font-semibold text-gray-700 mb-2">
-                                          参考: この内容が記載されている競合サイト
+                                          {t("results.referenceCompetitorSites")}
                                         </p>
                                         <ul className="list-none space-y-1">
                                           {rec.competitorUrls.map((url: string, j: number) => (
@@ -1364,7 +1366,7 @@ export default function Home() {
                       disabled={sendingNotification}
                       className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-all shadow-lg disabled:opacity-50"
                     >
-                      {sendingNotification ? "送信中..." : "📧 分析結果をメールで送信"}
+                      {sendingNotification ? t("results.sending") : t("results.sendEmail")}
                     </button>
                   )}
                   <button
@@ -1380,10 +1382,10 @@ export default function Home() {
                         })
                         .join('\n\n') || '';
                       navigator.clipboard.writeText(text);
-                      alert('コピーしました！');
+                      alert(t("results.copied"));
                     }}
                   >
-                    📋 修正内容をコピー
+                    {t("results.copyToClipboard")}
                   </button>
                   <p className="text-center text-xs text-gray-400 mt-2">
                   </p>

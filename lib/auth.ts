@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import { getOrCreateUser, getUserByEmail } from "@/lib/db/users";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
