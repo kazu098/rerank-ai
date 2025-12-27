@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       .from("notifications")
       .select(`
         *,
-        article:articles(id, url, title)
+        article:articles!notifications_article_id_fkey(id, url, title)
       `)
       .eq("user_id", userId)
       .is("read_at", null)

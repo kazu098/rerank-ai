@@ -230,9 +230,10 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   data.unreadNotifications.map((notification) => (
-                    <div
+                    <Link
                       key={notification.id}
-                      className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                      href={`/${locale}/dashboard/articles/${notification.article_id}`}
+                      className="block px-6 py-4 hover:bg-gray-50 cursor-pointer"
                     >
                       <h4 className="font-medium text-gray-900 mb-1 text-sm">
                         {notification.subject || t("dashboard.notifications.rankDropDetected")}
@@ -250,7 +251,7 @@ export default function DashboardPage() {
                       <p className="text-xs text-gray-400 mt-2">
                         {new Date(notification.created_at).toLocaleDateString()}
                       </p>
-                    </div>
+                    </Link>
                   ))
                 )}
               </div>
