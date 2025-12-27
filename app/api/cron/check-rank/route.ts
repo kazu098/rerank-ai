@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
             const slackPayload = formatSlackBulkNotification(
               items.map((item) => ({
                 url: item.articleUrl,
-                title: item.articleTitle,
+                title: item.articleTitle ?? null,
                 averagePositionChange: {
                   from: item.rankDropInfo.baseAveragePosition,
                   to: item.rankDropInfo.currentAveragePosition,
