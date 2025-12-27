@@ -1161,27 +1161,6 @@ export default function Home() {
         {/* 結果表示エリア */}
         {data && (
           <div className="space-y-6">
-            {/* ダッシュボードへのリンク（ログイン済みの場合） */}
-            {session && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg mb-2 text-blue-800">
-                      {t("notification.viewDetails")}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {t("notification.dashboardLink")}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/${locale}/dashboard`}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                  >
-                    {t("dashboard.title")}
-                  </Link>
-                </div>
-              </div>
-            )}
             {/* 上位を保てているキーワード（安心させる） */}
             {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
