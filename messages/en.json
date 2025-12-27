@@ -140,6 +140,54 @@
     "analysisFailed": "Analysis failed",
     "notificationFailed": "Failed to send notification",
     "notificationSent": "Notification sent"
+  },
+  "notification": {
+    "rankDropDetected": "Rank drop detected",
+    "rankDropDetectedMultiple": "Rank drop detected ({count} articles)",
+    "articleUrl": "Article URL",
+    "keyword": "Keyword",
+    "rank": "Rank",
+    "rankChange": "{from} → {to} ({change} drop)",
+    "dropReason": "Reason",
+    "dropReasonKeywords": "Keywords such as \"{keywords}\" have dropped below 10th place",
+    "itemsToAdd": "Items to Add",
+    "viewDetails": "View details in dashboard",
+    "dashboardLink": "Open Dashboard",
+    "checker": {
+      "fixedArticle": "Article is marked as fixed and within cooldown period ({days} days), notification skipped",
+      "recentNotification": "Notification was sent within the past {days} days, skipping ({daysAgo} days ago)",
+      "noConsecutiveDrop": "Consecutive drop for {days} days not confirmed",
+      "noValidKeywords": "No keywords with impressions above {min}",
+      "rankDropDetected": "Rank drop detected (average position: {from} → {to}, drop: {drop})"
+    },
+    "email": {
+      "subject": "[ReRank AI] Rank drop detected",
+      "subjectMultiple": "[ReRank AI] Rank drop detected ({count} articles)",
+      "header": "ReRank AI - Rank Drop Detection Report",
+      "targetArticle": "📄 Target Article",
+      "targetKeywords": "🔍 Target Keywords",
+      "competitorArticles": "🏆 Competitor Articles ({count})",
+      "whyCompetitorsRankHigher": "🔍 Why competitors rank higher",
+      "missingContent": "❌ Missing Content ({count} items)",
+      "recommendedAdditions": "✨ Recommended Additions",
+      "section": "📝 {section}",
+      "reason": "Reason",
+      "referenceCompetitorSites": "Reference: Competitor sites with this content",
+      "footer": "ReRank AI - From preventing ranking drops to boosting rankings"
+    },
+    "settings": {
+      "startMonitoring": "Get notified when rankings drop?",
+      "startMonitoringDescription": "We will automatically check this article's rankings daily and send you an email notification if the rankings drop.",
+      "emailNotification": "Receive email notifications",
+      "slackNotification": "Receive Slack notifications (coming soon)",
+      "notificationTime": "Check Time",
+      "notificationTimeDescription": "We will check rankings daily at this time (default: 9:00 AM)",
+      "startMonitoringButton": "Start Notifications",
+      "skipButton": "Skip",
+      "saving": "Saving...",
+      "saved": "Notification settings saved",
+      "error": "Failed to save settings"
+    }
   }
 }
 
