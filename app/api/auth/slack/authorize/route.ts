@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSlackOAuthUrl } from "@/lib/slack-oauth";
 
+// 動的ルートとして明示（request.urlを使用するため）
+export const dynamic = 'force-dynamic';
+
 /**
  * Slack OAuth認証開始
  * GET /api/auth/slack/authorize?state=xxx

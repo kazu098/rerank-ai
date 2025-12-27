@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { exchangeSlackCodeForToken, getSlackUserId } from "@/lib/slack-oauth";
 import { saveOrUpdateNotificationSettings } from "@/lib/db/notification-settings";
 
+// 動的ルートとして明示（request.urlを使用するため）
+export const dynamic = 'force-dynamic';
+
 /**
  * Slack OAuth認証コールバック
  * GET /api/auth/slack/callback?code=xxx&state=xxx
