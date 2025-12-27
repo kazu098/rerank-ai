@@ -213,28 +213,31 @@
 
 ---
 
-### 6. ユーザーのロケール設定
+### 6. ユーザーのロケール設定（✅ 実装済み）
 
 **目的**: 通知メールの言語をユーザー設定に合わせる
 
 **実装内容**:
-1. `users` テーブルに `locale` カラムを追加
-   - マイグレーションファイルを作成
-   - デフォルト値: 'ja'
-2. フロントエンドでロケールを保存
-   - ログイン時または設定画面でロケールを保存
-   - `next-intl` のロケール設定をDBに保存
-3. Cronジョブでユーザーのロケールを使用
-   - `/api/cron/check-rank` でユーザーのロケールを取得
-   - 通知メールの言語をユーザー設定に合わせる
+1. ✅ `users` テーブルに `locale` カラムを追加
+   - ✅ マイグレーションファイルを作成（`supabase/migrations/006_add_user_locale.sql`）
+   - ✅ デフォルト値: 'ja'
+2. ✅ フロントエンドでロケールを保存
+   - ✅ 設定画面（`/dashboard/settings`）でロケールを保存
+   - ✅ `next-intl` のロケール設定をDBに保存
+   - ✅ ロケール変更時にページをリロード
+3. ✅ Cronジョブでユーザーのロケールを使用
+   - ✅ `/api/cron/check-rank` でユーザーのロケールを取得
+   - ✅ 通知メールの言語をユーザー設定に合わせる
 
 **成果物**:
-- `supabase/migrations/004_user_locale.sql` - ロケールカラム追加
-- `lib/db/users.ts` - ロケール更新関数
-- `app/api/users/update-locale/route.ts` - ロケール更新API
-- Cronジョブのロケール取得処理
+- ✅ `supabase/migrations/006_add_user_locale.sql` - ロケールカラム追加
+- ✅ `lib/db/users.ts` - ロケール更新関数（`updateUserLocale`）
+- ✅ `app/api/users/update-locale/route.ts` - ロケール更新API
+- ✅ `app/api/users/me/route.ts` - ユーザー情報取得API
+- ✅ `app/[locale]/dashboard/settings/page.tsx` - 設定画面
+- ✅ Cronジョブのロケール取得処理
 
-**期間**: 0.5日
+**期間**: 0.5日（実装完了）
 
 ---
 

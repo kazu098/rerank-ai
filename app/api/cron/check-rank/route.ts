@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const notificationsByUser: Map<
       string,
       {
-        user: { id: string; email: string; name: string | null };
+        user: { id: string; email: string; name: string | null; locale: string | null };
         items: BulkNotificationItem[];
       }
     > = new Map();
@@ -154,11 +154,7 @@ export async function GET(request: NextRequest) {
         // 通知が必要な場合、ユーザーごとにまとめる
         if (!notificationsByUser.has(article.user_id)) {
           notificationsByUser.set(article.user_id, {
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-            },
+            user: user, // 完全なUserオブジェクトを保存（localeを含む）
             items: [],
           });
         }
@@ -212,8 +208,7 @@ export async function GET(request: NextRequest) {
 
       try {
         // ユーザーのロケール設定を取得（デフォルト: 'ja'）
-        // TODO: ユーザーのロケール設定をDBから取得
-        const locale = "ja";
+        const locale = user.locale || "ja";
 
         // まとめ通知を送信
         await notificationService.sendBulkNotification({
