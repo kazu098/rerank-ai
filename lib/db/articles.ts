@@ -222,3 +222,59 @@ export async function deleteArticle(articleId: string): Promise<void> {
   }
 }
 
+/**
+ * サイトIDで記事一覧を取得
+ */
+export async function getArticlesBySiteId(
+  siteId: string,
+  includeDeleted: boolean = false
+): Promise<Article[]> {
+  const supabase = createSupabaseClient();
+
+  let query = supabase
+    .from('articles')
+    .select('*')
+    .eq('site_id', siteId)
+    .order('created_at', { ascending: false });
+
+  if (!includeDeleted) {
+    query = query.is('deleted_at', null);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to get articles by site ID: ${error.message}`);
+  }
+
+  return (data || []) as Article[];
+}
+
+/**
+ * URLで記事を検索（タイトル取得済みかどうかを確認）
+ */
+export async function getArticleByUrl(
+  userId: string,
+  url: string
+): Promise<Article | null> {
+  const supabase = createSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('url', url)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    throw new Error(`Failed to get article by URL: ${error.message}`);
+  }
+
+  return data as Article;
+}
+
+

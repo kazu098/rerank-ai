@@ -3,10 +3,6 @@ import Google from "next-auth/providers/google";
 import { getOrCreateUser, getUserByEmail } from "@/lib/db/users";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // Vercel環境でのホスト検証をスキップ
-  trustHost: true,
-  // NextAuth.js v5ではAUTH_SECRETを使用（NEXTAUTH_SECRETも互換性のためにサポート）
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,

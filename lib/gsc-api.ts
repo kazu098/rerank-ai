@@ -106,6 +106,27 @@ export class GSCApiClient {
   }
 
   /**
+   * ページURL一覧を取得
+   * dimensions: ["page"]で取得し、検索結果に表示されたページのURL一覧を返す
+   */
+  async getPageUrls(
+    siteUrl: string,
+    startDate: string,
+    endDate: string,
+    rowLimit: number = 1000
+  ): Promise<GSCResponse> {
+    const params: GSCQueryParams = {
+      startDate,
+      endDate,
+      dimensions: ["page"],
+      rowLimit,
+    };
+
+    // pageUrlは指定しない（全ページを取得）
+    return this.query(siteUrl, params);
+  }
+
+  /**
    * GSC APIにクエリを送信
    */
   private async query(

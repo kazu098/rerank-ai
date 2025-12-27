@@ -193,6 +193,13 @@ export default function Home() {
   const [showPropertySelection, setShowPropertySelection] = useState(false);
   const [propertiesLoaded, setPropertiesLoaded] = useState(false);
 
+  // 記事選択関連
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [showArticleSelection, setShowArticleSelection] = useState(false);
+  const [articleSearchQuery, setArticleSearchQuery] = useState("");
+  const [fetchingTitleUrls, setFetchingTitleUrls] = useState<Set<string>>(new Set());
+
   // プロセスログを1項目ずつ順番に表示（ポーリング方式）
   useEffect(() => {
     if (processLog.length > 0 && displayedLogIndex < processLog.length && loading) {
@@ -276,10 +283,83 @@ export default function Home() {
       
       // ローカルストレージに保存（次回アクセス時に使用）
       localStorage.setItem("selectedGSCSiteUrl", siteUrl);
+
+      // 記事一覧を読み込む
+      loadArticles(siteUrl);
     } catch (err: any) {
       console.error("[GSC] Error saving site:", err);
       setError(err.message || "プロパティの保存中にエラーが発生しました");
     }
+  };
+
+  const loadArticles = async (siteUrl: string) => {
+    setLoadingArticles(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/articles/list?siteUrl=${encodeURIComponent(siteUrl)}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "記事一覧の取得に失敗しました");
+      }
+
+      const result = await response.json();
+      setArticles(result.articles || []);
+      setShowArticleSelection(true);
+    } catch (err: any) {
+      console.error("[Articles] Error loading articles:", err);
+      setError(err.message || "記事一覧の取得中にエラーが発生しました");
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  const fetchArticleTitle = async (url: string, siteUrl: string) => {
+    // 既に取得中の場合はスキップ
+    if (fetchingTitleUrls.has(url)) {
+      return;
+    }
+
+    setFetchingTitleUrls((prev) => new Set(prev).add(url));
+    try {
+      const response = await fetch("/api/articles/fetch-title", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url, siteUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "タイトルの取得に失敗しました");
+      }
+
+      const result = await response.json();
+
+      // 記事一覧を更新
+      setArticles((prev) =>
+        prev.map((article) =>
+          article.url === url
+            ? { ...article, title: result.title, hasTitleInDb: true }
+            : article
+        )
+      );
+    } catch (err: any) {
+      console.error("[Articles] Error fetching title:", err);
+      alert(`タイトルの取得に失敗しました: ${err.message}`);
+    } finally {
+      setFetchingTitleUrls((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(url);
+        return newSet;
+      });
+    }
+  };
+
+  const handleSelectArticle = (url: string) => {
+    setArticleUrl(url);
+    setShowArticleSelection(false);
   };
 
   // GSCプロパティ一覧を取得
@@ -312,6 +392,8 @@ export default function Home() {
             if (response.ok) {
               const result = await response.json();
               setSelectedSiteUrl(savedSiteUrl);
+              // 記事一覧を読み込む
+              loadArticles(savedSiteUrl);
             } else {
               const error = await response.json();
               console.error("[GSC] Failed to save site from localStorage:", error);
@@ -781,6 +863,123 @@ export default function Home() {
             記事のURLを入力すると、順位データを取得して競合との差分を分析し、改善案を提示します。
           </p>
 
+          {/* 記事選択セクション */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-bold text-gray-700">
+                記事を選択
+              </label>
+              <button
+                onClick={() => {
+                  if (showArticleSelection) {
+                    setShowArticleSelection(false);
+                  } else {
+                    loadArticles(selectedSiteUrl);
+                  }
+                }}
+                className="text-sm text-purple-600 hover:text-purple-800 font-semibold"
+              >
+                {showArticleSelection ? "閉じる" : "記事一覧を表示"}
+              </button>
+            </div>
+
+            {showArticleSelection && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                {loadingArticles ? (
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                    <p className="mt-2 text-sm text-gray-600">記事一覧を取得中...</p>
+                  </div>
+                ) : articles.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    記事が見つかりませんでした
+                  </p>
+                ) : (
+                  <>
+                    {/* 検索バー */}
+                    <div className="mb-4">
+                      <input
+                        type="text"
+                        value={articleSearchQuery}
+                        onChange={(e) => setArticleSearchQuery(e.target.value)}
+                        placeholder="URLまたはタイトルで検索..."
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                      />
+                    </div>
+
+                    {/* 記事一覧 */}
+                    <div className="space-y-2">
+                      {articles
+                        .filter((article) => {
+                          if (!articleSearchQuery) return true;
+                          const query = articleSearchQuery.toLowerCase();
+                          return (
+                            article.url.toLowerCase().includes(query) ||
+                            (article.title && article.title.toLowerCase().includes(query))
+                          );
+                        })
+                        .slice(0, 50) // 最大50件表示
+                        .map((article, index) => (
+                          <div
+                            key={index}
+                            className="bg-white border border-gray-200 rounded-lg p-3 hover:border-purple-400 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                {article.title ? (
+                                  <div>
+                                    <p className="font-semibold text-sm text-gray-900 mb-1 line-clamp-1">
+                                      {article.title}
+                                    </p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                      {article.url}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-700 truncate">
+                                    {article.url}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                  <span>インプレッション: {article.impressions.toLocaleString()}</span>
+                                  <span>クリック: {article.clicks.toLocaleString()}</span>
+                                  {article.position && (
+                                    <span>平均順位: {article.position.toFixed(1)}位</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {!article.title && (
+                                  <button
+                                    onClick={() => fetchArticleTitle(article.url, selectedSiteUrl)}
+                                    disabled={fetchingTitleUrls.has(article.url)}
+                                    className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {fetchingTitleUrls.has(article.url) ? "取得中..." : "タイトル確認"}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleSelectArticle(article.url)}
+                                  className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                                >
+                                  選択
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                    {articles.length > 50 && (
+                      <p className="text-xs text-gray-500 text-center mt-4">
+                        表示件数: 50件 / 全{articles.length}件
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* 入力フォーム */}
           <div className="mb-6">
             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -793,6 +992,9 @@ export default function Home() {
               placeholder="https://example.com/article"
               className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              上記の記事一覧から選択するか、直接URLを入力してください
+            </p>
           </div>
 
           {/* オプション設定（折りたたみ可能） */}

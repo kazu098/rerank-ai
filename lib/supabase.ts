@@ -29,3 +29,4 @@ export function createSupabaseClientForClient() {
   return createClient(supabaseUrl, supabaseAnonKey);
 }
 
+
