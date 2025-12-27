@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { getArticlesByUserId } from "@/lib/db/articles";
+import { getLatestAnalysisResult, getAnalysisResultsByArticleId } from "@/lib/db/analysis-results";
+import { createSupabaseClient } from "@/lib/supabase";
+
+/**
+ * ダッシュボード用データを取得
+ * GET /api/dashboard/data
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+
+    if (!session?.userId) {
+      return NextResponse.json(
+        { error: "認証が必要です。Googleアカウントでログインしてください。" },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.userId as string;
+
+    // 1. 記事一覧を取得
+    const articles = await getArticlesByUserId(userId);
+
+    // 2. 各記事の最新の分析結果を取得
+    const articlesWithAnalysis = await Promise.all(
+      articles.map(async (article) => {
+        const latestAnalysis = await getLatestAnalysisResult(article.id);
+        return {
+          ...article,
+          latestAnalysis,
+        };
+      })
+    );
+
+    // 3. 未読通知を取得
+    const supabase = createSupabaseClient();
+    const { data: unreadNotifications, error: notificationsError } = await supabase
+      .from("notifications")
+      .select(`
+        *,
+        article:articles(id, url, title)
+      `)
+      .eq("user_id", userId)
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (notificationsError) {
+      console.error("[Dashboard] Failed to get notifications:", notificationsError);
+    }
+
+    // 4. 統計情報を計算
+    const totalArticles = articles.length;
+    const monitoringArticles = articles.filter((a) => a.is_monitoring).length;
+    const totalAnalyses = articlesWithAnalysis.filter((a) => a.latestAnalysis !== null).length;
+
+    return NextResponse.json({
+      articles: articlesWithAnalysis,
+      unreadNotifications: unreadNotifications || [],
+      stats: {
+        totalArticles,
+        monitoringArticles,
+        totalAnalyses,
+      },
+    });
+  } catch (error: any) {
+    console.error("[Dashboard] Error:", error);
+    return NextResponse.json(
+      {
+        error: error.message || "ダッシュボードデータの取得に失敗しました。",
+      },
+      { status: 500 }
+    );
+  }
+}
+

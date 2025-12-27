@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
+import { useRouter } from "@/src/i18n/routing";
+import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // 分析モードは統一（タブを削除）
@@ -178,6 +180,8 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
 
 export default function Home() {
   const t = useTranslations();
+  const locale = useLocale();
+  const router = useRouter();
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -748,7 +752,15 @@ export default function Home() {
 
             <div className="text-center">
               <button
-                onClick={() => signIn("google")}
+                onClick={() => {
+                  // GSC連携時にメールアドレスをlocalStorageに保存
+                  const sessionAny = session as any;
+                  if (sessionAny?.user?.email) {
+                    localStorage.setItem('lastEmail', sessionAny.user.email);
+                  }
+                  // 元のページに戻る（分析画面を継続）
+                  signIn("google", { callbackUrl: `/${locale}` });
+                }}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg font-bold text-lg inline-flex items-center"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -789,12 +801,20 @@ export default function Home() {
             <h1 className="text-4xl font-extrabold text-gray-900">
               ReRank AI <span className="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP</span>
             </h1>
-            <button
-              onClick={() => signOut()}
-              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm"
-            >
-              {t("common.logout")}
-            </button>
+            <div className="flex items-center gap-4">
+              <Link
+                href={`/${locale}/dashboard`}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+              >
+                {t("dashboard.title")}
+              </Link>
+              <button
+                onClick={() => signOut()}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm"
+              >
+                {t("common.logout")}
+              </button>
+            </div>
           </div>
           <p className="text-gray-600 italic">
             {t("home.subtitle")}
@@ -1141,6 +1161,27 @@ export default function Home() {
         {/* 結果表示エリア */}
         {data && (
           <div className="space-y-6">
+            {/* ダッシュボードへのリンク（ログイン済みの場合） */}
+            {session && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-lg mb-2 text-blue-800">
+                      {t("notification.viewDetails")}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {t("notification.dashboardLink")}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/${locale}/dashboard`}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  >
+                    {t("dashboard.title")}
+                  </Link>
+                </div>
+              </div>
+            )}
             {/* 上位を保てているキーワード（安心させる） */}
             {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">

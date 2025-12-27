@@ -1,4 +1,6 @@
 import { createSupabaseClient } from '@/lib/supabase';
+import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 
 export interface User {
   id: string;
@@ -11,6 +13,12 @@ export interface User {
   plan_ends_at: string | null;
   trial_ends_at: string | null;
   timezone: string | null;
+  password_hash: string | null;
+  email_verified: boolean | null;
+  email_verification_token: string | null;
+  email_verification_token_expires_at: string | null;
+  password_reset_token: string | null;
+  password_reset_token_expires_at: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -84,6 +92,10 @@ export async function getOrCreateUser(
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
+  // Google OAuthの場合はemail_verifiedをtrueに設定（Googleが既に認証済み）
+  // パスワード認証の場合はemail_verifiedはfalse（メール認証が必要）
+  const emailVerified = provider === 'google' ? true : false;
+
   const { data: newUser, error: createError } = await supabase
     .from('users')
     .insert({
@@ -94,6 +106,8 @@ export async function getOrCreateUser(
       plan_id: freePlan.id,
       trial_ends_at: trialEndsAt.toISOString(),
       timezone: timezone || 'UTC', // タイムゾーンが提供されていない場合はUTC
+      email_verified: emailVerified, // Google OAuthの場合はtrue、それ以外はfalse
+      // password_hashは設定しない（NULLのまま）- Google OAuthの場合は不要
     })
     .select()
     .single();
@@ -168,4 +182,149 @@ export async function updateUserTimezone(userId: string, timezone: string): Prom
   if (error) {
     throw new Error(`Failed to update user timezone: ${error.message}`);
   }
+}
+
+/**
+ * パスワードをハッシュ化
+ */
+export async function hashPassword(password: string): Promise<string> {
+  const saltRounds = 12;
+  return bcrypt.hash(password, saltRounds);
+}
+
+/**
+ * パスワードを検証
+ */
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
+
+/**
+ * メール/パスワードでユーザーを作成
+ */
+export async function createUserWithPassword(
+  email: string,
+  password: string,
+  name?: string | null
+): Promise<User> {
+  const supabase = createSupabaseClient();
+
+  // 既存ユーザーをチェック
+  const existingUser = await getUserByEmail(email);
+  if (existingUser) {
+    throw new Error('このメールアドレスは既に登録されています');
+  }
+
+  // パスワードをハッシュ化
+  const passwordHash = await hashPassword(password);
+
+  // メール認証トークンを生成
+  const verificationToken = randomBytes(32).toString('hex');
+  const verificationTokenExpiresAt = new Date();
+  verificationTokenExpiresAt.setHours(verificationTokenExpiresAt.getHours() + 24); // 24時間有効
+
+  // 無料プランを取得
+  const { data: freePlan } = await supabase
+    .from('plans')
+    .select('id')
+    .eq('name', 'free')
+    .single();
+
+  if (!freePlan) {
+    throw new Error('Free plan not found');
+  }
+
+  // トライアル期間を設定（7日間）
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+  // ユーザーを作成
+  const { data: newUser, error: createError } = await supabase
+    .from('users')
+    .insert({
+      email,
+      name: name || null,
+      password_hash: passwordHash,
+      email_verified: false,
+      email_verification_token: verificationToken,
+      email_verification_token_expires_at: verificationTokenExpiresAt.toISOString(),
+      provider: 'credentials',
+      plan_id: freePlan.id,
+      trial_ends_at: trialEndsAt.toISOString(),
+      timezone: 'UTC',
+    })
+    .select()
+    .single();
+
+  if (createError) {
+    throw new Error(`Failed to create user: ${createError.message}`);
+  }
+
+  return newUser as User;
+}
+
+/**
+ * メール/パスワードでユーザーを認証
+ */
+export async function authenticateUserWithPassword(
+  email: string,
+  password: string
+): Promise<User | null> {
+  const user = await getUserByEmail(email);
+  
+  if (!user || !user.password_hash) {
+    return null;
+  }
+
+  const isValid = await verifyPassword(password, user.password_hash);
+  if (!isValid) {
+    return null;
+  }
+
+  return user;
+}
+
+/**
+ * メール認証トークンを検証
+ */
+export async function verifyEmailToken(token: string): Promise<User | null> {
+  const supabase = createSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email_verification_token', token)
+    .is('deleted_at', null)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const user = data as User;
+
+  // トークンの有効期限をチェック
+  if (user.email_verification_token_expires_at) {
+    const expiresAt = new Date(user.email_verification_token_expires_at);
+    if (expiresAt < new Date()) {
+      return null; // トークンが期限切れ
+    }
+  }
+
+  // メール認証を完了
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({
+      email_verified: true,
+      email_verification_token: null,
+      email_verification_token_expires_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', user.id);
+
+  if (updateError) {
+    throw new Error(`Failed to verify email: ${updateError.message}`);
+  }
+
+  return { ...user, email_verified: true } as User;
 }
