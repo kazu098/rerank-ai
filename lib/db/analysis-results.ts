@@ -28,6 +28,7 @@ export interface AnalysisResult {
   detailed_result_storage_key: string | null;
   detailed_result_expires_at: string | null;
   competitor_count: number | null;
+  competitor_urls: string[] | null; // 競合URL一覧（JSONB）
   analysis_duration_seconds: number | null;
   created_at: string;
 }
@@ -122,6 +123,11 @@ export async function saveAnalysisResult(
     // 競合サイト数
     const competitorCount = analysisResult.uniqueCompetitorUrls.length;
 
+    // 競合URL一覧（通知メールに必要）
+    const competitorUrls = analysisResult.uniqueCompetitorUrls.length > 0
+      ? analysisResult.uniqueCompetitorUrls
+      : null;
+
     // 3. analysis_results テーブルに分析結果サマリーを保存（まず作成）
     const { data: result, error: resultError } = await supabase
       .from("analysis_results")
@@ -138,6 +144,7 @@ export async function saveAnalysisResult(
           recommendedAdditions.length > 0 ? recommendedAdditions : null,
         missing_content_summary: missingContentSummary,
         competitor_count: competitorCount,
+        competitor_urls: competitorUrls, // 競合URL一覧を保存
         analysis_duration_seconds: analysisDurationSeconds || null,
         detailed_result_storage_key: null, // 一時的にnull、後で更新
         detailed_result_expires_at: null, // 一時的にnull、後で更新
