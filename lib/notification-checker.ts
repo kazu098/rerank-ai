@@ -2,6 +2,7 @@ import { GSCApiClient } from "./gsc-api";
 import { RankDropDetector, RankDropResult } from "./rank-drop-detection";
 import { getNotificationSettings, DEFAULT_NOTIFICATION_SETTINGS } from "./db/notification-settings";
 import { getArticleById } from "./db/articles";
+import { getUserById } from "./db/users";
 import { createSupabaseClient } from "./supabase";
 
 export interface NotificationCheckResult {
@@ -53,12 +54,18 @@ export class NotificationChecker {
       throw new Error(`Article not found: ${articleId}`);
     }
 
+    // ユーザー情報を取得（タイムゾーン取得のため）
+    const user = await getUserById(userId);
+    const userTimezone = user?.timezone || 'UTC';
+
     // 通知設定を取得（記事固有の設定があればそれを使用、なければデフォルト）
-    const settings = await getNotificationSettings(userId, articleId);
+    const settings = await getNotificationSettings(userId, articleId, userTimezone);
     const effectiveSettings = settings || {
       ...DEFAULT_NOTIFICATION_SETTINGS,
       user_id: userId,
       article_id: articleId,
+      timezone: userTimezone,
+      notification_time: '09:00:00',
     } as any;
 
     // 修正済みフラグが立っている場合は通知しない

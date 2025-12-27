@@ -14,6 +14,8 @@ export interface NotificationSettings {
   consecutive_drop_days: number;
   min_impressions: number;
   notification_cooldown_days: number;
+  notification_time: string | null; // TIME型（例: '09:00:00'）
+  timezone: string | null; // タイムゾーン（例: 'Asia/Tokyo'）
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +53,12 @@ export async function getNotificationSettings(
       .single();
 
     if (!error && data) {
-      return data as NotificationSettings;
+      const settings = data as NotificationSettings;
+      // タイムゾーンが設定されていない場合は、ユーザーのタイムゾーンを使用
+      if (!settings.timezone && userTimezone) {
+        settings.timezone = userTimezone;
+      }
+      return settings;
     }
   }
 
@@ -65,7 +72,12 @@ export async function getNotificationSettings(
     .single();
 
   if (!error && data) {
-    return data as NotificationSettings;
+    const settings = data as NotificationSettings;
+    // タイムゾーンが設定されていない場合は、ユーザーのタイムゾーンを使用
+    if (!settings.timezone && userTimezone) {
+      settings.timezone = userTimezone;
+    }
+    return settings;
   }
 
   // 設定が存在しない場合はnullを返す（呼び出し側でデフォルト値を使用）
@@ -99,6 +111,8 @@ export async function saveOrUpdateNotificationSettings(
     consecutive_drop_days: settings.consecutive_drop_days ?? DEFAULT_NOTIFICATION_SETTINGS.consecutive_drop_days,
     min_impressions: settings.min_impressions ?? DEFAULT_NOTIFICATION_SETTINGS.min_impressions,
     notification_cooldown_days: settings.notification_cooldown_days ?? DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days,
+    notification_time: settings.notification_time ?? '09:00:00',
+    timezone: settings.timezone ?? null, // NULLの場合はusersテーブルのタイムゾーンを使用
     updated_at: new Date().toISOString(),
   };
 

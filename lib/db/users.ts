@@ -10,6 +10,7 @@ export interface User {
   plan_started_at: string | null;
   plan_ends_at: string | null;
   trial_ends_at: string | null;
+  timezone: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -22,7 +23,8 @@ export async function getOrCreateUser(
   email: string,
   name: string | null,
   provider: string,
-  providerId: string
+  providerId: string,
+  timezone?: string | null
 ): Promise<User> {
   const supabase = createSupabaseClient();
 
@@ -41,14 +43,21 @@ export async function getOrCreateUser(
 
   // 既存ユーザーがいる場合は更新
   if (existingUser) {
+    const updateData: any = {
+      name: name || existingUser.name,
+      provider,
+      provider_id: providerId,
+      updated_at: new Date().toISOString(),
+    };
+
+    // タイムゾーンが提供されていて、既存ユーザーにタイムゾーンが設定されていない場合のみ更新
+    if (timezone && !existingUser.timezone) {
+      updateData.timezone = timezone;
+    }
+
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
-      .update({
-        name: name || existingUser.name,
-        provider,
-        provider_id: providerId,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', existingUser.id)
       .select()
       .single();
@@ -84,6 +93,7 @@ export async function getOrCreateUser(
       provider_id: providerId,
       plan_id: freePlan.id,
       trial_ends_at: trialEndsAt.toISOString(),
+      timezone: timezone || 'UTC', // タイムゾーンが提供されていない場合はUTC
     })
     .select()
     .single();
@@ -135,10 +145,27 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     if (error.code === 'PGRST116') {
       return null;
     }
-    throw new Error(`Failed to get user: ${error.message}`);
+    throw new Error(`Failed to get user by email: ${error.message}`);
   }
 
   return data as User;
 }
 
+/**
+ * ユーザーのタイムゾーンを更新
+ */
+export async function updateUserTimezone(userId: string, timezone: string): Promise<void> {
+  const supabase = createSupabaseClient();
 
+  const { error } = await supabase
+    .from('users')
+    .update({
+      timezone,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update user timezone: ${error.message}`);
+  }
+}

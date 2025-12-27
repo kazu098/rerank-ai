@@ -189,6 +189,42 @@ export async function updateArticleAnalysis(
 }
 
 /**
+ * 記事の通知送信日時を更新
+ */
+export async function updateArticleNotificationSent(
+  articleUrl: string,
+  userId: string
+): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  // まず現在の値を取得
+  const { data: article } = await supabase
+    .from('articles')
+    .select('notification_count_last_7_days')
+    .eq('url', articleUrl)
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .single();
+
+  const currentCount = article?.notification_count_last_7_days || 0;
+
+  const { error } = await supabase
+    .from('articles')
+    .update({
+      last_notification_sent_at: new Date().toISOString(),
+      notification_count_last_7_days: currentCount + 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('url', articleUrl)
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  if (error) {
+    throw new Error(`Failed to update article notification sent: ${error.message}`);
+  }
+}
+
+/**
  * 記事の順位下落を記録
  */
 export async function recordRankDrop(articleId: string): Promise<void> {
