@@ -146,4 +146,41 @@ export async function deactivateSite(siteId: string): Promise<void> {
   }
 }
 
+/**
+ * サイトのGSCトークンを更新
+ */
+export async function updateSiteTokens(
+  siteId: string,
+  accessToken: string,
+  refreshToken: string | null,
+  expiresAt: Date
+): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const updateData: {
+    gsc_access_token: string;
+    gsc_refresh_token?: string | null;
+    gsc_token_expires_at: string;
+    updated_at: string;
+  } = {
+    gsc_access_token: accessToken,
+    gsc_token_expires_at: expiresAt.toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  // リフレッシュトークンが提供されている場合のみ更新
+  if (refreshToken !== null) {
+    updateData.gsc_refresh_token = refreshToken;
+  }
+
+  const { error } = await supabase
+    .from('sites')
+    .update(updateData)
+    .eq('id', siteId);
+
+  if (error) {
+    throw new Error(`Failed to update site tokens: ${error.message}`);
+  }
+}
+
 

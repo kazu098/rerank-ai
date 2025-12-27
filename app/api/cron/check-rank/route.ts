@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GSCApiClient } from "@/lib/gsc-api";
 import { NotificationChecker } from "@/lib/notification-checker";
 import { getMonitoringArticles, updateArticleNotificationSent } from "@/lib/db/articles";
-import { getSitesByUserId } from "@/lib/db/sites";
+import { getSitesByUserId, updateSiteTokens } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
@@ -81,24 +81,55 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // トークンの有効期限をチェック
+        // トークンの有効期限をチェックし、必要に応じてリフレッシュ
         const tokenExpiresAt = site.gsc_token_expires_at
           ? new Date(site.gsc_token_expires_at).getTime()
           : null;
         const now = Date.now();
+        let accessToken = site.gsc_access_token;
+        let refreshToken = site.gsc_refresh_token;
 
+        // トークンが期限切れまたは期限切れ間近（10分前）の場合、リフレッシュを試みる
         if (tokenExpiresAt && now >= tokenExpiresAt - 10 * 60 * 1000) {
-          // トークンが期限切れまたは期限切れ間近（10分前）
-          console.warn(
-            `[Cron] GSC access token expired or expiring soon for site ${site.id}. Token refresh not implemented yet.`
-          );
-          continue;
+          if (!refreshToken) {
+            console.warn(
+              `[Cron] GSC access token expired for site ${site.id}, but no refresh token available. Skipping.`
+            );
+            continue;
+          }
+
+          try {
+            console.log(`[Cron] Refreshing GSC access token for site ${site.id}...`);
+            const gscClient = new GSCApiClient(accessToken);
+            const refreshed = await gscClient.refreshAccessToken(refreshToken);
+
+            // トークンをDBに更新
+            await updateSiteTokens(
+              site.id,
+              refreshed.accessToken,
+              refreshed.refreshToken || refreshToken, // 新しいリフレッシュトークンがあれば使用、なければ既存のものを保持
+              refreshed.expiresAt
+            );
+
+            accessToken = refreshed.accessToken;
+            if (refreshed.refreshToken) {
+              refreshToken = refreshed.refreshToken;
+            }
+
+            console.log(`[Cron] Successfully refreshed GSC access token for site ${site.id}`);
+          } catch (error: any) {
+            console.error(
+              `[Cron] Failed to refresh GSC access token for site ${site.id}:`,
+              error.message
+            );
+            continue;
+          }
         }
 
         // ユーザーごとのGSCクライアントを取得または作成
         let gscClient = userGscClients.get(article.user_id);
         if (!gscClient) {
-          gscClient = new GSCApiClient(site.gsc_access_token);
+          gscClient = new GSCApiClient(accessToken);
           userGscClients.set(article.user_id, gscClient);
         }
 
