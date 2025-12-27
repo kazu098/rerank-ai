@@ -155,9 +155,7 @@
     "rankChange": "{from}位 → {to}位（{change}位下落）",
     "dropReason": "原因",
     "dropReasonKeywords": "「{keywords}」などのキーワードが10位以下に転落",
-    "itemsToAdd": "追加すべき項目",
-    "viewDetails": "詳細はダッシュボードで確認",
-    "dashboardLink": "ダッシュボードを開く"
+    "itemsToAdd": "追加すべき項目"
   },
   "dashboard": {
     "title": "ダッシュボード",
@@ -211,7 +209,8 @@
       "section": "📝 {section}",
       "reason": "理由",
       "referenceCompetitorSites": "参考: この内容が記載されている競合サイト",
-      "footer": "ReRank AI - 順位下落の防止から上位への引き上げまで"
+      "footer": "ReRank AI - 順位下落の防止から上位への引き上げまで",
+      "viewDetails": "詳細はダッシュボードで確認"
     },
     "settings": {
       "startMonitoring": "順位下落を自動で通知しますか？",

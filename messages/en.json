@@ -153,9 +153,7 @@
     "rankChange": "{from} → {to} ({change} drop)",
     "dropReason": "Reason",
     "dropReasonKeywords": "Keywords such as \"{keywords}\" have dropped below 10th place",
-    "itemsToAdd": "Items to Add",
-    "viewDetails": "View details in dashboard",
-    "dashboardLink": "Open Dashboard"
+    "itemsToAdd": "Items to Add"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -209,7 +207,8 @@
       "section": "📝 {section}",
       "reason": "Reason",
       "referenceCompetitorSites": "Reference: Competitor sites with this content",
-      "footer": "ReRank AI - From preventing ranking drops to boosting rankings"
+      "footer": "ReRank AI - From preventing ranking drops to boosting rankings",
+      "viewDetails": "View details in dashboard"
     },
     "settings": {
       "startMonitoring": "Get notified when rankings drop?",
