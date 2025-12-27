@@ -228,12 +228,45 @@ export class GSCApiClient {
 
   /**
    * アクセストークンをリフレッシュ
-   * 注意: 実際の実装では、Google OAuth 2.0のリフレッシュトークンを使用する必要があります
+   * @param refreshToken リフレッシュトークン
+   * @returns 新しいアクセストークンと有効期限
    */
-  async refreshAccessToken(refreshToken: string): Promise<string> {
-    // TODO: リフレッシュトークンを使用してアクセストークンを更新
-    // 現在はNextAuth.jsが自動的に処理するため、実装は後で追加
-    throw new Error("Token refresh not implemented yet");
+  async refreshAccessToken(refreshToken: string): Promise<{
+    accessToken: string;
+    expiresAt: Date;
+    refreshToken?: string; // 新しいリフレッシュトークン（更新された場合のみ）
+  }> {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set");
+    }
+
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[GSC] Failed to refresh token:", response.status, errorText);
+      throw new Error(`Failed to refresh access token: ${response.status} ${errorText}`);
+    }
+
+    const refreshedTokens = await response.json();
+    const expiresAt = new Date(Date.now() + (refreshedTokens.expires_in * 1000));
+
+    return {
+      accessToken: refreshedTokens.access_token,
+      expiresAt,
+      refreshToken: refreshedTokens.refresh_token, // 新しいリフレッシュトークン（更新された場合のみ）
+    };
   }
 }
 

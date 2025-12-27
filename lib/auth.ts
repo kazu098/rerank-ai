@@ -80,15 +80,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const errorText = await response.text();
             console.error("[Auth] Failed to refresh token:", response.status, errorText);
             // リフレッシュに失敗した場合、トークンをクリアして再ログインを促す
-            token.accessToken = null;
-            token.refreshToken = null;
-            token.expiresAt = null;
+            token.accessToken = undefined;
+            token.refreshToken = undefined;
+            token.expiresAt = undefined;
           }
         } catch (error) {
           console.error("[Auth] Error refreshing token:", error);
-          token.accessToken = null;
-          token.refreshToken = null;
-          token.expiresAt = null;
+          token.accessToken = undefined;
+          token.refreshToken = undefined;
+          token.expiresAt = undefined;
         }
       }
 

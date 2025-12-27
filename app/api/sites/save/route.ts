@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
 import { saveOrUpdateSite } from "@/lib/db/sites";
 
 /**
@@ -31,15 +32,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // トークンの有効期限を計算（1時間後、実際の有効期限はGSC APIから取得する必要がある）
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1);
+    // JWTトークンからリフレッシュトークンを取得
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+    });
 
-    // 注意: refreshTokenはNextAuth.jsのセッションから直接取得できないため、
-    // 一時的に空文字列を保存。実際の運用では、JWTトークンから取得するか、
-    // 別途データベースに保存する必要がある
-    // TODO: refreshTokenの取得方法を改善する
-    const refreshToken = "";
+    const refreshToken = (token?.refreshToken as string) || "";
+
+    // トークンの有効期限を計算（JWTトークンから取得、なければ1時間後）
+    const expiresAt = token?.expiresAt
+      ? new Date(token.expiresAt as number)
+      : new Date(Date.now() + 3600 * 1000);
 
     // サイト情報を保存
     const site = await saveOrUpdateSite(
