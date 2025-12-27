@@ -14,6 +14,7 @@ export interface SlackNotificationPayload {
       type: string;
       text: string;
     }>;
+    [key: string]: any; // その他のSlack Block Kitプロパティを許可
   }>;
 }
 
