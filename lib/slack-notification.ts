@@ -14,8 +14,7 @@ export interface SlackNotificationPayload {
       type: string;
       text: string;
     }>;
-    [key: string]: any; // その他のSlack Block Kitプロパティを許可
-  }>;
+  } & Record<string, any>>; // その他のSlack Block Kitプロパティを許可
 }
 
 /**
@@ -253,7 +252,7 @@ export function formatSlackBulkNotification(
           text: `*${t.averagePosition}*\n${article.averagePositionChange.from.toFixed(1)}位 → ${article.averagePositionChange.to.toFixed(1)}位 (${article.averagePositionChange.change > 0 ? '+' : ''}${article.averagePositionChange.change.toFixed(1)}位)`,
         },
       ],
-    });
+    } as any);
   });
 
   if (articles.length > 10) {
