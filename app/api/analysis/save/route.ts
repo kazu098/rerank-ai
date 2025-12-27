@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         articleUrl,
         undefined, // siteIdは後で更新可能
         undefined, // titleは後で更新可能
-        analysisResult.prioritizedKeywords.map((kw) => kw.keyword)
+        analysisResult.prioritizedKeywords.map((kw: { keyword: string; priority: number; impressions: number; clicks: number; position: number }) => kw.keyword)
       );
     }
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       .from('articles')
       .update({
         last_analyzed_at: new Date().toISOString(),
-        keywords: analysisResult.prioritizedKeywords.map((kw) => kw.keyword),
+        keywords: analysisResult.prioritizedKeywords.map((kw: { keyword: string; priority: number; impressions: number; clicks: number; position: number }) => kw.keyword),
         updated_at: new Date().toISOString(),
       })
       .eq('id', article.id);
