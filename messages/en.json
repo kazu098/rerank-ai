@@ -84,6 +84,9 @@
     "step2Complete": "✓ Competitor URL extraction completed",
     "step3Complete": "✓ Improvement suggestion generation completed",
     "analysisComplete": "✓ Analysis completed",
+    "savedToDatabase": "✓ Analysis results saved to database",
+    "saveFailed": "⚠ Failed to save analysis results (display is still available)",
+    "saveError": "⚠ Error occurred while saving analysis results (display is still available)",
     "error": "✗ Error: {error}"
   },
   "results": {

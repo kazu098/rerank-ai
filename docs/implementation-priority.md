@@ -9,13 +9,10 @@
 - ✅ OAuth 2.0認証の実装（1クリックでGSC連携）
   - NextAuth.jsを使用したGoogle OAuth 2.0認証
   - GSC APIスコープ（`https://www.googleapis.com/auth/webmasters.readonly`）の取得
-<<<<<<< Updated upstream
-=======
 - ✅ ログイン機能
   - NextAuth.jsを使用したGoogle OAuth 2.0ログイン
   - ユーザー情報のDB保存（`users`テーブル）
   - セッション管理
->>>>>>> Stashed changes
 - ✅ GSC API連携（順位データ取得）
   - 特定記事の時系列データ取得
   - キーワード（クエリ）ごとの順位データ取得
@@ -47,36 +44,77 @@
 
 ## 🎯 次に実装すべき項目（推奨実装順序）
 
-### 1. 分析結果のDB保存（最優先）
+### 1. 詳細データの一時ストレージ保存（Vercel Blob Storage）（最優先）
 
-**目的**: 分析結果をデータベースに保存し、履歴を管理できるようにする
+**目的**: 再生成コストが高いLLM分析の詳細データを一時ストレージに保存し、詳細画面で表示できるようにする
 
 **実装内容**:
-1. `lib/db/analysis-results.ts` を作成
-   - `saveAnalysisResult()` 関数を実装
-   - `getAnalysisResultsByArticleId()` 関数を実装
-   - `getLatestAnalysisResult()` 関数を実装
-2. 分析実行時にDBに保存
-   - `analysis_runs` テーブルに実行履歴を記録
-   - `analysis_results` テーブルに分析結果サマリーを保存
-   - 詳細データは一時ストレージに保存（オプション、後で実装）
-3. 分析完了時の処理を追加
-   - `app/[locale]/page.tsx` の分析完了時にDB保存を追加
+1. Vercel Blob Storageのセットアップ
+   - `@vercel/blob` パッケージをインストール
+   - 環境変数 `BLOB_READ_WRITE_TOKEN` を設定
+2. 詳細データ保存機能の実装
+   - `lib/db/analysis-results.ts` の `saveAnalysisResult()` を拡張
+   - LLM分析の詳細（`semanticDiffAnalysis`）をVercel Blob Storageに保存
+   - 保存したストレージキーと有効期限をDBに保存（`detailed_result_storage_key`, `detailed_result_expires_at`）
+3. 詳細データ取得機能の実装
+   - `getDetailedAnalysisData()` 関数を実装
+   - ストレージキーから詳細データを取得
+   - 有効期限切れの場合はエラーハンドリング
+4. 分析実行時の処理を追加
+   - `app/api/analysis/save/route.ts` で詳細データを保存
    - エラーハンドリングを追加
 
+**保存するデータ**:
+- ✅ LLM分析の詳細（`semanticDiffAnalysis`）: 10-50KB
+  - 理由: 再生成コストが高い（約2.5円）
+- ❌ 自社記事の全文: 保存しない（必要時にURLから再取得、コスト: 0円）
+- ❌ 競合記事の全文: 保存しない（必要時に再取得）
+- ❌ 時系列データ: 保存しない（必要時にGSC APIで再取得）
+
 **成果物**:
-- `lib/db/analysis-results.ts` - 分析結果のDB操作関数
-- 分析実行時のDB保存処理
+- `lib/db/analysis-results.ts` - 詳細データ保存・取得関数の追加
+- `app/api/analysis/save/route.ts` - 詳細データ保存処理の追加
+- Vercel Blob Storageへの保存処理
 
 **期間**: 1-2日
 
 **重要**: 
-- 分析結果を保存しないと、ダッシュボードで表示できない
-- 通知履歴と分析結果を紐付けるために必要
+- 詳細画面で分析結果の詳細を表示するために必要
+- 再生成コストが高いため、保存することでコスト削減
+- 30日間の有効期限で自動削除（Vercel Blob StorageのTTL機能）
+
+**参考資料**:
+- `docs/storage-strategy-review.md` - ストレージ戦略の詳細
 
 ---
 
-### 2. 管理画面（ダッシュボード）の基本実装
+### 2. 分析結果のDB保存（✅ 実装済み）
+
+**目的**: 分析結果をデータベースに保存し、履歴を管理できるようにする
+
+**実装内容**:
+1. ✅ `lib/db/analysis-results.ts` を作成済み
+   - ✅ `saveAnalysisResult()` 関数を実装済み
+   - ✅ `getAnalysisResultsByArticleId()` 関数を実装済み
+   - ✅ `getLatestAnalysisResult()` 関数を実装済み
+2. ✅ 分析実行時にDBに保存済み
+   - ✅ `analysis_runs` テーブルに実行履歴を記録
+   - ✅ `analysis_results` テーブルに分析結果サマリーを保存
+   - ⚠️ 詳細データは一時ストレージに保存（上記「1. 詳細データの一時ストレージ保存」で実装）
+
+**成果物**:
+- ✅ `lib/db/analysis-results.ts` - 分析結果のDB操作関数
+- ✅ 分析実行時のDB保存処理
+
+**期間**: 1-2日（実装済み）
+
+**重要**: 
+- ✅ 分析結果を保存しないと、ダッシュボードで表示できない
+- ✅ 通知履歴と分析結果を紐付けるために必要
+
+---
+
+### 3. 管理画面（ダッシュボード）の基本実装
 
 **目的**: ユーザーが分析結果を確認し、記事を管理できる画面を提供
 
@@ -109,7 +147,7 @@
 
 ---
 
-### 3. 通知履歴の表示
+### 4. 通知履歴の表示
 
 **目的**: ユーザーが過去の通知を確認できるようにする
 
@@ -133,7 +171,7 @@
 
 ---
 
-### 4. 修正済みフラグのUI
+### 5. 修正済みフラグのUI
 
 **目的**: ユーザーが記事を「修正済み」とマークできるようにする
 
@@ -156,7 +194,7 @@
 
 ---
 
-### 5. ユーザーのロケール設定
+### 6. ユーザーのロケール設定
 
 **目的**: 通知メールの言語をユーザー設定に合わせる
 
@@ -181,9 +219,7 @@
 
 ---
 
-<<<<<<< Updated upstream
-=======
-### 6. 競合サイトのフィルタリング機能（Wikipedia・ECサイト等の除外）
+### 7. 競合サイトのフィルタリング機能（Wikipedia・ECサイト等の除外）
 
 **目的**: 分析対象から明らかに上位になるサイト（Wikipedia、大手ECサイト等）を除外し、より実用的な競合分析を行う
 
@@ -213,7 +249,7 @@
 
 ---
 
-### 7. Slack通知機能
+### 8. Slack通知機能
 
 **目的**: メール通知に加えて、Slack通知も送信できるようにする
 
@@ -241,7 +277,7 @@
 
 ---
 
-### 8. AI SEO対策（AIO対応）
+### 9. AI SEO対策（AIO対応）
 
 **目的**: AI検索エンジン（AIO: AI Overview）に対応したSEO対策を提供
 
@@ -273,7 +309,7 @@
 
 ---
 
-### 9. 課金動線の実装
+### 10. 課金動線の実装
 
 **目的**: 有料プランへの誘導と決済機能を実装
 
@@ -308,7 +344,6 @@
 
 ---
 
->>>>>>> Stashed changes
 ## 実装フェーズ（将来）
 
 ### Phase 2: 手動スキャン機能（GSC連携不要）

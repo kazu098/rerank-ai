@@ -428,6 +428,8 @@ export default function Home() {
     setData(null);
     setProcessLog([]);
     setDisplayedLogIndex(0);
+    
+    const analysisStartTime = Date.now();
 
     // プロセスログの定義（一般ユーザー向けのわかりやすい文言）
     const logMessages = [
@@ -480,11 +482,12 @@ export default function Home() {
 
       const step1Result = await step1Response.json();
       // Step 1の結果をすぐに表示
-      setData({
+      let currentAnalysisResult = {
         ...step1Result,
         competitorResults: [],
         uniqueCompetitorUrls: [],
-      });
+      };
+      setData(currentAnalysisResult);
       setProcessLog((prev) => [...prev, t("analysis.step1Complete")]);
 
       // Step 2: 競合URL抽出
@@ -511,8 +514,8 @@ export default function Home() {
       
       // Step 2の結果から、Serper APIで見つからなかったキーワードを検出
       // （100位以下に転落している可能性）
-      if (step2Result.competitorResults && data?.keywordTimeSeries) {
-        const updatedTimeSeries = data.keywordTimeSeries.map((kwSeries: any) => {
+      if (step2Result.competitorResults && currentAnalysisResult?.keywordTimeSeries) {
+        const updatedTimeSeries = currentAnalysisResult.keywordTimeSeries.map((kwSeries: any) => {
           const competitorResult = step2Result.competitorResults.find(
             (cr: any) => cr.keyword === kwSeries.keyword
           );
@@ -534,17 +537,19 @@ export default function Home() {
         });
         
         // 時系列データを更新
-        setData((prev: any) => ({
-          ...prev,
+        currentAnalysisResult = {
+          ...currentAnalysisResult,
           ...step2Result,
           keywordTimeSeries: updatedTimeSeries,
-        }));
+        };
+        setData(currentAnalysisResult);
       } else {
         // Step 2の結果を更新
-        setData((prev: any) => ({
-          ...prev,
+        currentAnalysisResult = {
+          ...currentAnalysisResult,
           ...step2Result,
-        }));
+        };
+        setData(currentAnalysisResult);
       }
       setProcessLog((prev) => [...prev, t("analysis.step2Complete")]);
 
@@ -576,14 +581,49 @@ export default function Home() {
         } else {
           const step3Result = await step3Response.json();
           // Step 3の結果を更新
-          setData((prev: any) => ({
-            ...prev,
+          currentAnalysisResult = {
+            ...currentAnalysisResult,
             ...step3Result,
-          }));
+          };
+          setData(currentAnalysisResult);
           setProcessLog((prev) => [...prev, t("analysis.step3Complete")]);
         }
       } else {
         setProcessLog((prev) => [...prev, t("errors.step3Skipped")]);
+      }
+
+      // 分析結果をDBに保存
+      if (currentAnalysisResult && currentAnalysisResult.prioritizedKeywords) {
+        try {
+          const analysisDurationSeconds = Math.floor((Date.now() - analysisStartTime) / 1000);
+          const saveResponse = await fetch("/api/analysis/save", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              articleUrl,
+              siteUrl: selectedSiteUrl.replace(/\/$/, ""),
+              analysisResult: currentAnalysisResult,
+              analysisDurationSeconds,
+            }),
+          });
+
+          if (saveResponse.ok) {
+            const saveResult = await saveResponse.json();
+            console.log("[Analysis] Saved to database:", saveResult);
+            setProcessLog((prev) => [...prev, t("analysis.savedToDatabase") || "分析結果をデータベースに保存しました"]);
+          } else {
+            const errorData = await saveResponse.json();
+            console.error("[Analysis] Failed to save to database:", errorData);
+            // DB保存の失敗は警告のみ（分析結果は表示される）
+            setProcessLog((prev) => [...prev, t("analysis.saveFailed") || "分析結果の保存に失敗しました（表示は可能です）"]);
+          }
+        } catch (saveError: any) {
+          console.error("[Analysis] Error saving to database:", saveError);
+          // DB保存のエラーは警告のみ（分析結果は表示される）
+          setProcessLog((prev) => [...prev, t("analysis.saveError") || "分析結果の保存中にエラーが発生しました（表示は可能です）"]);
+        }
       }
 
       setProcessLog((prev) => [...prev, t("analysis.analysisComplete")]);
