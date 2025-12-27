@@ -40,6 +40,13 @@ export interface CompetitorAnalysisSummary {
       impressions: number;
       clicks: number;
     }>;
+    metadata?: {
+      lastDataDate: string | null; // 最後にデータが取得された日付
+      daysSinceLastData: number | null; // 最後のデータから経過した日数
+      hasRecentDrop: boolean; // 最近の転落の可能性
+      lastPosition: number | null; // 最後のデータの順位
+      serperApiNotFound?: boolean; // Serper APIで見つからなかった（100位以下に転落している可能性）
+    };
   }>; // キーワードの時系列データ（グラフ用）
 }
 
@@ -66,6 +73,13 @@ export interface Step1Result {
       impressions: number;
       clicks: number;
     }>;
+    metadata?: {
+      lastDataDate: string | null; // 最後にデータが取得された日付
+      daysSinceLastData: number | null; // 最後のデータから経過した日数
+      hasRecentDrop: boolean; // 最近の転落の可能性
+      lastPosition: number | null; // 最後のデータの順位
+      serperApiNotFound?: boolean; // Serper APIで見つからなかった（100位以下に転落している可能性）
+    };
   }>;
 }
 
