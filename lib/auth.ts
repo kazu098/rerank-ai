@@ -5,6 +5,13 @@ import { getOrCreateUser, getUserByEmail, authenticateUserWithPassword } from "@
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30日間（秒単位）
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30日間（秒単位）
+  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -12,6 +19,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorization: {
         params: {
           scope: "openid email profile https://www.googleapis.com/auth/webmasters.readonly",
+          access_type: "offline", // リフレッシュトークンを取得するために必要
+          prompt: "consent", // リフレッシュトークンを確実に取得するために必要（初回のみ確認画面が表示される）
         },
       },
     }),
