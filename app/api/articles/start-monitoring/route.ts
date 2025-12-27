@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
       session.userId,
       url,
       site.id,
-      null, // titleは後で取得可能
-      null // keywordsは後で取得可能
+      undefined, // titleは後で取得可能
+      undefined // keywordsは後で取得可能
     );
 
     // 通知設定を保存
