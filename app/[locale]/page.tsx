@@ -240,15 +240,10 @@ export default function Home() {
         }
       } else {
         const error = await response.json();
-        // トークン期限切れの場合は再ログインを促す
+        // トークン期限切れの場合は即座にログイン画面に遷移
         if (error.code === "TOKEN_EXPIRED" || response.status === 401) {
-          setError(
-            error.error || t("errors.tokenExpired")
-          );
-          // セッションをクリアして再ログインを促す
-          setTimeout(() => {
-            signOut({ callbackUrl: "/" });
-          }, 2000);
+          signOut({ callbackUrl: "/" });
+          return;
         } else {
           setError(error.error || t("errors.propertyLoadFailed"));
         }
