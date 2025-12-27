@@ -31,6 +31,8 @@ export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'u
   consecutive_drop_days: 3,
   min_impressions: 100,
   notification_cooldown_days: 7,
+  notification_time: '09:00:00',
+  timezone: null,
 };
 
 /**
@@ -53,12 +55,7 @@ export async function getNotificationSettings(
       .single();
 
     if (!error && data) {
-      const settings = data as NotificationSettings;
-      // タイムゾーンが設定されていない場合は、ユーザーのタイムゾーンを使用
-      if (!settings.timezone && userTimezone) {
-        settings.timezone = userTimezone;
-      }
-      return settings;
+      return data as NotificationSettings;
     }
   }
 
@@ -72,12 +69,7 @@ export async function getNotificationSettings(
     .single();
 
   if (!error && data) {
-    const settings = data as NotificationSettings;
-    // タイムゾーンが設定されていない場合は、ユーザーのタイムゾーンを使用
-    if (!settings.timezone && userTimezone) {
-      settings.timezone = userTimezone;
-    }
-    return settings;
+    return data as NotificationSettings;
   }
 
   // 設定が存在しない場合はnullを返す（呼び出し側でデフォルト値を使用）
