@@ -139,7 +139,7 @@ RESEND_FROM_EMAIL=noreply@your-verified-domain.com
 
 1. Vercelダッシュボード → プロジェクト → Settings → Domains
 2. 「Add Domain」をクリック
-3. ドメインを入力（例: `rerank-ai.com`）
+3. ドメインを入力（例: `your-domain.com`）
 4. VercelがDNS設定を提案します
 
 ### 2.3 CloudflareでDNSレコードを設定

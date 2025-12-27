@@ -60,9 +60,9 @@
    - 「Redirect URLs」セクションまでスクロール
    - 「Add New Redirect URL」をクリック
    - 以下のURLを追加（**HTTPSのみ対応**）：
-     - **本番環境**: `https://rerank-ai.com/api/auth/slack/callback`
-     - **www付きドメインも追加**（使用している場合）: `https://www.rerank-ai.com/api/auth/slack/callback`
-       （または実際のドメインに置き換え）
+     - **本番環境**: `https://your-domain.com/api/auth/slack/callback`
+     - **www付きドメインも追加**（使用している場合）: `https://www.your-domain.com/api/auth/slack/callback`
+       （実際のドメインに置き換えてください）
    - ⚠️ **重要**: `www`付きと`www`なしの両方を使用する場合は、両方のURLを追加してください
    - 「Save URLs」をクリック
    
@@ -117,7 +117,7 @@
    # Googleログインなどは開発環境のURLを使用
    NEXTAUTH_URL=http://localhost:3000
    # Slack OAuthのみ本番環境のURLを使用（SlackはHTTPSのみ許可）
-   SLACK_REDIRECT_BASE_URL=https://rerank-ai.com
+   SLACK_REDIRECT_BASE_URL=https://your-domain.com
    ```
 
 2. **本番環境（Vercel）**
@@ -126,7 +126,7 @@
    - 以下の環境変数を追加：
      - `SLACK_CLIENT_ID`: 取得したClient ID
      - `SLACK_CLIENT_SECRET`: 取得したClient Secret
-     - `NEXTAUTH_URL`: 本番環境のURL（例: `https://rerank-ai.com`）
+     - `NEXTAUTH_URL`: 本番環境のURL（例: `https://your-domain.com`）
 
 ### 6. 動作確認
 
@@ -141,7 +141,7 @@
    - 「Slack通知設定」セクションで「Slackと連携」ボタンをクリック
    - Slack認証画面が表示されることを確認
    - 認証後、設定画面に戻り「Slackと連携済み」と表示されることを確認
-   - ⚠️ **注意**: OAuth認証後のリダイレクトは本番環境のURL（`https://rerank-ai.com`）に戻りますが、これは正常な動作です
+   - ⚠️ **注意**: OAuth認証後のリダイレクトは本番環境のURL（`https://your-domain.com`）に戻りますが、これは正常な動作です
 
 3. **通知のテスト**
    - テスト用のエンドポイントを使用（開発環境のみ）:

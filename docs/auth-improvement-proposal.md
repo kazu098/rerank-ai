@@ -166,7 +166,7 @@ npm install @types/bcryptjs
 - `lib/email-verification.ts`で認証メール送信機能を作成
 - Resendを使用して認証メールを送信
 - 認証トークンをDBに保存（有効期限: 24時間）
-- 認証リンク: `https://rerank-ai.com/auth/verify-email?token=xxx`
+- 認証リンク: `https://your-domain.com/auth/verify-email?token=xxx`
 
 #### 4.4 パスワードリセット
 
