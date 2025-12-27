@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useRouter } from "@/src/i18n/routing";
+import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 
 interface DashboardData {
@@ -45,6 +45,7 @@ interface DashboardData {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -224,7 +225,7 @@ export default function DashboardPage() {
                             </span>
                           )}
                           <Link
-                            href={`/dashboard/articles/${article.id}`}
+                            href={`/${locale}/dashboard/articles/${article.id}`}
                             className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                           >
                             {t("dashboard.articles.viewDetails")}
