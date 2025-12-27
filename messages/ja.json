@@ -142,6 +142,41 @@
     "notificationSent": "通知を送信しました",
     "step3Skipped": "⚠ 競合URLが取得できなかったため、Step 3をスキップしました",
     "step3Error": "⚠ Step 3でエラー: {error}"
+  },
+  "notification": {
+    "rankDropDetected": "順位下落を検知しました",
+    "rankDropDetectedMultiple": "順位下落を検知しました（{count}件の記事）",
+    "articleUrl": "記事URL",
+    "keyword": "キーワード",
+    "rank": "順位",
+    "rankChange": "{from}位 → {to}位（{change}位下落）",
+    "dropReason": "原因",
+    "dropReasonKeywords": "「{keywords}」などのキーワードが10位以下に転落",
+    "itemsToAdd": "追加すべき項目",
+    "viewDetails": "詳細はダッシュボードで確認",
+    "dashboardLink": "ダッシュボードを開く",
+    "checker": {
+      "fixedArticle": "修正済みフラグが設定されており、クールダウン期間（{days}日）内のため通知しません",
+      "recentNotification": "過去{days}日以内に通知を送信済みのため、通知しません（{daysAgo}日前に送信）",
+      "noConsecutiveDrop": "連続{days}日間の下落が確認できませんでした",
+      "noValidKeywords": "インプレッション数が{min}以上のキーワードがありません",
+      "rankDropDetected": "順位下落が検知されました（平均順位: {from}位 → {to}位、下落幅: {drop}位）"
+    },
+    "email": {
+      "subject": "【ReRank AI】順位下落を検知しました",
+      "subjectMultiple": "【ReRank AI】順位下落を検知しました（{count}件の記事）",
+      "header": "ReRank AI - 順位下落検知レポート",
+      "targetArticle": "📄 分析対象記事",
+      "targetKeywords": "🔍 分析対象キーワード",
+      "competitorArticles": "🏆 競合記事（{count}件）",
+      "whyCompetitorsRankHigher": "🔍 なぜ競合が上位なのか",
+      "missingContent": "❌ 不足している内容（{count}個）",
+      "recommendedAdditions": "✨ 追加すべき項目",
+      "section": "📝 {section}",
+      "reason": "理由",
+      "referenceCompetitorSites": "参考: この内容が記載されている競合サイト",
+      "footer": "ReRank AI - 順位下落の防止から上位への引き上げまで"
+    }
   }
 }
 

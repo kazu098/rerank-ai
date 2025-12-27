@@ -13,6 +13,11 @@ export interface Article {
   last_rank_drop_at: string | null;
   current_average_position: number | null;
   previous_average_position: number | null;
+  is_fixed: boolean | null;
+  fixed_at: string | null;
+  fixed_notification_id: string | null;
+  last_notification_sent_at: string | null;
+  notification_count_last_7_days: number | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
