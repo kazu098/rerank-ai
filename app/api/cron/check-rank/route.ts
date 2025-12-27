@@ -309,13 +309,6 @@ export async function GET(request: NextRequest) {
               );
             }
           }
-
-          if (notificationError) {
-            console.error(
-              `[Cron] Failed to save notification for article ${item.articleUrl}:`,
-              notificationError
-            );
-          }
         }
 
         sentCount++;
