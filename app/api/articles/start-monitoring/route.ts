@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { saveOrUpdateArticle } from "@/lib/db/articles";
 import { saveOrUpdateNotificationSettings } from "@/lib/db/notification-settings";
 import { getSitesByUserId } from "@/lib/db/sites";
@@ -18,8 +18,8 @@ import { updateUserTimezone } from "@/lib/db/users";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // サイト情報を取得
-    const sites = await getSitesByUserId(session.user.id);
+    const sites = await getSitesByUserId(session.userId);
     const site = sites.find((s) => s.site_url === siteUrl);
     if (!site) {
       return NextResponse.json(
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     // タイムゾーンが提供されている場合、ユーザーのタイムゾーンを更新
     if (timezone) {
       try {
-        await updateUserTimezone(session.user.id, timezone);
+        await updateUserTimezone(session.userId, timezone);
       } catch (error: any) {
         console.error("[Monitoring] Failed to update user timezone:", error);
         // タイムゾーンの更新に失敗しても続行
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // 記事を保存または更新（監視対象として設定）
     const article = await saveOrUpdateArticle(
-      session.user.id,
+      session.userId,
       url,
       site.id,
       null, // titleは後で取得可能
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const effectiveTimezone = timezone || 'UTC';
 
     await saveOrUpdateNotificationSettings(
-      session.user.id,
+      session.userId,
       {
         notification_type: 'rank_drop',
         channel: 'email',

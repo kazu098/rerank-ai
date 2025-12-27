@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { updateUserTimezone } from "@/lib/db/users";
 
 /**
@@ -9,8 +9,8 @@ import { updateUserTimezone } from "@/lib/db/users";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await updateUserTimezone(session.user.id, timezone);
+    await updateUserTimezone(session.userId, timezone);
 
     return NextResponse.json({ success: true, timezone });
   } catch (error: any) {
