@@ -30,7 +30,16 @@ export async function analyzeStep3(
       console.log(
         `[CompetitorAnalysis] Starting diff analysis for ${siteUrl}${pageUrl}`
       );
-      const ownUrl = `${siteUrl}${pageUrl}`;
+      // sc-domain:形式の場合はhttps://形式に変換
+      let ownUrl: string;
+      if (siteUrl.startsWith("sc-domain:")) {
+        const domain = siteUrl.replace("sc-domain:", "");
+        ownUrl = `https://${domain}${pageUrl}`;
+      } else {
+        // URLプロパティの場合、末尾のスラッシュを削除して結合
+        const siteUrlWithoutSlash = siteUrl.replace(/\/$/, "");
+        ownUrl = `${siteUrlWithoutSlash}${pageUrl}`;
+      }
       const competitorUrls = uniqueCompetitorUrls.slice(0, 3); // 上位3サイトまで
 
       // 自社記事と競合記事を並列で取得（処理時間を短縮）
