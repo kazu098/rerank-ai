@@ -179,6 +179,13 @@
       "title": "Unread Notifications",
       "noNotifications": "No unread notifications",
       "rankDropDetected": "Rank Drop Detected"
+    },
+    "sidebar": {
+      "overview": "Overview",
+      "articles": "Articles",
+      "notifications": "Notifications",
+      "settings": "Settings",
+      "billing": "Billing"
     }
   },
   "notification": {

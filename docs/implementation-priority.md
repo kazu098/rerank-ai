@@ -39,30 +39,40 @@
 - ✅ 通知設定UI
   - 分析結果画面で通知設定を登録
   - タイムゾーン対応
+- ✅ ログイン機能の拡張
+  - NextAuth.jsでメール/パスワード認証を追加（Credentials Provider）
+  - ユーザー登録APIとメール認証機能を実装
+  - ログイン画面を作成（メール/パスワード + Google OAuth）
+  - Gmail自動入力機能（localStorage活用）
+- ✅ ダッシュボード基本実装
+  - ダッシュボードメインページ（記事一覧、未読通知、統計情報）
+  - ダッシュボード用データ取得API
+  - 多言語対応
+  - 分析結果画面からダッシュボードへのリンク
 
 ---
 
 ## 🎯 次に実装すべき項目（推奨実装順序）
 
-### 1. 詳細データの一時ストレージ保存（Vercel Blob Storage）（最優先）
+### 1. 詳細データの一時ストレージ保存（Vercel Blob Storage）（✅ 実装済み）
 
 **目的**: 再生成コストが高いLLM分析の詳細データを一時ストレージに保存し、詳細画面で表示できるようにする
 
 **実装内容**:
-1. Vercel Blob Storageのセットアップ
-   - `@vercel/blob` パッケージをインストール
-   - 環境変数 `BLOB_READ_WRITE_TOKEN` を設定
-2. 詳細データ保存機能の実装
-   - `lib/db/analysis-results.ts` の `saveAnalysisResult()` を拡張
-   - LLM分析の詳細（`semanticDiffAnalysis`）をVercel Blob Storageに保存
-   - 保存したストレージキーと有効期限をDBに保存（`detailed_result_storage_key`, `detailed_result_expires_at`）
-3. 詳細データ取得機能の実装
-   - `getDetailedAnalysisData()` 関数を実装
-   - ストレージキーから詳細データを取得
-   - 有効期限切れの場合はエラーハンドリング
-4. 分析実行時の処理を追加
-   - `app/api/analysis/save/route.ts` で詳細データを保存
-   - エラーハンドリングを追加
+1. ✅ Vercel Blob Storageのセットアップ
+   - ✅ `@vercel/blob` パッケージをインストール
+   - ✅ 環境変数 `BLOB_READ_WRITE_TOKEN` を設定
+2. ✅ 詳細データ保存機能の実装
+   - ✅ `lib/db/analysis-results.ts` の `saveAnalysisResult()` を拡張
+   - ✅ LLM分析の詳細（`semanticDiffAnalysis`）をVercel Blob Storageに保存
+   - ✅ 保存したストレージキーと有効期限をDBに保存（`detailed_result_storage_key`, `detailed_result_expires_at`）
+3. ✅ 詳細データ取得機能の実装
+   - ✅ `getDetailedAnalysisData()` 関数を実装
+   - ✅ ストレージキーから詳細データを取得
+   - ✅ 有効期限切れの場合はエラーハンドリング
+4. ✅ 分析実行時の処理を追加
+   - ✅ `app/api/analysis/save/route.ts` で詳細データを保存
+   - ✅ エラーハンドリングを追加
 
 **保存するデータ**:
 - ✅ LLM分析の詳細（`semanticDiffAnalysis`）: 10-50KB
@@ -114,83 +124,92 @@
 
 ---
 
-### 3. 管理画面（ダッシュボード）の基本実装
+### 3. 管理画面（ダッシュボード）の基本実装（✅ 実装済み）
 
 **目的**: ユーザーが分析結果を確認し、記事を管理できる画面を提供
 
 **実装内容**:
-1. `/dashboard` ページを作成
-   - ログイン必須のページ
-   - レイアウト設計（サイドバー、メインコンテンツ）
-2. 記事一覧表示
-   - 登録済み記事の一覧表示
-   - 各記事の最新の分析結果（平均順位、前回順位、変化量）を表示
-   - 記事の追加・削除機能
-3. 分析結果一覧表示
-   - 記事ごとの分析結果履歴を表示
-   - 分析結果詳細ページへのリンク
-4. 未読通知の表示
-   - 未読通知の一覧表示
-   - 通知をクリックで詳細表示
+1. ✅ `/dashboard` ページを作成
+   - ✅ ログイン必須のページ
+   - ✅ レイアウト設計（ヘッダー、サイドバー、メインコンテンツ）
+2. ✅ 記事一覧表示
+   - ✅ 登録済み記事の一覧表示
+   - ✅ 各記事の最新の分析結果（平均順位、前回順位、変化量）を表示
+   - ✅ 記事の削除機能
+3. ✅ 分析結果一覧表示
+   - ✅ 記事ごとの分析結果履歴を表示
+   - ✅ 分析結果詳細ページへのリンク
+   - ✅ 詳細データの自動表示（Vercel Blob Storageから取得）
+4. ✅ 未読通知の表示
+   - ✅ 未読通知の一覧表示
+   - ✅ 通知をクリックで記事詳細ページに遷移
 
 **成果物**:
-- `app/[locale]/dashboard/page.tsx` - ダッシュボードメインページ
-- `app/[locale]/dashboard/articles/page.tsx` - 記事一覧ページ
-- `app/[locale]/dashboard/articles/[id]/page.tsx` - 記事詳細ページ
-- `app/api/dashboard/data/route.ts` - ダッシュボード用データ取得API
+- ✅ `app/[locale]/dashboard/page.tsx` - ダッシュボードメインページ
+- ✅ `app/[locale]/dashboard/layout.tsx` - 共通レイアウト（サイドバー含む）
+- ✅ `app/[locale]/dashboard/articles/page.tsx` - 記事一覧ページ（フィルタ・ソート機能付き）
+- ✅ `app/[locale]/dashboard/articles/[id]/page.tsx` - 記事詳細ページ
+- ✅ `app/api/dashboard/data/route.ts` - ダッシュボード用データ取得API
+- ✅ `app/api/articles/[id]/route.ts` - 記事詳細取得・削除API
+- ✅ `app/api/articles/[id]/mark-as-fixed/route.ts` - 修正済みフラグ設定API
+- ✅ `app/api/analysis/detailed/route.ts` - 詳細分析データ取得API
 
-**期間**: 2-3日
+**期間**: 2-3日（実装完了）
 
 **重要**: 
-- ユーザーが分析結果を確認できる唯一の場所
-- 記事管理の基盤となる
+- ✅ ユーザーが分析結果を確認できる場所を提供
+- ✅ 記事管理の基盤（詳細ページ含む）
 
 ---
 
-### 4. 通知履歴の表示
+### 4. 通知履歴の表示（✅ 実装済み）
 
 **目的**: ユーザーが過去の通知を確認できるようにする
 
 **実装内容**:
-1. 通知履歴一覧の表示
-   - ダッシュボードに通知履歴セクションを追加
-   - 通知日時、記事URL、通知内容を表示
-   - 未読/既読の状態を表示
-2. 通知詳細の表示
-   - 通知をクリックで詳細表示
-   - 分析結果へのリンク
-3. 通知の既読機能
-   - 通知をクリックしたら既読にする
-   - `notifications.read_at` を更新
+1. ✅ 通知履歴一覧の表示
+   - ✅ 通知履歴ページ（`/dashboard/notifications`）を作成
+   - ✅ 通知日時、記事URL、通知内容を表示
+   - ✅ 未読/既読の状態を表示
+   - ✅ フィルタ機能（すべて/未読/既読）
+2. ✅ 通知詳細の表示
+   - ✅ 通知をクリックで記事詳細ページに遷移
+   - ✅ 分析結果へのリンク
+3. ✅ 通知の既読機能
+   - ✅ 通知をクリックしたら自動的に既読にする
+   - ✅ `notifications.read_at` を更新
 
 **成果物**:
-- `app/[locale]/dashboard/notifications/page.tsx` - 通知履歴ページ
-- `app/api/notifications/mark-as-read/route.ts` - 通知既読API
+- ✅ `app/[locale]/dashboard/notifications/page.tsx` - 通知履歴ページ
+- ✅ `app/api/notifications/route.ts` - 通知一覧取得API
+- ✅ `app/api/notifications/[id]/mark-as-read/route.ts` - 通知既読API
+- ✅ `lib/db/notifications.ts` - 通知関連のDB操作関数
 
-**期間**: 1日
+**期間**: 1日（実装完了）
 
 ---
 
-### 5. 修正済みフラグのUI
+### 5. 修正済みフラグのUI（✅ 実装済み）
 
 **目的**: ユーザーが記事を「修正済み」とマークできるようにする
 
 **実装内容**:
-1. 修正済みフラグ設定UI
-   - 記事詳細ページまたは通知詳細ページに「修正済み」ボタンを追加
-   - 修正済みにした日時を記録
-2. 修正済みフラグ更新API
-   - `/api/articles/mark-as-fixed` エンドポイントを作成
-   - `articles.is_fixed` と `articles.fixed_at` を更新
-3. 修正済み記事の表示
-   - ダッシュボードで修正済み記事を視覚的に区別
-   - 修正済み記事は通知対象から除外（既に実装済み）
+1. ✅ 修正済みフラグ設定UI
+   - ✅ 記事詳細ページに「修正済みにする」ボタンを追加
+   - ✅ 修正済みにした日時を記録
+   - ✅ 修正済みバッジの表示
+2. ✅ 修正済みフラグ更新API
+   - ✅ `/api/articles/[id]/mark-as-fixed` エンドポイントを作成
+   - ✅ `articles.is_fixed` と `articles.fixed_at` を更新
+3. ✅ 修正済み記事の表示
+   - ✅ ダッシュボードで修正済み記事を視覚的に区別（バッジ表示）
+   - ✅ 修正済み記事は通知対象から除外（既に実装済み）
 
 **成果物**:
-- `app/api/articles/mark-as-fixed/route.ts` - 修正済みフラグ更新API
-- 記事詳細ページまたは通知詳細ページにUI追加
+- ✅ `app/api/articles/[id]/mark-as-fixed/route.ts` - 修正済みフラグ更新API
+- ✅ 記事詳細ページにUI追加
 
-**期間**: 1日
+**期間**: 1日（実装完了）
 
 ---
 
