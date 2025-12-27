@@ -94,7 +94,6 @@
 - 30日間の有効期限で自動削除（Vercel Blob StorageのTTL機能）
 
 **参考資料**:
-- `docs/storage-strategy-review.md` - ストレージ戦略の詳細
 
 ---
 

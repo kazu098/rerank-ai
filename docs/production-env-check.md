@@ -15,9 +15,9 @@ AUTH_SECRET=your-secret-key-here
 NEXTAUTH_SECRET=your-secret-key-here
 
 # 必須: 本番環境のURL（プロトコル含む）
-NEXTAUTH_URL=https://rerank-ai.com
+NEXTAUTH_URL=https://your-domain.com
 # または
-NEXTAUTH_URL=https://www.rerank-ai.com
+NEXTAUTH_URL=https://www.your-domain.com
 ```
 
 **注意**: 
@@ -41,14 +41,14 @@ Google Cloud Console（https://console.cloud.google.com/apis/credentials）で�
 
 1. **承認済みのリダイレクト URI**に以下が追加されているか：
    ```
-   https://rerank-ai.com/api/auth/callback/google
-   https://www.rerank-ai.com/api/auth/callback/google
+   https://your-domain.com/api/auth/callback/google
+   https://www.your-domain.com/api/auth/callback/google
    ```
 
 2. **承認済みのJavaScript生成元**に以下が追加されているか（必要に応じて）：
    ```
-   https://rerank-ai.com
-   https://www.rerank-ai.com
+   https://your-domain.com
+   https://www.your-domain.com
    ```
 
 ## Vercelでの環境変数設定方法
@@ -61,7 +61,7 @@ Google Cloud Console（https://console.cloud.google.com/apis/credentials）で�
 | 環境変数名 | 値の例 | 説明 |
 |-----------|--------|------|
 | `AUTH_SECRET` | `abc123...` | ランダムな文字列（`openssl rand -base64 32`で生成） |
-| `NEXTAUTH_URL` | `https://rerank-ai.com` | 本番環境のURL |
+| `NEXTAUTH_URL` | `https://your-domain.com` | 本番環境のURL |
 | `GOOGLE_CLIENT_ID` | `xxx.apps.googleusercontent.com` | Google OAuth Client ID |
 | `GOOGLE_CLIENT_SECRET` | `xxx` | Google OAuth Client Secret |
 
