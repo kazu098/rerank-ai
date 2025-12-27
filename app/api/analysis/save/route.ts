@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
       article = await saveOrUpdateArticle(
         session.userId,
         articleUrl,
-        null, // siteIdは後で更新可能
-        null, // titleは後で更新可能
+        undefined, // siteIdは後で更新可能
+        undefined, // titleは後で更新可能
         analysisResult.prioritizedKeywords.map((kw) => kw.keyword)
       );
     }
