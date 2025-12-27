@@ -39,6 +39,12 @@ export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'u
   notification_cooldown_days: 7,
   notification_time: '09:00:00',
   timezone: null,
+  slack_webhook_url: null,
+  slack_bot_token: null,
+  slack_user_id: null,
+  slack_team_id: null,
+  slack_channel_id: null,
+  slack_notification_type: null,
 };
 
 /**
