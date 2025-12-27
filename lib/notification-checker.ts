@@ -59,7 +59,7 @@ export class NotificationChecker {
     const userTimezone = user?.timezone || 'UTC';
 
     // 通知設定を取得（記事固有の設定があればそれを使用、なければデフォルト）
-    const settings = await getNotificationSettings(userId, articleId, userTimezone);
+    const settings = await getNotificationSettings(userId, articleId);
     const effectiveSettings = settings || {
       ...DEFAULT_NOTIFICATION_SETTINGS,
       user_id: userId,
