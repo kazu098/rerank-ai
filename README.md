@@ -1,4 +1,4 @@
-# ReRank AI (MVP)
+# ReRank AI
 
 ## プロダクト概要
 
@@ -16,6 +16,25 @@
 どちらのケースでも、同じロジック（差分抽出）で対応し、**「記事を書きっぱなしにしているすべての人」**がターゲットになります。
 
 ## クイックスタート
+
+### セットアップ
+
+1. **依存関係のインストール**
+   ```bash
+   npm install
+   ```
+
+2. **環境変数の設定**
+   `.env.local`ファイルを作成し、必要な環境変数を設定します。
+   
+   詳細は [セットアップガイド](./docs/SETUP.md) を参照してください。
+
+3. **開発サーバーの起動**
+   ```bash
+   npm run dev
+   ```
+   
+   ブラウザで `http://localhost:3000` にアクセス
 
 ### ドキュメント構成
 
@@ -35,7 +54,6 @@
 - [最小実装仕様](./docs/minimum-viable-implementation.md) - 自社サイトで効果を実感するための最小実装
 - [実装優先順位](./docs/implementation-priority.md) - 開発の優先順位とフェーズ
 - [競合分析](./docs/competitive-analysis.md) - 競合サービスの洗い出しと競合優位性の評価
-- [仕様確定のための質問](./docs/questions-for-specification.md) - 深掘りすべき点と確認事項
 
 ## 主な機能（MVP）
 

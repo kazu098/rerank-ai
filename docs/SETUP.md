@@ -141,5 +141,4 @@ npm run dev
 
 ## 次のステップ
 
-- [チケット #002: 順位下落検知ロジック](../tickets/002-rank-drop-detection.md)
 
