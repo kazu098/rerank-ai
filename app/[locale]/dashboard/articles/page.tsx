@@ -22,6 +22,10 @@ interface Article {
     position_change: number | null;
     created_at: string;
   } | null;
+  notificationStatus?: {
+    email: boolean | null; // true: 有効, false: 無効, null: デフォルト設定を使用
+    slack: boolean | null; // true: 有効, false: 無効, null: デフォルト設定を使用
+  };
 }
 
 export default function ArticlesPage() {
@@ -250,6 +254,117 @@ export default function ArticlesPage() {
                     )}
                   </div>
                   <div className="ml-4 flex items-center gap-2">
+                    {/* 通知ステータス */}
+                    <div className="flex items-center gap-1">
+                      {/* メール通知 */}
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const currentStatus = article.notificationStatus?.email;
+                          const newStatus = currentStatus === true ? false : true;
+                          try {
+                            const response = await fetch(
+                              `/api/articles/${article.id}/notification`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  channel: "email",
+                                  enabled: newStatus,
+                                }),
+                              }
+                            );
+                            if (response.ok) {
+                              // 記事一覧を再取得
+                              await fetchArticles();
+                            }
+                          } catch (error) {
+                            console.error("Failed to toggle email notification:", error);
+                          }
+                        }}
+                        className={`p-1.5 rounded ${
+                          article.notificationStatus?.email === true
+                            ? "bg-blue-100 text-blue-700"
+                            : article.notificationStatus?.email === false
+                            ? "bg-gray-200 text-gray-500"
+                            : "bg-gray-100 text-gray-400"
+                        } hover:bg-blue-200 transition-colors`}
+                        title={
+                          article.notificationStatus?.email === true
+                            ? "メール通知: ON"
+                            : article.notificationStatus?.email === false
+                            ? "メール通知: OFF"
+                            : "メール通知: デフォルト設定を使用"
+                        }
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </button>
+                      {/* Slack通知 */}
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const currentStatus = article.notificationStatus?.slack;
+                          const newStatus = currentStatus === true ? false : true;
+                          try {
+                            const response = await fetch(
+                              `/api/articles/${article.id}/notification`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  channel: "slack",
+                                  enabled: newStatus,
+                                }),
+                              }
+                            );
+                            if (response.ok) {
+                              // 記事一覧を再取得
+                              await fetchArticles();
+                            } else {
+                              const errorData = await response.json();
+                              alert(errorData.error || "Slack通知の設定に失敗しました");
+                            }
+                          } catch (error) {
+                            console.error("Failed to toggle Slack notification:", error);
+                            alert("Slack通知の設定に失敗しました");
+                          }
+                        }}
+                        className={`p-1.5 rounded ${
+                          article.notificationStatus?.slack === true
+                            ? "bg-purple-100 text-purple-700"
+                            : article.notificationStatus?.slack === false
+                            ? "bg-gray-200 text-gray-500"
+                            : "bg-gray-100 text-gray-400"
+                        } hover:bg-purple-200 transition-colors`}
+                        title={
+                          article.notificationStatus?.slack === true
+                            ? "Slack通知: ON"
+                            : article.notificationStatus?.slack === false
+                            ? "Slack通知: OFF"
+                            : "Slack通知: デフォルト設定を使用"
+                        }
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 5.042a2.528 2.528 0 0 1-2.52-2.52A2.528 2.528 0 0 1 18.956 0a2.528 2.528 0 0 1 2.522 2.522v2.52h-2.522zM18.956 6.313a2.528 2.528 0 0 1 2.522 2.521 2.528 2.528 0 0 1-2.522 2.521h-6.313A2.528 2.528 0 0 1 10.121 8.834a2.528 2.528 0 0 1 2.522-2.521h6.313zM13.042 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 13.042 24a2.528 2.528 0 0 1-2.52-2.522v-2.522h2.52zM11.772 18.956a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 20.607 16.435a2.528 2.528 0 0 1-2.522 2.521h-6.313z" />
+                        </svg>
+                      </button>
+                    </div>
                     {article.is_monitoring && (
                       <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
                         {t("dashboard.articles.monitoring")}

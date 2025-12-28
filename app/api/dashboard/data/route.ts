@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getArticlesByUserId } from "@/lib/db/articles";
 import { getLatestAnalysisResult, getAnalysisResultsByArticleId } from "@/lib/db/analysis-results";
 import { createSupabaseClient } from "@/lib/supabase";
+import { getNotificationSettingsForArticles } from "@/lib/db/notification-settings";
 
 /**
  * ダッシュボード用データを取得
@@ -35,6 +36,19 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    // 2.5. 各記事の通知設定を取得
+    const articleIds = articles.map(a => a.id);
+    const notificationSettingsMap = await getNotificationSettingsForArticles(userId, articleIds);
+    
+    // 記事に通知設定を追加
+    const articlesWithNotifications = articlesWithAnalysis.map(article => {
+      const notificationStatus = notificationSettingsMap.get(article.id) || { email: null, slack: null };
+      return {
+        ...article,
+        notificationStatus,
+      };
+    });
+
     // 3. 未読通知を取得
     const supabase = createSupabaseClient();
     const { data: unreadNotifications, error: notificationsError } = await supabase
@@ -58,7 +72,7 @@ export async function GET(request: NextRequest) {
     const totalAnalyses = articlesWithAnalysis.filter((a) => a.latestAnalysis !== null).length;
 
     return NextResponse.json({
-      articles: articlesWithAnalysis,
+      articles: articlesWithNotifications,
       unreadNotifications: unreadNotifications || [],
       stats: {
         totalArticles,

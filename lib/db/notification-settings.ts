@@ -113,6 +113,91 @@ export async function getNotificationSettings(
 }
 
 /**
+ * 複数の記事に対する通知設定を一括取得
+ * 返り値: Map<articleId, { email: boolean | null, slack: boolean | null }>
+ * - true: 有効、false: 無効、null: デフォルト設定を使用（記事固有の設定がない）
+ */
+export async function getNotificationSettingsForArticles(
+  userId: string,
+  articleIds: string[]
+): Promise<Map<string, { email: boolean | null; slack: boolean | null }>> {
+  const supabase = createSupabaseClient();
+  const result = new Map<string, { email: boolean | null; slack: boolean | null }>();
+
+  if (articleIds.length === 0) {
+    return result;
+  }
+
+  // デフォルト設定を取得（article_idがnull）
+  const { data: defaultSettings } = await supabase
+    .from('notification_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .is('article_id', null)
+    .eq('is_enabled', true);
+
+  const defaultEmailEnabled = defaultSettings?.some(s => s.channel === 'email') ?? null;
+  const defaultSlackEnabled = defaultSettings?.some(s => s.channel === 'slack') ?? null;
+
+  // 記事固有の設定を取得（is_enabledに関わらず全て取得）
+  const { data: articleSettings } = await supabase
+    .from('notification_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .in('article_id', articleIds)
+    .eq('notification_type', 'rank_drop')
+    .order('updated_at', { ascending: false }); // 最新のものを優先
+
+  // 各記事・各チャネルごとに最新の設定のみを使用（重複を除去）
+  const articleSettingsMap = new Map<string, Map<string, NotificationSettings>>();
+  
+  if (articleSettings) {
+    articleSettings.forEach(setting => {
+      const articleId = setting.article_id!;
+      const channel = setting.channel;
+      
+      if (!articleSettingsMap.has(articleId)) {
+        articleSettingsMap.set(articleId, new Map());
+      }
+      
+      const channelMap = articleSettingsMap.get(articleId)!;
+      // 既に同じチャネルの設定がある場合は、より新しいものを使用（既にupdated_atでソート済み）
+      if (!channelMap.has(channel)) {
+        channelMap.set(channel, setting as NotificationSettings);
+      }
+    });
+  }
+
+  // 各記事の設定を初期化（デフォルト値で）
+  articleIds.forEach(articleId => {
+    result.set(articleId, {
+      email: null, // null = デフォルト設定を使用
+      slack: null, // null = デフォルト設定を使用
+    });
+  });
+
+  // 記事固有の設定があれば上書き
+  articleSettingsMap.forEach((channelMap, articleId) => {
+    const current = result.get(articleId) || { email: null, slack: null };
+    
+    const emailSetting = channelMap.get('email');
+    const slackSetting = channelMap.get('slack');
+    
+    if (emailSetting) {
+      current.email = emailSetting.is_enabled; // true/falseを設定（デフォルトではないことを示す）
+    }
+    
+    if (slackSetting) {
+      current.slack = slackSetting.is_enabled; // true/falseを設定（デフォルトではないことを示す）
+    }
+    
+    result.set(articleId, current);
+  });
+
+  return result;
+}
+
+/**
  * 通知設定を作成または更新
  */
 export async function saveOrUpdateNotificationSettings(
