@@ -262,6 +262,8 @@
       "slackDisconnected": "Slack connection disconnected",
       "selectChannel": "Select Channel",
       "selectChannelPlaceholder": "Please select a channel",
+      "greetingTitle": "👋 Connected to ReRank AI!",
+      "greetingMessage": "Connected to ReRank AI.\n\nFrom now on, we will send notifications to this channel (or DM) when we detect rank drops for your articles.\n\nYou can change notification settings or view details from the dashboard.",
       "webhookMethod": "Webhook Method",
       "notRecommended": "Not Recommended",
       "notificationTime": "Check Time",

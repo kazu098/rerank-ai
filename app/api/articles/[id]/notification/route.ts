@@ -70,6 +70,33 @@ export async function POST(
 
     // デフォルト設定を取得（メールアドレスやSlack情報取得用）
     const defaultSettings = await getNotificationSettings(session.userId, null);
+    
+    // Slack連携の確認のため、is_enabledに関わらずSlack設定を取得する
+    // getNotificationSettingsはis_enabled=trueのみを返すため、追加で確認が必要
+    let slackSettings = defaultSettings;
+    if (!defaultSettings?.slack_bot_token && !defaultSettings?.slack_webhook_url) {
+      const { createSupabaseClient } = await import("@/lib/supabase");
+      const supabase = createSupabaseClient();
+      const { data: slackSettingsData, error: slackSettingsError } = await supabase
+        .from('notification_settings')
+        .select('*')
+        .eq('user_id', session.userId)
+        .is('article_id', null)
+        .eq('channel', 'slack')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      
+      // single()ではなくlimit(1)を使用しているため、dataは配列
+      if (slackSettingsData && slackSettingsData.length > 0) {
+        const slackSetting = slackSettingsData[0];
+        if (slackSetting.slack_bot_token || slackSetting.slack_webhook_url) {
+          slackSettings = slackSetting as any;
+        }
+      }
+    } else {
+      // defaultSettingsにSlack設定がある場合、それを使用
+      slackSettings = defaultSettings;
+    }
 
     // 通知設定を保存または更新
     if (channel === 'email') {
@@ -94,7 +121,8 @@ export async function POST(
       );
     } else if (channel === 'slack') {
       // Slack設定の場合は、デフォルト設定からSlack情報を継承
-      if (!defaultSettings?.slack_bot_token && !defaultSettings?.slack_webhook_url) {
+      // slackSettingsを使用（is_enabledに関わらずSlack連携の有無を確認）
+      if (!slackSettings?.slack_bot_token && !slackSettings?.slack_webhook_url) {
         return NextResponse.json(
           { error: "Slack is not connected. Please connect Slack in notification settings first." },
           { status: 400 }
@@ -106,24 +134,24 @@ export async function POST(
         {
           notification_type: 'rank_drop',
           channel: 'slack',
-          recipient: defaultSettings.recipient || '',
+          recipient: slackSettings.recipient || defaultSettings?.recipient || '',
           is_enabled: enabled,
-          // Slack設定はデフォルト設定から継承
-          slack_bot_token: defaultSettings.slack_bot_token,
-          slack_user_id: defaultSettings.slack_user_id,
-          slack_team_id: defaultSettings.slack_team_id,
-          slack_channel_id: defaultSettings.slack_channel_id,
-          slack_notification_type: defaultSettings.slack_notification_type,
-          slack_webhook_url: defaultSettings.slack_webhook_url,
+          // Slack設定はslackSettingsから継承（is_enabledに関わらず）
+          slack_bot_token: slackSettings.slack_bot_token,
+          slack_user_id: slackSettings.slack_user_id,
+          slack_team_id: slackSettings.slack_team_id,
+          slack_channel_id: slackSettings.slack_channel_id,
+          slack_notification_type: slackSettings.slack_notification_type,
+          slack_webhook_url: slackSettings.slack_webhook_url,
           // その他の設定もデフォルト設定または現在の設定から継承
-          drop_threshold: currentSettings?.drop_threshold ?? defaultSettings.drop_threshold,
-          keyword_drop_threshold: currentSettings?.keyword_drop_threshold ?? defaultSettings.keyword_drop_threshold,
-          comparison_days: currentSettings?.comparison_days ?? defaultSettings.comparison_days,
-          consecutive_drop_days: currentSettings?.consecutive_drop_days ?? defaultSettings.consecutive_drop_days,
-          min_impressions: currentSettings?.min_impressions ?? defaultSettings.min_impressions,
-          notification_cooldown_days: currentSettings?.notification_cooldown_days ?? defaultSettings.notification_cooldown_days,
-          notification_time: currentSettings?.notification_time ?? defaultSettings.notification_time,
-          timezone: currentSettings?.timezone ?? defaultSettings.timezone,
+          drop_threshold: currentSettings?.drop_threshold ?? (defaultSettings?.drop_threshold ?? slackSettings.drop_threshold),
+          keyword_drop_threshold: currentSettings?.keyword_drop_threshold ?? (defaultSettings?.keyword_drop_threshold ?? slackSettings.keyword_drop_threshold),
+          comparison_days: currentSettings?.comparison_days ?? (defaultSettings?.comparison_days ?? slackSettings.comparison_days),
+          consecutive_drop_days: currentSettings?.consecutive_drop_days ?? (defaultSettings?.consecutive_drop_days ?? slackSettings.consecutive_drop_days),
+          min_impressions: currentSettings?.min_impressions ?? (defaultSettings?.min_impressions ?? slackSettings.min_impressions),
+          notification_cooldown_days: currentSettings?.notification_cooldown_days ?? (defaultSettings?.notification_cooldown_days ?? slackSettings.notification_cooldown_days),
+          notification_time: currentSettings?.notification_time ?? (defaultSettings?.notification_time ?? slackSettings.notification_time),
+          timezone: currentSettings?.timezone ?? (defaultSettings?.timezone ?? slackSettings.timezone),
         },
         articleId
       );

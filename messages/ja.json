@@ -264,6 +264,8 @@
       "slackDisconnected": "Slack連携を解除しました",
       "selectChannel": "チャネルを選択",
       "selectChannelPlaceholder": "チャネルを選択してください",
+      "greetingTitle": "👋 ReRank AIと連携しました！",
+      "greetingMessage": "ReRank AIと連携しました。\n\nこれから、記事の順位下落を検知した際に、このチャネル（またはDM）に通知をお送りします。\n\n通知設定の変更や詳細は、ダッシュボードから行えます。",
       "webhookMethod": "Webhook方式",
       "notRecommended": "非推奨",
       "notificationTime": "チェック時刻",
