@@ -19,7 +19,7 @@
 
 ### 本番環境
 
-- **本番URL**: https://www.rerank-ai.com/j
+- **本番URL**: https://www.rerank-ai.com/
 
 ### セットアップ
 

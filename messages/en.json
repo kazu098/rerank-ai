@@ -226,6 +226,8 @@
       "sendingToChannel": "Sending to: Channel",
       "disconnectSlack": "Disconnect",
       "slackDisconnected": "Slack connection disconnected",
+      "selectChannel": "Select Channel",
+      "selectChannelPlaceholder": "Please select a channel",
       "webhookMethod": "Webhook Method",
       "notRecommended": "Not Recommended",
       "notificationTime": "Check Time",

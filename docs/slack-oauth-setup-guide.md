@@ -74,10 +74,14 @@
 3. **Bot Token Scopesを設定**
    - 「Scopes」セクションの「Bot Token Scopes」までスクロール
    - 「Add an OAuth Scope」をクリックして、以下のスコープを追加：
-     - `chat:write` - メッセージを送信
-     - `chat:write.public` - パブリックチャンネルにメッセージを送信（Botが参加していないチャンネルにも送信可能）
-     - `users:read` - ユーザー情報を取得（User ID取得用）
+     - `chat:write` - メッセージを送信（チャネル・DM両方に使用、必須）
+     - `chat:write.public` - パブリックチャンネルにメッセージを送信（Botが参加していないチャンネルにも送信可能、推奨）
+     - `users:read` - ユーザー情報を取得（User ID取得用、必須）
      - `im:write` - DMを送信（オプション、`chat:write`でカバー可能）
+     - `channels:read` - パブリックチャネル一覧を取得（チャネル選択機能用）
+     - `groups:read` - プライベートチャネル一覧を取得（チャネル選択機能用）
+     
+   **注意**: チャネルにメッセージを送信する際は`chat:write`スコープを使用します。`channels:write`というスコープは存在しません（チャネル作成など別用途のスコープです）。
 
 4. **User Token Scopes（オプション）**
    - 通常はBot Token Scopesのみで十分です
@@ -179,10 +183,12 @@
 **解決方法**:
 1. Slack Appの「OAuth & Permissions」ページで「Bot Token Scopes」を確認
 2. 以下のスコープが追加されているか確認：
-   - `chat:write` - メッセージ送信（必須）
-   - `chat:write.public` - パブリックチャンネルにメッセージを送信（推奨）
+   - `chat:write` - メッセージ送信（チャネル・DM両方に使用、必須）
+   - `chat:write.public` - パブリックチャンネルにメッセージを送信（Botが参加していないチャンネルにも送信可能、推奨）
    - `users:read` - ユーザー情報取得（必須）
    - `im:write` - DM送信（オプション、`chat:write`でカバー可能）
+   - `channels:read` - パブリックチャネル一覧を取得（チャネル選択機能用）
+   - `groups:read` - プライベートチャネル一覧を取得（チャネル選択機能用）
 
 ### 通知が送信されない
 
