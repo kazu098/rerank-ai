@@ -6,7 +6,7 @@ import { getUserById } from "@/lib/db/users";
 
 /**
  * 記事ごとの通知設定をトグル
- * POST /api/articles/[articleId]/notification
+ * POST /api/articles/[id]/notification
  * Body: {
  *   channel: 'email' | 'slack',
  *   enabled: boolean
@@ -14,7 +14,7 @@ import { getUserById } from "@/lib/db/users";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { articleId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     console.log("[Article Notification API] POST request received");
@@ -24,7 +24,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const articleId = params.articleId;
+    const articleId = params.id;
     const body = await request.json();
     const { channel, enabled } = body;
 
