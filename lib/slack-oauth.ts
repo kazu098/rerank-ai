@@ -54,6 +54,8 @@ export function getSlackOAuthUrl(state?: string, requestOrigin?: string): string
     'chat:write.public', // パブリックチャンネルにメッセージを送信（Botが参加していないチャンネルにも送信可能）
     'users:read', // ユーザー情報取得（User ID取得用）
     'im:write', // DM送信（オプション、chat:writeでカバー可能）
+    'channels:read', // パブリックチャネル一覧を取得
+    'groups:read', // プライベートチャネル一覧を取得
   ].join(',');
 
   const params = new URLSearchParams({

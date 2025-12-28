@@ -228,6 +228,8 @@
       "sendingToChannel": "通知先: チャンネル",
       "disconnectSlack": "連携解除",
       "slackDisconnected": "Slack連携を解除しました",
+      "selectChannel": "チャネルを選択",
+      "selectChannelPlaceholder": "チャネルを選択してください",
       "webhookMethod": "Webhook方式",
       "notRecommended": "非推奨",
       "notificationTime": "チェック時刻",

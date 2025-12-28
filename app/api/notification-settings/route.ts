@@ -84,19 +84,20 @@ export async function POST(request: NextRequest) {
 
     // Slack OAuth設定の更新（slackBotToken等が提供されている場合）
     const { slackBotToken, slackUserId, slackTeamId, slackChannelId, slackNotificationType } = body;
-    if (slackBotToken !== undefined || slackUserId !== undefined) {
+    // slackBotTokenまたはslackUserIdが明示的に指定されている場合（null含む）に更新
+    if (slackBotToken !== undefined || slackUserId !== undefined || slackTeamId !== undefined || slackChannelId !== undefined || slackNotificationType !== undefined) {
       await saveOrUpdateNotificationSettings(
         session.userId,
         {
           notification_type: 'rank_drop',
           channel: 'slack',
           recipient: slackUserId || slackChannelId || '',
-          is_enabled: !!slackBotToken,
-          slack_bot_token: slackBotToken || null,
-          slack_user_id: slackUserId || null,
-          slack_team_id: slackTeamId || null,
-          slack_channel_id: slackChannelId || null,
-          slack_notification_type: slackNotificationType || 'dm',
+          is_enabled: slackBotToken !== null && !!slackBotToken, // nullの場合はfalse
+          slack_bot_token: slackBotToken !== undefined ? (slackBotToken || null) : undefined,
+          slack_user_id: slackUserId !== undefined ? (slackUserId || null) : undefined,
+          slack_team_id: slackTeamId !== undefined ? (slackTeamId || null) : undefined,
+          slack_channel_id: slackChannelId !== undefined ? (slackChannelId || null) : undefined,
+          slack_notification_type: slackNotificationType !== undefined ? (slackNotificationType || null) : undefined,
           notification_time: notificationTime || '09:00:00',
           timezone: timezone || null,
         },
