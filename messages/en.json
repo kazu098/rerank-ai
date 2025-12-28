@@ -7,10 +7,50 @@
     "saving": "Saving...",
     "cancel": "Cancel"
   },
+  "navigation": {
+    "features": "Features",
+    "howItWorks": "How It Works",
+    "getStarted": "Get Started"
+  },
   "home": {
     "title": "ReRank AI",
     "subtitle": "From preventing ranking drops to boosting rankings, AI automatically identifies differences.",
     "loginWithGoogle": "Sign in with Google to get started",
+    "heroTitle": "Automatically Improve SEO Rankings",
+    "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements",
+    "ctaButton": "Get Started Free with Google Account",
+    "demoVideoTitle": "ReRank AI Demo Video",
+    "videoNotSupported": "Your browser does not support video playback.",
+    "features": {
+      "title": "Key Features",
+      "feature1": {
+        "title": "Automatic Rank Monitoring",
+        "description": "Automatically checks rankings daily and immediately notifies you when drops are detected"
+      },
+      "feature2": {
+        "title": "Competitor Analysis",
+        "description": "Automatically analyzes top-ranking competitor sites and identifies missing content"
+      },
+      "feature3": {
+        "title": "AI Improvement Suggestions",
+        "description": "Gemini AI compares your articles with competitor articles and proposes specific improvements"
+      }
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "step1": {
+        "title": "Connect with Google Search Console",
+        "description": "Sign in with your Google account and select a Search Console property"
+      },
+      "step2": {
+        "title": "Select an Article",
+        "description": "Select or enter the URL of the article you want to analyze"
+      },
+      "step3": {
+        "title": "AI Automatically Analyzes",
+        "description": "AI analyzes ranking data and proposes improvements based on differences with competitors"
+      }
+    },
     "selectProperty": "Select Search Console Property",
     "selectPropertyDescription": "Please select the Search Console property of the site you want to analyze.",
     "analyzeArticle": "Analyze Article",

@@ -684,82 +684,83 @@ export default function Home() {
 
   if (status === "unauthenticated") {
     return (
-      <div className="min-h-screen p-8 bg-gradient-to-br from-purple-50 to-blue-50">
-        <div className="max-w-4xl mx-auto">
-          <header className="text-center mb-12">
-            <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-              {t("home.title")} <span className="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP</span>
-            </h1>
-            <p className="text-gray-600 italic mb-8">
-              {t("home.subtitle")}
-            </p>
-          </header>
-          
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {t("auth.title")}
-              </h2>
-              <p className="text-gray-600 mb-6">
-                {t("auth.description")}
+      <div className="min-h-screen bg-white">
+        {/* ナビゲーションヘッダー */}
+        <nav className="border-b border-gray-200 bg-white sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center">
+                <Link href={`/${locale}`} className="text-2xl font-bold text-gray-900">
+                  ReRank AI
+                </Link>
+              </div>
+              <div className="hidden md:flex items-center space-x-8">
+                <a href="#features" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+                  {t("navigation.features")}
+                </a>
+                <a href="#how-it-works" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+                  {t("navigation.howItWorks")}
+                </a>
+                <button
+                  onClick={() => {
+                    const sessionAny = session as any;
+                    if (sessionAny?.user?.email) {
+                      localStorage.setItem('lastEmail', sessionAny.user.email);
+                    }
+                    signIn("google", { callbackUrl: `/${locale}` });
+                  }}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                >
+                  {t("navigation.getStarted")}
+                </button>
+              </div>
+              <div className="md:hidden">
+                <button
+                  onClick={() => {
+                    const sessionAny = session as any;
+                    if (sessionAny?.user?.email) {
+                      localStorage.setItem('lastEmail', sessionAny.user.email);
+                    }
+                    signIn("google", { callbackUrl: `/${locale}` });
+                  }}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm font-medium"
+                >
+                  {t("navigation.getStarted")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* ヒーローセクション - 分析開始UI */}
+          <section className="py-12 md:py-16">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
+                {t("home.heroTitle")}
+              </h1>
+              <p className="text-base md:text-lg text-gray-600 mb-6 whitespace-nowrap">
+                {t("home.heroSubtitle")}
               </p>
             </div>
 
-            {/* 重要な注意事項 */}
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-semibold text-blue-800 mb-2">
-                    {t("auth.accountInfo")}
-                  </h3>
-                  <p className="text-sm text-blue-700">
-                    <strong>{t("auth.accountInfoDescription")}</strong>
-                    <br />
-                    {t("auth.accountInfoNote")}
-                  </p>
-                </div>
+            {/* 簡単な説明 */}
+            <div className="max-w-2xl mx-auto mb-6">
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                <p className="text-sm text-blue-700">
+                  <strong>{t("auth.accountInfoDescription")}</strong>
+                </p>
               </div>
             </div>
 
-            {/* 連携の流れ */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("auth.flow")}</h3>
-              <div className="space-y-3">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                    1
-                  </div>
-                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step1")}</p>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                    2
-                  </div>
-                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step2")}</p>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                    3
-                  </div>
-                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step3")}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center">
+            {/* CTAボタン */}
+            <div className="text-center mb-8">
               <button
                 onClick={() => {
-                  // GSC連携時にメールアドレスをlocalStorageに保存
                   const sessionAny = session as any;
                   if (sessionAny?.user?.email) {
                     localStorage.setItem('lastEmail', sessionAny.user.email);
                   }
-                  // 元のページに戻る（分析画面を継続）
                   signIn("google", { callbackUrl: `/${locale}` });
                 }}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg font-bold text-lg inline-flex items-center"
@@ -770,24 +771,131 @@ export default function Home() {
                   <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                {t("home.loginWithGoogle")}
+                {t("home.ctaButton")}
               </button>
             </div>
-          </div>
 
-          {/* 補足情報 */}
-          <div className="bg-gray-50 rounded-lg p-6 text-sm text-gray-600">
-              <p className="mb-2">
-                <strong>{t("auth.noAccessRightsTitle")}</strong>
-              </p>
-              <p>
-                {t("auth.noAccessRightsDescription")}
-                <br />
-                <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                  {t("gsc.openSearchConsole")} →
-                </a>
-              </p>
+            {/* デモ動画 */}
+            <div className="max-w-4xl mx-auto">
+              <div className="relative aspect-video rounded-lg overflow-hidden shadow-xl border border-gray-200 bg-gray-100">
+                <video
+                  className="w-full h-full object-contain"
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  preload="auto"
+                >
+                  <source src="/videos/demo.mp4" type="video/mp4" />
+                  {t("home.videoNotSupported")}
+                </video>
+              </div>
+            </div>
+          </section>
+
+          {/* 機能紹介セクション */}
+          <section id="features" className="py-20 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-20">
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+                {t("home.features.title")}
+              </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* 機能1 */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                  {t("home.features.feature1.title")}
+                </h3>
+                <p className="text-gray-600 text-center">
+                  {t("home.features.feature1.description")}
+                </p>
+              </div>
+
+              {/* 機能2 */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                  {t("home.features.feature2.title")}
+                </h3>
+                <p className="text-gray-600 text-center">
+                  {t("home.features.feature2.description")}
+                </p>
+              </div>
+
+              {/* 機能3 */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                  {t("home.features.feature3.title")}
+                </h3>
+                <p className="text-gray-600 text-center">
+                  {t("home.features.feature3.description")}
+                </p>
+              </div>
+            </div>
           </div>
+          </section>
+
+          {/* 使い方セクション */}
+          <section id="how-it-works" className="py-20 mb-20">
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+                {t("home.howItWorks.title")}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {/* Step 1 */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-purple-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-6 mx-auto">
+                  1
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  {t("home.howItWorks.step1.title")}
+                </h3>
+                <p className="text-gray-600">
+                  {t("home.howItWorks.step1.description")}
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-blue-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-6 mx-auto">
+                  2
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  {t("home.howItWorks.step2.title")}
+                </h3>
+                <p className="text-gray-600">
+                  {t("home.howItWorks.step2.description")}
+                </p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-indigo-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-6 mx-auto">
+                  3
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  {t("home.howItWorks.step3.title")}
+                </h3>
+                <p className="text-gray-600">
+                  {t("home.howItWorks.step3.description")}
+                </p>
+              </div>
+            </div>
+          </div>
+          </section>
         </div>
       </div>
     );

@@ -7,10 +7,50 @@
     "saving": "保存中...",
     "cancel": "キャンセル"
   },
+  "navigation": {
+    "features": "機能",
+    "howItWorks": "使い方",
+    "getStarted": "無料で始める"
+  },
   "home": {
     "title": "ReRank AI",
     "subtitle": "「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。",
     "loginWithGoogle": "Googleでログインして始める",
+    "heroTitle": "SEO順位を自動で改善",
+    "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します",
+    "ctaButton": "Googleアカウントで無料開始",
+    "demoVideoTitle": "ReRank AI デモ動画",
+    "videoNotSupported": "お使いのブラウザは動画の再生をサポートしていません。",
+    "features": {
+      "title": "主な機能",
+      "feature1": {
+        "title": "自動順位監視",
+        "description": "毎日自動で順位をチェックし、下落を検知したら即座に通知します"
+      },
+      "feature2": {
+        "title": "競合分析",
+        "description": "上位表示されている競合サイトを自動で分析し、不足している内容を特定します"
+      },
+      "feature3": {
+        "title": "AI改善提案",
+        "description": "Gemini AIが自社記事と競合記事を比較し、具体的な改善案を提案します"
+      }
+    },
+    "howItWorks": {
+      "title": "使い方",
+      "step1": {
+        "title": "Google Search Consoleと連携",
+        "description": "Googleアカウントでログインし、Search Consoleプロパティを選択します"
+      },
+      "step2": {
+        "title": "記事を選択",
+        "description": "分析したい記事のURLを選択または入力します"
+      },
+      "step3": {
+        "title": "AIが自動で分析",
+        "description": "AIが順位データを分析し、競合との差分から改善案を提案します"
+      }
+    },
     "selectProperty": "Search Consoleプロパティを選択",
     "selectPropertyDescription": "分析したいサイトのSearch Consoleプロパティを選択してください。",
     "analyzeArticle": "記事を分析する",
