@@ -40,6 +40,7 @@ export default function NotificationsPage() {
   const [slackChannels, setSlackChannels] = useState<Array<{id: string, name: string, is_private?: boolean}>>([]);
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [notificationTime, setNotificationTime] = useState<string>("09:00");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -87,6 +88,15 @@ export default function NotificationsPage() {
           setSlackNotificationType(null);
           setSlackChannelId(null);
           setSlackChannels([]);
+        }
+        // 通知時刻を設定（HH:MM:SS形式からHH:MM形式に変換）
+        if (notificationData?.notification_time) {
+          const time = notificationData.notification_time;
+          // "09:00:00" -> "09:00"
+          const timeParts = time.split(':');
+          setNotificationTime(`${timeParts[0]}:${timeParts[1]}`);
+        } else {
+          setNotificationTime("09:00"); // デフォルト値
         }
       }
     } catch (err: any) {
@@ -233,11 +243,63 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {/* Slack連携セクション */}
+      {/* 通知設定セクション */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          {t("notification.settings.slackSettings")}
+          {t("notification.settings.title")}
         </h2>
+
+        {/* 通知時刻設定 */}
+        <div className="mb-6 pb-6 border-b border-gray-200">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t("notification.settings.notificationTime")}
+          </label>
+          <p className="text-xs text-gray-500 mb-3">
+            {t("notification.settings.notificationTimeDescription")}
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="time"
+              value={notificationTime}
+              onChange={(e) => setNotificationTime(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+            <button
+              onClick={async () => {
+                try {
+                  // HH:MM形式をHH:MM:SS形式に変換
+                  const timeValue = notificationTime + ":00";
+                  const response = await fetch("/api/notification-settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      notificationTime: timeValue,
+                    }),
+                  });
+                  if (response.ok) {
+                    setSuccess(t("notification.settings.saved"));
+                    setTimeout(() => setSuccess(null), 3000);
+                  } else {
+                    const errorData = await response.json();
+                    setError(errorData.error || t("notification.settings.error"));
+                  }
+                } catch (err: any) {
+                  console.error("[Notifications] Error saving notification time:", err);
+                  setError(t("notification.settings.error"));
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {t("notification.settings.save") || "保存"}
+            </button>
+          </div>
+        </div>
+
+        {/* Slack連携セクション */}
+        <div>
+          <h3 className="text-md font-semibold text-gray-900 mb-4">
+            {t("notification.settings.slackSettings")}
+          </h3>
         
         {success && (
           <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded">
@@ -379,6 +441,7 @@ export default function NotificationsPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* 通知一覧 */}
