@@ -37,7 +37,7 @@ export default function NotificationsPage() {
   const [slackConnected, setSlackConnected] = useState(false);
   const [slackNotificationType, setSlackNotificationType] = useState<'channel' | 'dm' | null>(null);
   const [slackChannelId, setSlackChannelId] = useState<string | null>(null);
-  const [slackChannels, setSlackChannels] = useState<Array<{id: string, name: string}>>([]);
+  const [slackChannels, setSlackChannels] = useState<Array<{id: string, name: string, is_private?: boolean}>>([]);
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -267,7 +267,9 @@ export default function NotificationsPage() {
                   {t("notification.settings.slackConnected")}
                 </p>
                 <p className="text-xs text-green-600 mt-1">
-                  {slackNotificationType === 'dm' 
+                  {slackNotificationType === null 
+                    ? "通知先を選択してください"
+                    : slackNotificationType === 'dm' 
                     ? t("notification.settings.sendingToDM")
                     : t("notification.settings.sendingToChannel")}
                 </p>
@@ -303,15 +305,24 @@ export default function NotificationsPage() {
               </button>
             </div>
 
-            {/* チャネル選択 */}
+            {/* 通知先選択 */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 通知先
               </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={async () => {
+              {slackNotificationType === null && (
+                <div className="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                  通知先（DMまたはチャネル）を選択してください
+                </div>
+              )}
+              <select
+                value={slackNotificationType === 'dm' ? 'dm' : (slackChannelId || "")}
+                onChange={async (e) => {
+                  const selectedValue = e.target.value;
+                  if (!selectedValue) return;
+                  
+                  if (selectedValue === 'dm') {
+                    // DMを選択
                     const response = await fetch("/api/notification-settings", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -327,78 +338,43 @@ export default function NotificationsPage() {
                       setTimeout(() => setSuccess(null), 3000);
                       await fetchSlackSettings();
                     }
-                  }}
-                  className={`px-4 py-2 text-sm rounded ${
-                    slackNotificationType === 'dm'
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  {t("notification.settings.sendingToDM")}
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
+                  } else {
+                    // チャネルを選択
                     const response = await fetch("/api/notification-settings", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         slackNotificationType: 'channel',
+                        slackChannelId: selectedValue,
                       }),
                     });
                     if (response.ok) {
                       setSlackNotificationType('channel');
-                      await fetchSlackChannels();
+                      setSlackChannelId(selectedValue);
                       setSuccess(t("notification.settings.saved"));
                       setTimeout(() => setSuccess(null), 3000);
                     }
-                  }}
-                  className={`px-4 py-2 text-sm rounded ${
-                    slackNotificationType === 'channel'
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  {t("notification.settings.sendingToChannel")}
-                </button>
-              </div>
-
-              {/* チャネル選択ドロップダウン */}
-              {slackNotificationType === 'channel' && (
-                <div className="mt-2">
-                  <select
-                    value={slackChannelId || ""}
-                    onChange={async (e) => {
-                      const channelId = e.target.value;
-                      if (!channelId) return;
-                      const response = await fetch("/api/notification-settings", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          slackNotificationType: 'channel',
-                          slackChannelId: channelId,
-                        }),
-                      });
-                      if (response.ok) {
-                        setSlackChannelId(channelId);
-                        setSuccess(t("notification.settings.saved"));
-                        setTimeout(() => setSuccess(null), 3000);
-                      }
-                    }}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm"
-                    disabled={loadingChannels}
-                  >
-                    <option value="">{t("notification.settings.selectChannelPlaceholder")}</option>
-                    {slackChannels.map((channel) => (
-                      <option key={channel.id} value={channel.id}>
-                        #{channel.name}
-                      </option>
-                    ))}
-                  </select>
-                  {loadingChannels && (
-                    <p className="text-xs text-gray-500 mt-1">チャネル一覧を取得中...</p>
-                  )}
-                </div>
+                  }
+                }}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                disabled={loadingChannels}
+                onFocus={async () => {
+                  // チャネル一覧がまだ取得されていない場合は取得
+                  if (slackChannels.length === 0 && !loadingChannels) {
+                    await fetchSlackChannels();
+                  }
+                }}
+              >
+                <option value="">{t("notification.settings.selectChannelPlaceholder")}</option>
+                <option value="dm">{t("notification.settings.sendingToDM")}</option>
+                {slackChannels.map((channel) => (
+                  <option key={channel.id} value={channel.id}>
+                    #{channel.name} {channel.is_private ? "(Private)" : ""}
+                  </option>
+                ))}
+              </select>
+              {loadingChannels && (
+                <p className="text-xs text-gray-500 mt-1">チャネル一覧を取得中...</p>
               )}
             </div>
           </div>

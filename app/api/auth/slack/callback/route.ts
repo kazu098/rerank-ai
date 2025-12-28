@@ -235,8 +235,8 @@ export async function GET(request: NextRequest) {
           slack_bot_token: tokens.botToken,
           slack_user_id: tokens.userId || slackUserId,
           slack_team_id: tokens.teamId,
-          slack_channel_id: tokens.userId || slackUserId, // デフォルトはDM
-          slack_notification_type: 'dm', // デフォルトはDM
+          slack_channel_id: null, // 連携後は未選択状態にして、ユーザーに選択を促す
+          slack_notification_type: null, // 連携後は未選択状態にして、ユーザーに選択を促す
         },
         null // 記事固有の設定ではないためnull
       );
