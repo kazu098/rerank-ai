@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { saveOrUpdateNotificationSettings, getNotificationSettings } from "@/lib/db/notification-settings";
+import { getUserById } from "@/lib/db/users";
+import { sendSlackNotificationWithBot } from "@/lib/slack-notification";
+import jaMessages from "@/messages/ja.json";
+import enMessages from "@/messages/en.json";
 
 /**
  * 通知設定を取得
@@ -184,6 +188,61 @@ export async function POST(request: NextRequest) {
           slackChannelId: savedSettings.slack_channel_id,
           slackNotificationType: savedSettings.slack_notification_type,
         });
+
+        // チャネルまたはDMが選択された場合、挨拶メッセージを送信
+        if (
+          !isDisconnecting &&
+          savedSettings.slack_bot_token &&
+          savedSettings.slack_channel_id &&
+          savedSettings.slack_notification_type &&
+          (slackChannelId !== undefined || slackNotificationType !== undefined)
+        ) {
+          try {
+            console.log("[Notification Settings API] Sending greeting message to Slack:", {
+              channelId: savedSettings.slack_channel_id,
+              notificationType: savedSettings.slack_notification_type,
+            });
+
+            // ユーザーのロケールを取得
+            const user = await getUserById(session.userId);
+            const locale = (user?.locale || 'ja') as 'ja' | 'en';
+
+            // 翻訳ファイルから挨拶メッセージを取得
+            const messages = (locale === 'en' ? enMessages : jaMessages) as any;
+            const greeting = {
+              text: messages.notification.settings.greetingTitle,
+              message: messages.notification.settings.greetingMessage,
+            };
+
+            const greetingPayload = {
+              text: greeting.text,
+              blocks: [
+                {
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: greeting.message,
+                  },
+                },
+              ],
+            };
+
+            await sendSlackNotificationWithBot(
+              savedSettings.slack_bot_token,
+              savedSettings.slack_channel_id,
+              greetingPayload
+            );
+
+            console.log("[Notification Settings API] Greeting message sent successfully");
+          } catch (greetingError: any) {
+            // 挨拶メッセージの送信に失敗しても、設定の保存は成功しているので続行
+            console.error("[Notification Settings API] Failed to send greeting message:", {
+              error: greetingError.message,
+              stack: greetingError.stack,
+            });
+            // エラーはログに記録するが、設定保存の成功は返す
+          }
+        }
       } catch (saveError: any) {
         console.error("[Notification Settings API] Error saving settings:", {
           error: saveError.message,
