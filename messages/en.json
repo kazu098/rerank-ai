@@ -76,6 +76,7 @@
     "notificationEmailPlaceholder": "example@email.com"
   },
   "analysis": {
+    "progress": "Analysis Progress",
     "step1": "Retrieving article search ranking data...",
     "step2": "Identifying keywords with dropped rankings...",
     "step3": "Selecting important keywords...",
@@ -95,7 +96,7 @@
   "results": {
     "topRankingKeywords": "✅ Keywords Maintaining Rankings",
     "topRankingDescription": "The following keywords are maintaining top positions. Let's keep this up.",
-    "rankUpBooster": "🚀 Rank Up Booster Plan",
+    "rankUpBooster": "✨ Improvement Suggestions",
     "keywordsAnalyzed": "{count} keywords analyzed",
     "keywordSpecificAnalysis": "🔑 Keyword-Specific Analysis",
     "keyword": "Keyword",
@@ -266,6 +267,10 @@
       "slackDisconnected": "Slack connection disconnected",
       "selectChannel": "Select Channel",
       "selectChannelPlaceholder": "Please select a channel",
+      "slackConnectionRequired": "first",
+      "slackConnectionRequiredForNotification": "To enable Slack notifications, you need to complete Slack connection first. Do you want to go to the connection page?",
+      "emailAddressRequired": "Please enter your email address",
+      "notificationRequired": "Please select either email notification or Slack notification",
       "greetingTitle": "👋 Connected to ReRank AI!",
       "greetingMessage": "Connected to ReRank AI.\n\nFrom now on, we will send notifications to this channel (or DM) when we detect rank drops for your articles.\n\nYou can change notification settings or view details from the dashboard.",
       "webhookMethod": "Webhook Method",

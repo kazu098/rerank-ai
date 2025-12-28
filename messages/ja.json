@@ -76,6 +76,7 @@
     "notificationEmailPlaceholder": "example@email.com"
   },
   "analysis": {
+    "progress": "分析の進行状況",
     "step1": "記事の検索順位データを取得中...",
     "step2": "順位が下がっているキーワードを特定中...",
     "step3": "重要なキーワードを選定中...",
@@ -95,7 +96,7 @@
   "results": {
     "topRankingKeywords": "✅ 順位を維持できているキーワード",
     "topRankingDescription": "以下のキーワードでは上位を保てています。この調子で維持していきましょう。",
-    "rankUpBooster": "🚀 ランクアップ・ブースター案",
+    "rankUpBooster": "✨ 改善提案",
     "keywordsAnalyzed": "{count}個のキーワードを分析",
     "keywordSpecificAnalysis": "🔑 キーワード固有の分析",
     "keyword": "キーワード",
@@ -268,6 +269,10 @@
       "slackDisconnected": "Slack連携を解除しました",
       "selectChannel": "チャネルを選択",
       "selectChannelPlaceholder": "チャネルを選択してください",
+      "slackConnectionRequired": "を先に完了してください",
+      "slackConnectionRequiredForNotification": "Slack通知を有効にするには、先にSlack連携を完了する必要があります。連携画面に移動しますか？",
+      "emailAddressRequired": "メールアドレスを入力してください",
+      "notificationRequired": "メール通知またはSlack通知のいずれかを選択してください",
       "greetingTitle": "👋 ReRank AIと連携しました！",
       "greetingMessage": "ReRank AIと連携しました。\n\nこれから、記事の順位下落を検知した際に、このチャネル（またはDM）に通知をお送りします。\n\n通知設定の変更や詳細は、ダッシュボードから行えます。",
       "webhookMethod": "Webhook方式",

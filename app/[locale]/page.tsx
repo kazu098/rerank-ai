@@ -9,6 +9,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 // 分析モードは統一（タブを削除）
 
+// 順位をフォーマット（整数の場合は整数表示、小数がある場合は少数第2位まで）
+function formatPosition(position: number | string): string {
+  if (typeof position !== 'number') return String(position);
+  return Number.isInteger(position) ? position.toFixed(0) : position.toFixed(2);
+}
+
 // キーワードの推移グラフコンポーネント
 function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[] }) {
   const t = useTranslations("chart");
@@ -98,7 +104,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
               tick={{ fontSize: 12 }}
               label={{ value: t("rank"), angle: -90, position: "insideLeft" }}
             />
-            <Tooltip />
+            <Tooltip formatter={(value: any) => typeof value === 'number' ? (Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)) : value} />
             <Legend />
             <Line
               type="monotone"
@@ -189,8 +195,8 @@ export default function Home() {
   const [articleUrl, setArticleUrl] = useState("");
   const [notificationEmail, setNotificationEmail] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
-  const [processLog, setProcessLog] = useState<string[]>([]);
-  const [displayedLogIndex, setDisplayedLogIndex] = useState(0);
+  const [currentStep, setCurrentStep] = useState<number>(0); // 0 = not started, 1-7 = step number
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [maxKeywords, setMaxKeywords] = useState(3);
   const [maxCompetitorsPerKeyword, setMaxCompetitorsPerKeyword] = useState(3);
   
@@ -215,16 +221,10 @@ export default function Home() {
   const [monitoringEmail, setMonitoringEmail] = useState("");
   const [monitoringTime, setMonitoringTime] = useState("09:00");
   const [savingMonitoring, setSavingMonitoring] = useState(false);
+  const [slackConnected, setSlackConnected] = useState(false);
+  const [enableEmailNotification, setEnableEmailNotification] = useState(true);
+  const [enableSlackNotification, setEnableSlackNotification] = useState(false);
 
-  // プロセスログを1項目ずつ順番に表示（ポーリング方式）
-  useEffect(() => {
-    if (processLog.length > 0 && displayedLogIndex < processLog.length && loading) {
-      const timer = setTimeout(() => {
-        setDisplayedLogIndex(displayedLogIndex + 1);
-      }, 3000); // 3秒ごとに次のログを表示
-      return () => clearTimeout(timer);
-    }
-  }, [processLog, displayedLogIndex, loading]);
 
   const loadGSCProperties = async () => {
     if (propertiesLoaded) return; // 既に読み込み済みの場合はスキップ
@@ -374,10 +374,24 @@ export default function Home() {
     setShowArticleSelection(false);
   };
 
+  // Slack連携状態を取得
+  const fetchSlackConnectionStatus = async () => {
+    try {
+      const response = await fetch("/api/notification-settings");
+      if (response.ok) {
+        const data = await response.json();
+        setSlackConnected(!!data?.slack_bot_token);
+      }
+    } catch (err) {
+      console.error("[Monitoring] Error fetching Slack status:", err);
+    }
+  };
+
   // GSCプロパティ一覧を取得
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
       loadGSCProperties();
+      fetchSlackConnectionStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session?.accessToken, selectedSiteUrl]);
@@ -428,21 +442,10 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setData(null);
-    setProcessLog([]);
-    setDisplayedLogIndex(0);
+    setCurrentStep(0);
+    setCompletedSteps(new Set());
     
     const analysisStartTime = Date.now();
-
-    // プロセスログの定義（一般ユーザー向けのわかりやすい文言）
-    const logMessages = [
-      t("analysis.step1"),
-      t("analysis.step2"),
-      t("analysis.step3"),
-      t("analysis.step4"),
-      t("analysis.step5"),
-      t("analysis.step6"),
-      t("analysis.step7"),
-    ];
 
     if (!selectedSiteUrl) {
       setError(t("errors.propertyNotSelected"));
@@ -456,15 +459,10 @@ export default function Home() {
       const siteUrl = selectedSiteUrl.replace(/\/$/, ""); // 末尾のスラッシュを削除
       const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
 
-      // プロセスログを順番に追加（ポーリングで表示される）
-      for (let i = 0; i < logMessages.length; i++) {
-        setProcessLog((prev) => [...prev, logMessages[i]]);
-      }
-      
       // 分析実行（段階的に実行）
       
-      // Step 1: GSCデータ取得 + キーワード選定
-      setProcessLog((prev) => [...prev, t("analysis.step1")]);
+      // Step 1: 記事の検索順位データを取得中
+      setCurrentStep(1);
       const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
           headers: {
@@ -490,10 +488,11 @@ export default function Home() {
         uniqueCompetitorUrls: [],
       };
       setData(currentAnalysisResult);
-      setProcessLog((prev) => [...prev, t("analysis.step1Complete")]);
+      // Step 1-3が完了（GSCデータ取得、キーワード特定、キーワード選定）
+      setCompletedSteps(prev => new Set([1, 2, 3]));
+      setCurrentStep(4); // Step 4: 競合サイトのURLを収集中
 
       // Step 2: 競合URL抽出
-      setProcessLog((prev) => [...prev, t("analysis.step4")]);
       const step2Response = await fetch("/api/competitors/analyze-step2", {
         method: "POST",
         headers: {
@@ -553,12 +552,13 @@ export default function Home() {
         };
         setData(currentAnalysisResult);
       }
-      setProcessLog((prev) => [...prev, t("analysis.step2Complete")]);
+      setCompletedSteps(prev => new Set(prev).add(4));
+      setCurrentStep(5); // Step 5: 競合記事の内容を読み込み中
 
       // Step 3: 記事スクレイピング + LLM分析
       if (step2Result.uniqueCompetitorUrls.length > 0) {
-        setProcessLog((prev) => [...prev, t("analysis.step5")]);
-        setProcessLog((prev) => [...prev, t("analysis.step6")]);
+        setCompletedSteps(prev => new Set(prev).add(5));
+        setCurrentStep(6); // Step 6: AIが記事の差分を分析中
         
         const step3Response = await fetch("/api/competitors/analyze-step3", {
           method: "POST",
@@ -579,7 +579,8 @@ export default function Home() {
           const errorData = await step3Response.json();
           // Step 3が失敗しても、Step 1とStep 2の結果は表示
           console.error("Step 3 failed:", errorData);
-          setProcessLog((prev) => [...prev, t("errors.step3Error", { error: errorData.error || t("errors.analysisFailed") })]);
+          setCompletedSteps(prev => new Set([...Array.from(prev), 5, 6, 7]));
+          setCurrentStep(0); // 完了（エラーでも完了としてマーク）
         } else {
           const step3Result = await step3Response.json();
           // Step 3の結果を更新
@@ -588,10 +589,14 @@ export default function Home() {
             ...step3Result,
           };
           setData(currentAnalysisResult);
-          setProcessLog((prev) => [...prev, t("analysis.step3Complete")]);
+          // Step 6-7が完了（AI分析、改善提案生成）
+          setCompletedSteps(prev => new Set([...Array.from(prev), 6, 7]));
+          setCurrentStep(0); // 完了
         }
       } else {
-        setProcessLog((prev) => [...prev, t("errors.step3Skipped")]);
+        // Step 3がスキップされた場合も、すべてのステップを完了としてマーク
+        setCompletedSteps(prev => new Set([...Array.from(prev), 5, 6, 7]));
+        setCurrentStep(0); // 完了
       }
 
       // 分析結果をDBに保存
@@ -614,24 +619,22 @@ export default function Home() {
           if (saveResponse.ok) {
             const saveResult = await saveResponse.json();
             console.log("[Analysis] Saved to database:", saveResult);
-            setProcessLog((prev) => [...prev, t("analysis.savedToDatabase") || "分析結果をデータベースに保存しました"]);
           } else {
             const errorData = await saveResponse.json();
             console.error("[Analysis] Failed to save to database:", errorData);
             // DB保存の失敗は警告のみ（分析結果は表示される）
-            setProcessLog((prev) => [...prev, t("analysis.saveFailed") || "分析結果の保存に失敗しました（表示は可能です）"]);
           }
         } catch (saveError: any) {
           console.error("[Analysis] Error saving to database:", saveError);
           // DB保存のエラーは警告のみ（分析結果は表示される）
-          setProcessLog((prev) => [...prev, t("analysis.saveError") || "分析結果の保存中にエラーが発生しました（表示は可能です）"]);
         }
       }
 
-      setProcessLog((prev) => [...prev, t("analysis.analysisComplete")]);
+      // 分析完了
     } catch (err: any) {
       setError(err.message);
-      setProcessLog((prev) => [...prev, t("analysis.error", { error: err.message })]);
+      setCurrentStep(0);
+      setCompletedSteps(new Set());
     } finally {
       setLoading(false);
     }
@@ -1020,7 +1023,7 @@ export default function Home() {
                                   <span>{t("article.impressions")}: {article.impressions.toLocaleString()}</span>
                                   <span>{t("article.clicks")}: {article.clicks.toLocaleString()}</span>
                                   {article.position && (
-                                    <span>{t("article.avgPosition")}: {article.position.toFixed(1)}{t("results.rankSuffix")}</span>
+                                    <span>{t("article.avgPosition")}: {formatPosition(article.position)}{t("results.rankSuffix")}</span>
                                   )}
                                 </div>
                               </div>
@@ -1195,21 +1198,46 @@ export default function Home() {
         </div>
         )}
 
-        {/* プロセスログ */}
-        {processLog.length > 0 && (
-          <div className="bg-white p-6 rounded-xl border mb-8 text-sm text-gray-600 space-y-2">
-            {processLog.slice(0, displayedLogIndex + 1).map((log, index) => (
-              <p key={index} className="flex items-center animate-fade-in">
-                {log.startsWith("✓") ? (
-                  <span className="text-green-600 font-bold mr-2">✓</span>
-                ) : log.startsWith("✗") ? (
-                  <span className="text-red-600 font-bold mr-2">✗</span>
-                ) : (
-                  <span className="mr-2 text-purple-600">●</span>
-                )}
-                {log.replace(/^[✓✗●]\s*/, "")}
-              </p>
-            ))}
+        {/* ステップインジケーター */}
+        {loading && (
+          <div className="bg-white p-6 rounded-xl border mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t("analysis.progress")}</h3>
+            <div className="space-y-4">
+              {[
+                { step: 1, key: "step1", label: t("analysis.step1") },
+                { step: 2, key: "step2", label: t("analysis.step2") },
+                { step: 3, key: "step3", label: t("analysis.step3") },
+                { step: 4, key: "step4", label: t("analysis.step4") },
+                { step: 5, key: "step5", label: t("analysis.step5") },
+                { step: 6, key: "step6", label: t("analysis.step6") },
+                { step: 7, key: "step7", label: t("analysis.step7") },
+              ].map(({ step, key, label }) => {
+                const isActive = currentStep === step;
+                const isCompleted = completedSteps.has(step);
+                const isPending = currentStep < step;
+                
+                return (
+                  <div key={key} className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full border-2 transition-colors">
+                      {isCompleted ? (
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : isActive ? (
+                        <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm ${isActive ? 'text-purple-600 font-semibold' : isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
+                        {label}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -1221,43 +1249,48 @@ export default function Home() {
           </div>
         )}
 
-        {/* 結果表示エリア */}
+        {/* 結果表示エリア - 2列レイアウト */}
         {data && (
-          <div className="space-y-6">
-            {/* 上位を保てているキーワード（安心させる） */}
-            {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <h3 className="font-bold text-lg mb-3 text-green-800">
-                  {t("results.topRankingKeywords")}
-                </h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  {t("results.topRankingDescription")}
-                </p>
-                <div className="space-y-2">
-                  {data.topRankingKeywords.map((kw: any, index: number) => (
-                    <div key={index} className="bg-white p-3 rounded border border-green-300">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm">{kw.keyword}</span>
-                        <span className="text-xs text-green-600 font-bold">
-                          {kw.position}{t("results.rankSuffix")}
-                        </span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 左列: 検索順位データ・キーワード分析 */}
+            <div className="space-y-6">
+              {/* 上位を保てているキーワード（安心させる） */}
+              {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-bold text-lg mb-3 text-green-800">
+                    {t("results.topRankingKeywords")}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {t("results.topRankingDescription")}
+                  </p>
+                  <div className="space-y-2">
+                    {data.topRankingKeywords.map((kw: any, index: number) => (
+                      <div key={index} className="bg-white p-3 rounded border border-green-300">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-sm">{kw.keyword}</span>
+                          <span className="text-xs text-green-600 font-bold">
+                            {typeof kw.position === 'number' ? formatPosition(kw.position) : kw.position}{t("results.rankSuffix")}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          <span>{t("article.impressions")}: {kw.impressions}</span>
+                          <span className="ml-4">{t("article.clicks")}: {kw.clicks}</span>
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        <span>{t("article.impressions")}: {kw.impressions}</span>
-                        <span className="ml-4">{t("article.clicks")}: {kw.clicks}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* キーワードの推移グラフ */}
-            {data.keywordTimeSeries && data.keywordTimeSeries.length > 0 && (
-              <KeywordTimeSeriesChart keywordTimeSeries={data.keywordTimeSeries} />
-            )}
+              {/* キーワードの推移グラフ */}
+              {data.keywordTimeSeries && data.keywordTimeSeries.length > 0 && (
+                <KeywordTimeSeriesChart keywordTimeSeries={data.keywordTimeSeries} />
+              )}
+            </div>
 
-            {/* サマリーカード */}
+            {/* 右列: 競合URL・改善案 */}
+            <div className="space-y-6">
+              {/* サマリーカード */}
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-purple-500">
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex items-center justify-between shadow-inner">
                 <span className="font-bold">{t("results.rankUpBooster")}</span>
@@ -1359,58 +1392,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* キーワードごとの競合URL */}
-                {data.competitorResults && data.competitorResults.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-blue-500 pl-3">
-                      {t("results.competitorUrlsPerKeyword")}
-                    </h3>
-                    <div className="space-y-4">
-                      {data.competitorResults.map((result: any, index: number) => (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                          <div className="mb-3">
-                            <p className="font-semibold text-sm mb-1">{t("results.keyword")}: {result.keyword}</p>
-                            <div className="text-xs text-gray-600">
-                              <span>{t("results.ownUrlRank")}: {result.ownPosition ? `${result.ownPosition}${t("results.rankSuffix")}` : t("results.unknown")}</span>
-                              <span className="ml-4">{t("results.competitorUrlCount")}: {result.competitors.length}{t("results.items")}</span>
-                            </div>
-                            {result.error && (
-                              <p className="text-xs text-red-600 mt-1">⚠️ {result.error}</p>
-                            )}
-                          </div>
-                          {result.competitors && result.competitors.length > 0 && (
-                            <div className="space-y-2">
-                              {result.competitors.map((comp: any, compIndex: number) => (
-                                <div
-                                  key={compIndex}
-                                  className="bg-white p-2 rounded border border-gray-200 hover:border-blue-400 transition-colors"
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <a
-                                      href={comp.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-xs text-blue-600 hover:text-blue-800 underline break-all flex-1"
-                                    >
-                                      {comp.url}
-                                    </a>
-                                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                                      {comp.position}{t("results.rankSuffix")}
-                                    </span>
-                                  </div>
-                                  {comp.title && (
-                                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">{comp.title}</p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* 詳細な分析結果（折りたたみ可能） */}
                 {data.semanticDiffAnalysis && (
                   <details className="mb-6">
@@ -1487,6 +1468,45 @@ export default function Home() {
                   </details>
                 )}
 
+                {/* アクションボタン（改善提案セクション内） */}
+                {data.semanticDiffAnalysis && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="space-y-3">
+                    <button
+                      onClick={async () => {
+                        setMonitoringEmail(session?.user?.email || "");
+                        setEnableEmailNotification(true);
+                        setEnableSlackNotification(false);
+                        // ダイアログを開く前にSlack連携状態を取得
+                        await fetchSlackConnectionStatus();
+                        setShowMonitoringDialog(true);
+                      }}
+                      className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-all shadow-md"
+                    >
+                      {t("notification.settings.startMonitoring")}
+                    </button>
+                      <button
+                        className="w-full bg-white border-2 border-purple-600 text-purple-600 font-bold py-3 rounded-lg hover:bg-purple-50 transition-all"
+                        onClick={() => {
+                          const text = data.semanticDiffAnalysis?.keywordSpecificAnalysis
+                            ?.map((kw: any) => {
+                              const items = kw.whatToAdd?.map((item: any) => {
+                                const itemText = typeof item === 'string' ? item : item.item;
+                                return `- ${itemText}`;
+                              }).join('\n') || '';
+                              return `## ${kw.keyword}\n${items}`;
+                            })
+                            .join('\n\n') || '';
+                          navigator.clipboard.writeText(text);
+                          alert(t("results.copied"));
+                        }}
+                      >
+                        {t("results.copyToClipboard")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* 監視開始ダイアログ */}
                 {showMonitoringDialog && (
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1496,22 +1516,50 @@ export default function Home() {
                       
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-semibold mb-2">
+                          <label className="flex items-center space-x-2 mb-2">
                             <input
                               type="checkbox"
-                              checked={true}
-                              readOnly
-                              className="mr-2"
+                              checked={enableEmailNotification}
+                              onChange={(e) => setEnableEmailNotification(e.target.checked)}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                             />
-                            {t("notification.settings.emailNotification")}
+                            <span className="text-sm font-semibold">{t("notification.settings.emailNotification")}</span>
                           </label>
-                          <input
-                            type="email"
-                            value={monitoringEmail}
-                            onChange={(e) => setMonitoringEmail(e.target.value)}
-                            placeholder={session?.user?.email || "your-email@example.com"}
-                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none mt-2"
-                          />
+                          {enableEmailNotification && (
+                            <input
+                              type="email"
+                              value={monitoringEmail}
+                              onChange={(e) => setMonitoringEmail(e.target.value)}
+                              placeholder={session?.user?.email || "your-email@example.com"}
+                              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none mt-2"
+                            />
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 mb-2">
+                            <input
+                              type="checkbox"
+                              checked={enableSlackNotification}
+                              onChange={(e) => setEnableSlackNotification(e.target.checked)}
+                              disabled={!slackConnected}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <span className="text-sm font-semibold">{t("notification.settings.slackNotification")}</span>
+                          </label>
+                          {!slackConnected && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              <a 
+                                href={`/${locale}/dashboard/notifications`} 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-purple-600 hover:underline"
+                              >
+                                {t("notification.settings.connectSlack")}
+                              </a>
+                              {" "}{t("notification.settings.slackConnectionRequired")}
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -1531,8 +1579,21 @@ export default function Home() {
                       <div className="flex space-x-3 mt-6">
                         <button
                           onClick={async () => {
-                            if (!monitoringEmail && !session?.user?.email) {
-                              alert("メールアドレスを入力してください");
+                            if (enableEmailNotification && !monitoringEmail && !session?.user?.email) {
+                              alert(t("notification.settings.emailAddressRequired"));
+                              return;
+                            }
+
+                            if (!enableEmailNotification && !enableSlackNotification) {
+                              alert(t("notification.settings.notificationRequired"));
+                              return;
+                            }
+
+                            // Slack通知が選択されているが、Slack連携がされていない場合は連携画面に遷移
+                            if (enableSlackNotification && !slackConnected) {
+                              if (confirm(t("notification.settings.slackConnectionRequiredForNotification"))) {
+                                router.push(`/${locale}/dashboard/notifications`);
+                              }
                               return;
                             }
 
@@ -1544,7 +1605,8 @@ export default function Home() {
                                 body: JSON.stringify({
                                   url: articleUrl,
                                   siteUrl: selectedSiteUrl,
-                                  email: monitoringEmail || session?.user?.email,
+                                  email: enableEmailNotification ? (monitoringEmail || session?.user?.email) : null,
+                                  enableSlack: enableSlackNotification && slackConnected,
                                   notificationTime: `${monitoringTime}:00`,
                                   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                                 }),
@@ -1565,7 +1627,7 @@ export default function Home() {
                             }
                           }}
                           disabled={savingMonitoring}
-                          className="flex-1 bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50"
+                          className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
                         >
                           {savingMonitoring ? t("notification.settings.saving") : t("notification.settings.startMonitoringButton")}
                         </button>
@@ -1581,49 +1643,62 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* アクションボタン */}
-                <div className="space-y-3">
-                  <button
-                    onClick={() => {
-                      setMonitoringEmail(session?.user?.email || "");
-                      setShowMonitoringDialog(true);
-                    }}
-                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-all shadow-lg"
-                  >
-                    📧 {t("notification.settings.startMonitoring")}
-                  </button>
-                  {notificationEmail && (
-                    <button
-                      onClick={sendNotification}
-                      disabled={sendingNotification}
-                      className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-all shadow-lg disabled:opacity-50"
-                    >
-                      {sendingNotification ? t("results.sending") : t("results.sendEmail")}
-                    </button>
-                  )}
-                  <button
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 rounded-lg hover:opacity-90 transition-all shadow-lg"
-                    onClick={() => {
-                      const text = data.semanticDiffAnalysis?.keywordSpecificAnalysis
-                        ?.map((kw: any) => {
-                          const items = kw.whatToAdd?.map((item: any) => {
-                            const itemText = typeof item === 'string' ? item : item.item;
-                            return `- ${itemText}`;
-                          }).join('\n') || '';
-                          return `## ${kw.keyword}\n${items}`;
-                        })
-                        .join('\n\n') || '';
-                      navigator.clipboard.writeText(text);
-                      alert(t("results.copied"));
-                    }}
-                  >
-                    {t("results.copyToClipboard")}
-                  </button>
-                  <p className="text-center text-xs text-gray-400 mt-2">
-                  </p>
-                </div>
               </div>
             </div>
+
+              {/* 競合URLセクション（右列内） */}
+              {data.competitorResults && data.competitorResults.length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg border p-6">
+                  <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-blue-500 pl-3">
+                    {t("results.competitorUrlsPerKeyword")}
+                  </h3>
+                  <div className="space-y-4">
+                    {data.competitorResults.map((result: any, index: number) => (
+                      <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div className="mb-3">
+                          <p className="font-semibold text-sm mb-1">{t("results.keyword")}: {result.keyword}</p>
+                          <div className="text-xs text-gray-600">
+                            <span>{t("results.ownUrlRank")}: {result.ownPosition ? `${typeof result.ownPosition === 'number' ? formatPosition(result.ownPosition) : result.ownPosition}${t("results.rankSuffix")}` : t("results.unknown")}</span>
+                            <span className="ml-4">{t("results.competitorUrlCount")}: {result.competitors.length}{t("results.items")}</span>
+                          </div>
+                          {result.error && (
+                            <p className="text-xs text-red-600 mt-1">⚠️ {result.error}</p>
+                          )}
+                        </div>
+                        {result.competitors && result.competitors.length > 0 && (
+                          <div className="space-y-2">
+                            {result.competitors.map((comp: any, compIndex: number) => (
+                              <div
+                                key={compIndex}
+                                className="bg-white p-2 rounded border border-gray-200 hover:border-blue-400 transition-colors"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <a
+                                    href={comp.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800 underline break-all flex-1"
+                                  >
+                                    {comp.url}
+                                  </a>
+                                  <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                    {typeof comp.position === 'number' ? formatPosition(comp.position) : comp.position}{t("results.rankSuffix")}
+                                  </span>
+                                </div>
+                                {comp.title && (
+                                  <p className="text-xs text-gray-600 mt-1 line-clamp-2">{comp.title}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </div>
