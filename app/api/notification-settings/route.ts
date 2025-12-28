@@ -100,6 +100,118 @@ export async function POST(request: NextRequest) {
 
     const { articleId, slackWebhookUrl, email, notificationTime, timezone } = body;
 
+    // 通知時刻のみが更新される場合（email、slackWebhookUrl、slackBotToken等がすべてundefined）
+    const isNotificationTimeOnly = 
+      email === undefined && 
+      slackWebhookUrl === undefined && 
+      body.slackBotToken === undefined &&
+      body.slackUserId === undefined &&
+      body.slackTeamId === undefined &&
+      body.slackChannelId === undefined &&
+      body.slackNotificationType === undefined &&
+      notificationTime !== undefined;
+
+    if (isNotificationTimeOnly && notificationTime) {
+      // 既存のメール通知設定を取得して更新（channel='email'で検索）
+      const { createSupabaseClient } = await import("@/lib/supabase");
+      const supabase = createSupabaseClient();
+      const { data: emailSettingsData } = await supabase
+        .from('notification_settings')
+        .select('*')
+        .eq('user_id', session.userId)
+        .is('article_id', null)
+        .eq('channel', 'email')
+        .eq('is_enabled', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (emailSettingsData) {
+        const existingEmailSettings = emailSettingsData as any;
+        await saveOrUpdateNotificationSettings(
+          session.userId,
+          {
+            notification_type: 'rank_drop',
+            channel: 'email',
+            recipient: existingEmailSettings.recipient,
+            is_enabled: existingEmailSettings.is_enabled,
+            notification_time: notificationTime,
+            timezone: existingEmailSettings.timezone,
+            drop_threshold: existingEmailSettings.drop_threshold,
+            keyword_drop_threshold: existingEmailSettings.keyword_drop_threshold,
+            comparison_days: existingEmailSettings.comparison_days,
+            consecutive_drop_days: existingEmailSettings.consecutive_drop_days,
+            min_impressions: existingEmailSettings.min_impressions,
+            notification_cooldown_days: existingEmailSettings.notification_cooldown_days,
+          },
+          null
+        );
+      }
+
+      // 既存のSlack通知設定を取得して更新（channel='slack'で検索）
+      const { data: slackSettingsData } = await supabase
+        .from('notification_settings')
+        .select('*')
+        .eq('user_id', session.userId)
+        .is('article_id', null)
+        .eq('channel', 'slack')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (slackSettingsData) {
+        const existingSlackSettings = slackSettingsData as any;
+        await saveOrUpdateNotificationSettings(
+          session.userId,
+          {
+            notification_type: 'rank_drop',
+            channel: 'slack',
+            recipient: existingSlackSettings.recipient,
+            is_enabled: existingSlackSettings.is_enabled,
+            notification_time: notificationTime,
+            timezone: existingSlackSettings.timezone,
+            slack_bot_token: existingSlackSettings.slack_bot_token,
+            slack_user_id: existingSlackSettings.slack_user_id,
+            slack_team_id: existingSlackSettings.slack_team_id,
+            slack_channel_id: existingSlackSettings.slack_channel_id,
+            slack_notification_type: existingSlackSettings.slack_notification_type,
+            slack_webhook_url: existingSlackSettings.slack_webhook_url,
+            drop_threshold: existingSlackSettings.drop_threshold,
+            keyword_drop_threshold: existingSlackSettings.keyword_drop_threshold,
+            comparison_days: existingSlackSettings.comparison_days,
+            consecutive_drop_days: existingSlackSettings.consecutive_drop_days,
+            min_impressions: existingSlackSettings.min_impressions,
+            notification_cooldown_days: existingSlackSettings.notification_cooldown_days,
+          },
+          null
+        );
+      }
+
+      // メールもSlackも設定されていない場合は、デフォルトのメール通知設定を作成
+      if (!emailSettingsData && !slackSettingsData) {
+        // ユーザー情報を取得してメールアドレスを取得
+        const { getUserById } = await import("@/lib/db/users");
+        const user = await getUserById(session.userId);
+        if (user?.email) {
+          await saveOrUpdateNotificationSettings(
+            session.userId,
+            {
+              notification_type: 'rank_drop',
+              channel: 'email',
+              recipient: user.email,
+              is_enabled: true,
+              notification_time: notificationTime,
+              timezone: timezone || null,
+            },
+            null
+          );
+        }
+      }
+
+      console.log("[Notification Settings API] Notification time updated successfully");
+      return NextResponse.json({ success: true });
+    }
+
     // メール通知設定を保存（emailが提供されている場合）
     if (email) {
       console.log("[Notification Settings API] Saving email notification settings");

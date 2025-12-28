@@ -273,6 +273,7 @@
       "startMonitoringButton": "通知を開始する",
       "skipButton": "スキップ",
       "saving": "保存中...",
+      "save": "保存",
       "saved": "通知設定を保存しました",
       "error": "設定の保存に失敗しました",
       "title": "設定",

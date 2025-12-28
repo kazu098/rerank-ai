@@ -271,6 +271,7 @@
       "startMonitoringButton": "Start Notifications",
       "skipButton": "Skip",
       "saving": "Saving...",
+      "save": "Save",
       "saved": "Notification settings saved",
       "error": "Failed to save settings",
       "title": "Settings",
