@@ -1,6 +1,7 @@
 import { GSCApiClient } from "./gsc-api";
 import { RankDropDetector, RankDropResult } from "./rank-drop-detection";
 import { getNotificationSettings, DEFAULT_NOTIFICATION_SETTINGS } from "./db/notification-settings";
+import { getUserAlertSettings } from "./db/alert-settings";
 import { getArticleById } from "./db/articles";
 import { getUserById } from "./db/users";
 import { createSupabaseClient } from "./supabase";
@@ -60,6 +61,10 @@ export class NotificationChecker {
 
     // 通知設定を取得（記事固有の設定があればそれを使用、なければデフォルト）
     const settings = await getNotificationSettings(userId, articleId);
+    
+    // ユーザーのアラート設定を取得（カスタマイズされた閾値や比較期間）
+    const userAlertSettings = await getUserAlertSettings(userId);
+    
     const effectiveSettings = settings || {
       ...DEFAULT_NOTIFICATION_SETTINGS,
       user_id: userId,
@@ -67,6 +72,13 @@ export class NotificationChecker {
       timezone: userTimezone,
       notification_time: '09:00:00',
     } as any;
+
+    // ユーザーのアラート設定を適用（カスタマイズされた値で上書き）
+    if (userAlertSettings) {
+      effectiveSettings.drop_threshold = userAlertSettings.position_drop_threshold;
+      effectiveSettings.keyword_drop_threshold = userAlertSettings.keyword_drop_threshold;
+      effectiveSettings.comparison_days = userAlertSettings.comparison_days;
+    }
 
     // 修正済みフラグが立っている場合は通知しない
     if (article.is_fixed) {

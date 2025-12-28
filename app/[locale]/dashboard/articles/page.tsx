@@ -39,6 +39,14 @@ export default function ArticlesPage() {
   const [filter, setFilter] = useState<"all" | "monitoring" | "fixed">("all");
   const [sortBy, setSortBy] = useState<"date" | "position" | "title">("date");
   const [fetchingTitleIds, setFetchingTitleIds] = useState<Set<string>>(new Set());
+  const [showAlertSettings, setShowAlertSettings] = useState(false);
+  const [alertSettings, setAlertSettings] = useState({
+    position_drop_threshold: 2.0,
+    keyword_drop_threshold: 10,
+    comparison_days: 7,
+    notification_frequency: 'daily' as 'daily' | 'weekly' | 'none',
+  });
+  const [savingAlertSettings, setSavingAlertSettings] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -141,8 +149,53 @@ export default function ArticlesPage() {
   useEffect(() => {
     if (status === "authenticated") {
       fetchArticles();
+      fetchAlertSettings();
     }
   }, [filter, sortBy]);
+
+  const fetchAlertSettings = async () => {
+    try {
+      const response = await fetch("/api/alert-settings");
+      if (response.ok) {
+        const data = await response.json();
+        setAlertSettings(data);
+      }
+    } catch (err) {
+      console.error("[Articles] Error fetching alert settings:", err);
+    }
+  };
+
+  const handleSaveAlertSettings = async () => {
+    try {
+      setSavingAlertSettings(true);
+      const response = await fetch("/api/alert-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(alertSettings),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || t("alertSettings.saveFailed"));
+      }
+
+      setShowAlertSettings(false);
+    } catch (err: any) {
+      console.error("[Articles] Error saving alert settings:", err);
+      alert(err.message || t("alertSettings.saveFailed"));
+    } finally {
+      setSavingAlertSettings(false);
+    }
+  };
+
+  const handleResetAlertSettings = () => {
+    setAlertSettings({
+      position_drop_threshold: 2.0,
+      keyword_drop_threshold: 10,
+      comparison_days: 7,
+      notification_frequency: 'daily',
+    });
+  };
 
   if (status === "loading" || loading) {
     return (
@@ -177,12 +230,21 @@ export default function ArticlesPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-900">{t("dashboard.articles.title")}</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowAlertSettings(true)}
+              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              {t("alertSettings.title")}
+            </button>
           <Link
             href={`/${locale}`}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
-            {t("dashboard.articles.startNewAnalysis")}
+              {t("dashboard.articles.startNewAnalysis")}
           </Link>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -258,7 +320,31 @@ export default function ArticlesPage() {
                     {t("dashboard.articles.titleUrl")}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t("dashboard.articles.averagePosition")}
+                    <div className="flex items-center gap-1">
+                      <span>{t("dashboard.articles.averagePosition")}</span>
+                      <div className="group relative inline-block">
+                        <svg
+                          className="w-4 h-4 text-gray-400 cursor-help"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 whitespace-normal">
+                          {t("dashboard.articles.averagePositionDescription")}
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-1">
+                            <div className="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t("dashboard.articles.previousPosition")}
@@ -652,9 +738,183 @@ export default function ArticlesPage() {
                 ))}
               </tbody>
             </table>
-              </div>
-          )}
+                      </div>
+                    )}
       </div>
+
+      {/* アラート設定モーダル */}
+      {showAlertSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowAlertSettings(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">{t("alertSettings.title")}</h2>
+                <button
+                  onClick={() => setShowAlertSettings(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">{t("alertSettings.description")}</p>
+
+              <div className="space-y-6">
+                {/* 急落の判定条件 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.dropConditions.title")}
+                  </h3>
+
+                  {/* 平均順位の下落幅 */}
+                  <div className="mb-4">
+                    <label htmlFor="position_drop_threshold" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.dropConditions.positionDropThreshold")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="position_drop_threshold"
+                        min="0"
+                        step="0.5"
+                        value={alertSettings.position_drop_threshold}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            position_drop_threshold: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.dropConditions.positionsAbove")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.dropConditions.positionDropThresholdDescription")}
+                    </p>
+                  </div>
+
+                  {/* 特定キーワードの転落条件 */}
+                  <div>
+                    <label htmlFor="keyword_drop_threshold" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.dropConditions.keywordDropThreshold")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="keyword_drop_threshold"
+                        min="1"
+                        step="1"
+                        value={alertSettings.keyword_drop_threshold}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            keyword_drop_threshold: parseInt(e.target.value) || 10,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.dropConditions.positionsOrBelow")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.dropConditions.keywordDropThresholdDescription")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 比較期間 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.comparisonPeriod.title")}
+                  </h3>
+                  <div>
+                    <label htmlFor="comparison_days" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.comparisonPeriod.days")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="comparison_days"
+                        min="1"
+                        step="1"
+                        value={alertSettings.comparison_days}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            comparison_days: parseInt(e.target.value) || 7,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.comparisonPeriod.daysSuffix")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.comparisonPeriod.description")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 通知頻度 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.notificationFrequency.title")}
+                  </h3>
+                  <div className="space-y-2">
+                    {(['daily', 'weekly', 'none'] as const).map((frequency) => (
+                      <label key={frequency} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="notification_frequency"
+                          value={frequency}
+                          checked={alertSettings.notification_frequency === frequency}
+                          onChange={(e) =>
+                            setAlertSettings({
+                              ...alertSettings,
+                              notification_frequency: e.target.value as 'daily' | 'weekly' | 'none',
+                            })
+                          }
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {t(`alertSettings.notificationFrequency.${frequency}`)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {t("alertSettings.notificationFrequency.description")}
+                  </p>
+                </div>
+              </div>
+
+              {/* ボタン */}
+              <div className="mt-6 flex gap-4">
+                <button
+                  onClick={handleSaveAlertSettings}
+                  disabled={savingAlertSettings}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {savingAlertSettings ? t("common.saving") : t("common.save")}
+                </button>
+                <button
+                  onClick={handleResetAlertSettings}
+                  disabled={savingAlertSettings}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                >
+                  {t("alertSettings.resetToDefault")}
+                </button>
+                <button
+                  onClick={() => setShowAlertSettings(false)}
+                  disabled={savingAlertSettings}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors ml-auto"
+                >
+                  {t("common.cancel")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

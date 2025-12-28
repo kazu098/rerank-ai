@@ -16,7 +16,6 @@ export interface NotificationSettings {
   notification_cooldown_days: number;
   notification_time: string | null; // TIME型（例: '09:00:00'）
   timezone: string | null; // タイムゾーン（例: 'Asia/Tokyo'）
-  slack_webhook_url: string | null; // Slack Webhook URL（旧方式）
   slack_bot_token: string | null; // Slack Bot Token（OAuth方式）
   slack_user_id: string | null; // Slack User ID（Uで始まる）
   slack_team_id: string | null; // Slack Team ID（Tで始まる）
@@ -39,7 +38,6 @@ export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'u
   notification_cooldown_days: 7,
   notification_time: '09:00:00',
   timezone: null,
-  slack_webhook_url: null,
   slack_bot_token: null,
   slack_user_id: null,
   slack_team_id: null,
@@ -238,7 +236,6 @@ export async function saveOrUpdateNotificationSettings(
     notification_cooldown_days: settings.notification_cooldown_days ?? DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days,
     notification_time: settings.notification_time ?? '09:00:00',
     timezone: settings.timezone ?? null, // NULLの場合はusersテーブルのタイムゾーンを使用
-    slack_webhook_url: settings.slack_webhook_url ?? null,
     updated_at: new Date().toISOString(),
   };
 

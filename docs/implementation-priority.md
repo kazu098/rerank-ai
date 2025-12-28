@@ -54,6 +54,30 @@
 
 ## 🎯 次に実装すべき項目（推奨実装順序）
 
+### 0. アラート設定のカスタマイズ機能（将来実装予定）
+
+**目的**: ユーザーが急落の判定条件や比較期間をカスタマイズできるようにする
+
+**実装内容**:
+1. アラート設定画面の作成
+   - ダッシュボードに「アラート設定」画面を追加
+   - 急落の判定条件設定UI
+   - 比較期間設定UI
+2. データベース設計
+   - `user_alert_settings` テーブルの作成
+   - ユーザーごとの設定を保存
+3. Cronジョブでの設定適用
+   - 定期実行時にユーザー設定を読み込んで適用
+   - デフォルト設定からのフォールバック
+
+**詳細**: 詳細は `docs/alert-settings-customization.md` を参照
+
+**期間**: 約1週間（設定画面 + データ保存 + 設定の適用）
+
+**優先度**: 中（デフォルト設定で動作するため、MVP段階では不要）
+
+---
+
 ### 1. 詳細データの一時ストレージ保存（Vercel Blob Storage）（✅ 実装済み）
 
 **目的**: 再生成コストが高いLLM分析の詳細データを一時ストレージに保存し、詳細画面で表示できるようにする
@@ -240,61 +264,73 @@
 
 ---
 
-### 7. 競合サイトのフィルタリング機能（Wikipedia・ECサイト等の除外）
+### 7. 競合サイトのフィルタリング機能（Wikipedia・ECサイト等の除外）（✅ 実装済み）
 
 **目的**: 分析対象から明らかに上位になるサイト（Wikipedia、大手ECサイト等）を除外し、より実用的な競合分析を行う
 
 **実装内容**:
-1. 除外対象サイトの定義
-   - 除外リストの作成（Wikipedia、Amazon、楽天、Yahoo!ショッピング等）
-   - ドメインベースまたはURLパターンベースの除外
-   - ユーザー設定で除外リストをカスタマイズ可能にする（オプション）
-2. 競合URL抽出時のフィルタリング
-   - `lib/competitor-extractor.ts` に除外ロジックを追加
-   - 除外対象サイトを検出してスキップ
-3. 除外理由の記録
-   - 除外されたサイトと理由をログに記録
-   - 分析結果に除外情報を含める（オプション）
+1. ✅ 除外対象サイトの定義
+   - ✅ 除外リストの作成（Wikipedia、Amazon、楽天、Yahoo!ショッピング等）
+   - ✅ ドメインベースの除外（`lib/competitor-filter.ts`）
+   - ✅ グローバル除外リストとデフォルト除外リストの実装
+2. ✅ 競合URL抽出時のフィルタリング
+   - ✅ `lib/competitor-filter.ts` に除外ロジックを実装
+   - ✅ `lib/competitor-analysis.ts` と `lib/competitor-analysis-step2.ts` で使用
+   - ✅ 除外対象サイトを検出してスキップ
+3. ✅ 除外理由の記録
+   - ✅ 除外されたサイトと理由をログに記録
+   - ✅ 除外理由の多言語対応メッセージ機能
 
 **成果物**:
-- `lib/competitor-filter.ts` - 競合サイトフィルタリング関数
-- 除外リストの設定ファイルまたはDBテーブル
-- 競合URL抽出処理への統合
+- ✅ `lib/competitor-filter.ts` - 競合サイトフィルタリング関数
+- ✅ グローバル除外リスト（Wikipedia、ソーシャルメディア、動画サイト等）
+- ✅ デフォルト除外リスト（大手ECサイト等）
+- ✅ 競合URL抽出処理への統合
 
-**期間**: 1-2日
+**期間**: 1-2日（実装完了）
 
 **検討事項**:
 - 除外が必要かどうか（WikipediaやECサイトも競合として分析すべき場合がある）
-- 除外リストをユーザーがカスタマイズできるか
+- 除外リストをユーザーがカスタマイズできるか（将来的な機能拡張）
 - 除外対象の自動検出（ドメイン権威性の判定など）
 
 ---
 
-### 8. Slack通知機能
+### 8. Slack通知機能（✅ 実装済み）
 
 **目的**: メール通知に加えて、Slack通知も送信できるようにする
 
 **実装内容**:
-1. Slack Webhook連携
-   - ユーザーがSlack Webhook URLを設定
-   - `notification_settings` テーブルに `slack_webhook_url` カラムを追加
-2. Slack通知送信機能
-   - `lib/notification.ts` に `sendSlackNotification()` 関数を追加
-   - Slack APIを使用して通知を送信
-   - メール通知と同様の内容をSlack形式に変換
-3. 通知設定UI
-   - ダッシュボードの設定画面でSlack Webhook URLを入力
-   - 通知方法（メール/Slack/両方）を選択
+1. ✅ Slack OAuth連携（Bot Token方式）
+   - ✅ Slack OAuth 2.0認証フローの実装
+   - ✅ `notification_settings` テーブルに `slack_bot_token`, `slack_user_id`, `slack_team_id`, `slack_channel_id`, `slack_notification_type` カラムを追加
+   - ✅ OAuth認証後の挨拶メッセージ送信機能
+2. ✅ Slack通知送信機能
+   - ✅ `lib/slack-notification.ts` に `sendSlackNotificationWithBot()` 関数を実装
+   - ✅ Slack API（`chat.postMessage`）を使用して通知を送信
+   - ✅ メール通知と同様の内容をSlack形式に変換（`formatSlackBulkNotification`）
+   - ✅ Webhook方式もサポート（後方互換性）
+3. ✅ 通知設定UI
+   - ✅ ダッシュボードの通知設定画面でSlack連携ボタンを追加
+   - ✅ チャネル選択機能（DM/チャネル選択）
+   - ✅ チャネル一覧取得API（`/api/slack/channels`）
+   - ✅ 記事ごとのSlack通知ON/OFF設定
+4. ✅ CronジョブでのSlack通知送信
+   - ✅ 順位下落検知時のSlack通知送信機能
 
 **成果物**:
-- `lib/slack-notification.ts` - Slack通知送信関数
-- `app/api/notifications/slack/route.ts` - Slack通知API（オプション）
-- 通知設定UIの拡張
+- ✅ `lib/slack-notification.ts` - Slack通知送信関数
+- ✅ `lib/slack-oauth.ts` - Slack OAuth認証関数
+- ✅ `lib/slack-channels.ts` - Slackチャネル一覧取得関数
+- ✅ `app/api/auth/slack/authorize/route.ts` - Slack OAuth認証開始API
+- ✅ `app/api/auth/slack/callback/route.ts` - Slack OAuth認証コールバックAPI
+- ✅ `app/api/slack/channels/route.ts` - Slackチャネル一覧取得API
+- ✅ 通知設定UIの拡張（`app/[locale]/dashboard/notifications/page.tsx`）
 
-**期間**: 1-2日
+**期間**: 1-2日（実装完了）
 
 **前提条件**:
-- ユーザーがSlack Webhook URLを取得する必要がある
+- ✅ Slack Appの作成とOAuth設定（Bot Token Scopes: `chat:write`, `chat:write.public`, `users:read`, `channels:read`, `groups:read`）
 
 ---
 

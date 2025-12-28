@@ -56,10 +56,14 @@ export async function GET(request: NextRequest) {
  * POST /api/notification-settings
  * Body: {
  *   articleId?: string,
- *   slackWebhookUrl?: string,
  *   email?: string,
  *   notificationTime?: string,
- *   timezone?: string
+ *   timezone?: string,
+ *   slackBotToken?: string | null,
+ *   slackUserId?: string | null,
+ *   slackTeamId?: string | null,
+ *   slackChannelId?: string | null,
+ *   slackNotificationType?: string | null
  * }
  */
 export async function POST(request: NextRequest) {
@@ -98,12 +102,11 @@ export async function POST(request: NextRequest) {
       articleId: body.articleId,
     });
 
-    const { articleId, slackWebhookUrl, email, notificationTime, timezone } = body;
+    const { articleId, email, notificationTime, timezone } = body;
 
-    // 通知時刻のみが更新される場合（email、slackWebhookUrl、slackBotToken等がすべてundefined）
+    // 通知時刻のみが更新される場合（email、slackBotToken等がすべてundefined）
     const isNotificationTimeOnly = 
       email === undefined && 
-      slackWebhookUrl === undefined && 
       body.slackBotToken === undefined &&
       body.slackUserId === undefined &&
       body.slackTeamId === undefined &&
@@ -175,7 +178,6 @@ export async function POST(request: NextRequest) {
             slack_team_id: existingSlackSettings.slack_team_id,
             slack_channel_id: existingSlackSettings.slack_channel_id,
             slack_notification_type: existingSlackSettings.slack_notification_type,
-            slack_webhook_url: existingSlackSettings.slack_webhook_url,
             drop_threshold: existingSlackSettings.drop_threshold,
             keyword_drop_threshold: existingSlackSettings.keyword_drop_threshold,
             comparison_days: existingSlackSettings.comparison_days,
@@ -222,24 +224,6 @@ export async function POST(request: NextRequest) {
           channel: 'email',
           recipient: email,
           is_enabled: true,
-          notification_time: notificationTime || '09:00:00',
-          timezone: timezone || null,
-        },
-        articleId || null
-      );
-    }
-
-    // Slack通知設定を保存（slackWebhookUrlが提供されている場合 - 旧方式）
-    if (slackWebhookUrl !== undefined) {
-      console.log("[Notification Settings API] Saving Slack webhook settings");
-      await saveOrUpdateNotificationSettings(
-        session.userId,
-        {
-          notification_type: 'rank_drop',
-          channel: 'slack',
-          recipient: slackWebhookUrl || '', // Webhook URLをrecipientに保存
-          is_enabled: !!slackWebhookUrl,
-          slack_webhook_url: slackWebhookUrl || null,
           notification_time: notificationTime || '09:00:00',
           timezone: timezone || null,
         },

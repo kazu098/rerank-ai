@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getUserById } from "@/lib/db/users";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
-import { sendSlackNotification, sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
+import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
 import { createSupabaseClient } from "@/lib/supabase";
 
 /**
@@ -45,14 +45,13 @@ export async function GET(request: NextRequest) {
     });
 
     // 通知設定を取得
-    const notificationSettings = await getNotificationSettings(user.id, null);
-    console.log("[Test Notification] Notification settings:", {
-      hasEmailSettings: !!notificationSettings,
-      hasSlackWebhook: !!notificationSettings?.slack_webhook_url,
-      hasSlackBotToken: !!notificationSettings?.slack_bot_token,
-      slackChannelId: notificationSettings?.slack_channel_id,
-      slackNotificationType: notificationSettings?.slack_notification_type,
-    });
+          const notificationSettings = await getNotificationSettings(user.id, null);
+          console.log("[Test Notification] Notification settings:", {
+            hasEmailSettings: !!notificationSettings,
+            hasSlackBotToken: !!notificationSettings?.slack_bot_token,
+            slackChannelId: notificationSettings?.slack_channel_id,
+            slackNotificationType: notificationSettings?.slack_notification_type,
+          });
 
     if (!notificationSettings) {
       console.warn("[Test Notification] No notification settings found");
@@ -141,70 +140,54 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Slack通知を送信
-    if (notificationSettings?.slack_webhook_url || notificationSettings?.slack_bot_token) {
-      console.log("[Test Notification] Attempting to send Slack notification...");
-      try {
-        const slackPayload = formatSlackBulkNotification(
-          dummyItems.map((item) => ({
-            url: item.articleUrl,
-            title: item.articleTitle ?? null,
-            averagePositionChange: {
-              from: item.rankDropInfo.baseAveragePosition,
-              to: item.rankDropInfo.currentAveragePosition,
-              change: item.rankDropInfo.dropAmount,
-            },
-          })),
-          locale
-        );
+          // Slack通知を送信（OAuth方式のみ）
+          if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
+            console.log("[Test Notification] Attempting to send Slack notification...");
+            try {
+              const slackPayload = formatSlackBulkNotification(
+                dummyItems.map((item) => ({
+                  url: item.articleUrl,
+                  title: item.articleTitle ?? null,
+                  averagePositionChange: {
+                    from: item.rankDropInfo.baseAveragePosition,
+                    to: item.rankDropInfo.currentAveragePosition,
+                    change: item.rankDropInfo.dropAmount,
+                  },
+                })),
+                locale
+              );
 
-        console.log("[Test Notification] Slack payload created:", {
-          hasText: !!slackPayload.text,
-          blocksCount: slackPayload.blocks?.length || 0,
-        });
+              console.log("[Test Notification] Slack payload created:", {
+                hasText: !!slackPayload.text,
+                blocksCount: slackPayload.blocks?.length || 0,
+              });
 
-        // OAuth方式（Bot Token）を使用
-        if (notificationSettings.slack_bot_token && notificationSettings.slack_channel_id) {
-          console.log("[Test Notification] Sending Slack notification via OAuth (Bot Token)...", {
-            hasBotToken: !!notificationSettings.slack_bot_token,
-            channelId: notificationSettings.slack_channel_id,
-            notificationType: notificationSettings.slack_notification_type,
-          });
-          await sendSlackNotificationWithBot(
-            notificationSettings.slack_bot_token,
-            notificationSettings.slack_channel_id,
-            slackPayload
-          );
-          results.slack.success = true;
-          console.log("[Test Notification] Slack notification sent via OAuth successfully");
-        }
-        // Webhook方式（旧方式）を使用
-        else if (notificationSettings.slack_webhook_url) {
-          console.log("[Test Notification] Sending Slack notification via Webhook...", {
-            webhookUrl: notificationSettings.slack_webhook_url.substring(0, 50) + "...",
-          });
-          await sendSlackNotification(notificationSettings.slack_webhook_url, slackPayload);
-          results.slack.success = true;
-          console.log("[Test Notification] Slack notification sent via Webhook successfully");
-        } else {
-          console.warn("[Test Notification] Slack notification skipped: No bot token or webhook URL");
-          results.slack.error = "No Slack bot token or webhook URL configured";
-        }
-      } catch (slackError: any) {
-        results.slack.success = false;
-        results.slack.error = slackError.message || "Unknown error";
-        console.error("[Test Notification] Failed to send Slack notification:", {
-          error: slackError.message,
-          stack: slackError.stack,
-          hasBotToken: !!notificationSettings.slack_bot_token,
-          hasWebhookUrl: !!notificationSettings.slack_webhook_url,
-          channelId: notificationSettings.slack_channel_id,
-        });
-      }
-    } else {
-      console.warn("[Test Notification] Slack notification skipped: No Slack settings configured");
-      results.slack.error = "No Slack settings configured";
-    }
+              console.log("[Test Notification] Sending Slack notification via OAuth (Bot Token)...", {
+                hasBotToken: !!notificationSettings.slack_bot_token,
+                channelId: notificationSettings.slack_channel_id,
+                notificationType: notificationSettings.slack_notification_type,
+              });
+              await sendSlackNotificationWithBot(
+                notificationSettings.slack_bot_token,
+                notificationSettings.slack_channel_id,
+                slackPayload
+              );
+              results.slack.success = true;
+              console.log("[Test Notification] Slack notification sent via OAuth successfully");
+            } catch (slackError: any) {
+              results.slack.success = false;
+              results.slack.error = slackError.message || "Unknown error";
+              console.error("[Test Notification] Failed to send Slack notification:", {
+                error: slackError.message,
+                stack: slackError.stack,
+                hasBotToken: !!notificationSettings.slack_bot_token,
+                channelId: notificationSettings.slack_channel_id,
+              });
+            }
+          } else {
+            console.warn("[Test Notification] Slack notification skipped: No Slack settings configured");
+            results.slack.error = "No Slack bot token or channel ID configured";
+          }
 
     // 通知履歴をDBに保存（オプション）
     try {
@@ -237,7 +220,7 @@ export async function GET(request: NextRequest) {
           article_id: null,
           notification_type: "rank_drop",
           channel: "slack",
-          recipient: notificationSettings.slack_webhook_url || notificationSettings.slack_channel_id || "",
+          recipient: notificationSettings.slack_channel_id || "",
           subject: "【ReRank AI】[テスト] 順位下落を検知しました",
           summary: "[テスト通知] 順位下落が検知されました（テスト用のダミーデータ）",
           sent_at: new Date().toISOString(),

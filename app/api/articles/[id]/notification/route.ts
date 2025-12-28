@@ -74,7 +74,7 @@ export async function POST(
     // Slack連携の確認のため、is_enabledに関わらずSlack設定を取得する
     // getNotificationSettingsはis_enabled=trueのみを返すため、追加で確認が必要
     let slackSettings = defaultSettings;
-    if (!defaultSettings?.slack_bot_token && !defaultSettings?.slack_webhook_url) {
+    if (!defaultSettings?.slack_bot_token) {
       const { createSupabaseClient } = await import("@/lib/supabase");
       const supabase = createSupabaseClient();
       const { data: slackSettingsData, error: slackSettingsError } = await supabase
@@ -89,7 +89,7 @@ export async function POST(
       // single()ではなくlimit(1)を使用しているため、dataは配列
       if (slackSettingsData && slackSettingsData.length > 0) {
         const slackSetting = slackSettingsData[0];
-        if (slackSetting.slack_bot_token || slackSetting.slack_webhook_url) {
+        if (slackSetting.slack_bot_token) {
           slackSettings = slackSetting as any;
         }
       }
@@ -122,7 +122,7 @@ export async function POST(
     } else if (channel === 'slack') {
       // Slack設定の場合は、デフォルト設定からSlack情報を継承
       // slackSettingsを使用（is_enabledに関わらずSlack連携の有無を確認）
-      if (!slackSettings?.slack_bot_token && !slackSettings?.slack_webhook_url) {
+      if (!slackSettings?.slack_bot_token) {
         return NextResponse.json(
           { error: "Slack is not connected. Please connect Slack in notification settings first." },
           { status: 400 }
@@ -142,7 +142,6 @@ export async function POST(
           slack_team_id: slackSettings.slack_team_id,
           slack_channel_id: slackSettings.slack_channel_id,
           slack_notification_type: slackSettings.slack_notification_type,
-          slack_webhook_url: slackSettings.slack_webhook_url,
           // その他の設定もデフォルト設定または現在の設定から継承
           drop_threshold: currentSettings?.drop_threshold ?? (defaultSettings?.drop_threshold ?? slackSettings.drop_threshold),
           keyword_drop_threshold: currentSettings?.keyword_drop_threshold ?? (defaultSettings?.keyword_drop_threshold ?? slackSettings.keyword_drop_threshold),
