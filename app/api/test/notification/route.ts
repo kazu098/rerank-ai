@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getUserById } from "@/lib/db/users";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
-import { sendSlackNotification, sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
+import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
 import { createSupabaseClient } from "@/lib/supabase";
 
 /**
