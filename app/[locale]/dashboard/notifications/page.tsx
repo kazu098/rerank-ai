@@ -78,8 +78,10 @@ export default function NotificationsPage() {
           setSlackConnected(true);
           setSlackNotificationType((notificationData.slack_notification_type as 'channel' | 'dm') || 'dm');
           setSlackChannelId(notificationData.slack_channel_id || null);
-          // チャネル一覧を取得
-          fetchSlackChannels();
+          // チャネル一覧を取得（slackConnectedが設定された後に実行）
+          setTimeout(() => {
+            fetchSlackChannels();
+          }, 100);
         } else {
           setSlackConnected(false);
           setSlackNotificationType(null);
@@ -93,16 +95,22 @@ export default function NotificationsPage() {
   };
 
   const fetchSlackChannels = async () => {
-    if (!slackConnected) return;
     try {
       setLoadingChannels(true);
+      console.log("[Notifications] Fetching Slack channels...");
       const response = await fetch("/api/slack/channels");
+      console.log("[Notifications] Slack channels API response:", response.status, response.statusText);
       if (response.ok) {
         const data = await response.json();
+        console.log("[Notifications] Slack channels received:", data.channels?.length || 0, "channels");
         setSlackChannels(data.channels || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("[Notifications] Failed to fetch Slack channels:", response.status, errorData);
       }
     } catch (err: any) {
       console.error("[Notifications] Error fetching Slack channels:", err);
+      setSlackChannels([]);
     } finally {
       setLoadingChannels(false);
     }

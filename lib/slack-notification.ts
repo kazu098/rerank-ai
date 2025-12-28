@@ -26,7 +26,19 @@ export async function sendSlackNotification(
   webhookUrl: string,
   payload: SlackNotificationPayload
 ): Promise<void> {
+  console.log('[Slack Notification] sendSlackNotification called:', {
+    webhookUrl: webhookUrl.substring(0, 50) + '...',
+    hasText: !!payload.text,
+    blocksCount: payload.blocks?.length || 0,
+  });
+
   try {
+    console.log('[Slack Notification] Sending request to Slack Webhook:', {
+      url: webhookUrl.substring(0, 50) + '...',
+      textLength: payload.text?.length || 0,
+      blocksCount: payload.blocks?.length || 0,
+    });
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -35,12 +47,25 @@ export async function sendSlackNotification(
       body: JSON.stringify(payload),
     });
 
+    console.log('[Slack Notification] Slack Webhook response status:', response.status, response.statusText);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('[Slack Notification] Slack Webhook HTTP error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+      });
       throw new Error(`Failed to send Slack notification: ${response.status} ${errorText}`);
     }
+
+    console.log('[Slack Notification] Slack notification sent successfully via Webhook');
   } catch (error: any) {
-    console.error('[Slack Notification] Error sending notification:', error);
+    console.error('[Slack Notification] Error sending notification:', {
+      error: error.message,
+      stack: error.stack,
+      webhookUrl: webhookUrl.substring(0, 50) + '...',
+    });
     throw error;
   }
 }
@@ -56,32 +81,76 @@ export async function sendSlackNotificationWithBot(
   channelId: string,
   payload: SlackNotificationPayload
 ): Promise<void> {
+  console.log('[Slack Notification] sendSlackNotificationWithBot called:', {
+    channelId,
+    hasText: !!payload.text,
+    blocksCount: payload.blocks?.length || 0,
+    botTokenPrefix: botToken?.substring(0, 10) + '...',
+  });
+
   try {
+    const requestBody = {
+      channel: channelId,
+      text: payload.text, // フォールバックテキスト
+      blocks: payload.blocks,
+    };
+
+    console.log('[Slack Notification] Sending request to Slack API:', {
+      url: 'https://slack.com/api/chat.postMessage',
+      channel: channelId,
+      textLength: payload.text?.length || 0,
+      blocksCount: payload.blocks?.length || 0,
+    });
+
     const response = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${botToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        channel: channelId,
-        text: payload.text, // フォールバックテキスト
-        blocks: payload.blocks,
-      }),
+      body: JSON.stringify(requestBody),
     });
+
+    console.log('[Slack Notification] Slack API response status:', response.status, response.statusText);
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('[Slack Notification] Slack API HTTP error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+      });
       throw new Error(`Failed to send Slack notification: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
 
+    console.log('[Slack Notification] Slack API response:', {
+      ok: data.ok,
+      error: data.error,
+      ts: data.ts,
+      channel: data.channel,
+    });
+
     if (!data.ok) {
+      console.error('[Slack Notification] Slack API error:', {
+        error: data.error,
+        response: data,
+      });
       throw new Error(`Slack API error: ${data.error}`);
     }
+
+    console.log('[Slack Notification] Slack notification sent successfully:', {
+      channel: data.channel,
+      ts: data.ts,
+    });
   } catch (error: any) {
-    console.error('[Slack Notification] Error sending notification with bot:', error);
+    console.error('[Slack Notification] Error sending notification with bot:', {
+      error: error.message,
+      stack: error.stack,
+      channelId,
+      hasPayload: !!payload,
+    });
     throw error;
   }
 }

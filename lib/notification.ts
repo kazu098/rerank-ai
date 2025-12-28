@@ -378,6 +378,12 @@ export class NotificationService {
   async sendBulkNotification(options: BulkNotificationOptions): Promise<void> {
     const { to, items, locale = 'ja' } = options;
 
+    console.log("[Notification] sendBulkNotification called:", {
+      to,
+      itemsCount: items.length,
+      locale,
+    });
+
     if (items.length === 0) {
       console.warn("[Notification] No items to send, skipping bulk notification");
       return;
@@ -385,7 +391,7 @@ export class NotificationService {
 
     if (!process.env.RESEND_API_KEY) {
       console.warn("[Notification] RESEND_API_KEY is not set, skipping email notification");
-      return;
+      throw new Error("RESEND_API_KEY is not set");
     }
 
     // Resendインスタンスを遅延初期化
@@ -396,25 +402,49 @@ export class NotificationService {
       ? getMessage(locale, 'notification.email.subject')
       : getMessage(locale, 'notification.email.subjectMultiple', { count: items.length });
 
+    console.log("[Notification] Email subject generated:", emailSubject);
+
     // メール本文を生成
     const emailBody = this.formatBulkEmailBody(items, locale);
+    console.log("[Notification] Email body generated, length:", emailBody.length);
 
     try {
-      const { data, error } = await resend.emails.send({
+      const emailData = {
         from: process.env.RESEND_FROM_EMAIL || "ReRank AI <noreply@rerank.ai>",
         to: [to],
         subject: emailSubject,
         html: emailBody,
+      };
+
+      console.log("[Notification] Sending email via Resend:", {
+        from: emailData.from,
+        to: emailData.to,
+        subject: emailData.subject,
+        hasHtmlBody: !!emailData.html,
       });
 
+      const { data, error } = await resend.emails.send(emailData);
+
       if (error) {
-        console.error("[Notification] Failed to send bulk email:", error);
+        console.error("[Notification] Failed to send bulk email:", {
+          error: error.message,
+          errorCode: (error as any).code,
+          errorDetails: error,
+        });
         throw new Error(`Failed to send bulk email: ${error.message}`);
       }
 
-      console.log("[Notification] Bulk email sent successfully:", data);
+      console.log("[Notification] Bulk email sent successfully:", {
+        id: data?.id,
+        to,
+      });
     } catch (error: any) {
-      console.error("[Notification] Error sending bulk email:", error);
+      console.error("[Notification] Error sending bulk email:", {
+        error: error.message,
+        stack: error.stack,
+        to,
+        itemsCount: items.length,
+      });
       throw error;
     }
   }

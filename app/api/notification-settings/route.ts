@@ -86,13 +86,15 @@ export async function POST(request: NextRequest) {
     const { slackBotToken, slackUserId, slackTeamId, slackChannelId, slackNotificationType } = body;
     // slackBotTokenまたはslackUserIdが明示的に指定されている場合（null含む）に更新
     if (slackBotToken !== undefined || slackUserId !== undefined || slackTeamId !== undefined || slackChannelId !== undefined || slackNotificationType !== undefined) {
+      // 連携解除の場合（slackBotTokenがnull）はis_enabledをfalseに設定
+      const isDisconnecting = slackBotToken === null;
       await saveOrUpdateNotificationSettings(
         session.userId,
         {
           notification_type: 'rank_drop',
           channel: 'slack',
           recipient: slackUserId || slackChannelId || '',
-          is_enabled: slackBotToken !== null && !!slackBotToken, // nullの場合はfalse
+          is_enabled: isDisconnecting ? false : (slackBotToken !== null && !!slackBotToken), // 連携解除時はfalse
           slack_bot_token: slackBotToken !== undefined ? (slackBotToken || null) : undefined,
           slack_user_id: slackUserId !== undefined ? (slackUserId || null) : undefined,
           slack_team_id: slackTeamId !== undefined ? (slackTeamId || null) : undefined,
