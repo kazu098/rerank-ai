@@ -17,6 +17,7 @@ export interface SlackChannel {
  */
 export async function getSlackChannels(botToken: string): Promise<SlackChannel[]> {
   try {
+    console.log('[Slack Channels] Fetching channels from Slack API...');
     // conversations.listでパブリックチャネルとプライベートチャネルを取得
     const response = await fetch('https://slack.com/api/conversations.list', {
       method: 'POST',
@@ -31,13 +32,24 @@ export async function getSlackChannels(botToken: string): Promise<SlackChannel[]
       }),
     });
 
+    console.log('[Slack Channels] Slack API response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch channels: ${response.status}`);
+      const errorText = await response.text();
+      console.error('[Slack Channels] HTTP error:', response.status, errorText);
+      throw new Error(`Failed to fetch channels: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
 
+    console.log('[Slack Channels] Slack API response:', {
+      ok: data.ok,
+      error: data.error,
+      channelsCount: data.channels?.length || 0,
+    });
+
     if (!data.ok) {
+      console.error('[Slack Channels] Slack API error:', data.error);
       throw new Error(`Slack API error: ${data.error}`);
     }
 
