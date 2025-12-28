@@ -248,7 +248,7 @@ CREATE TABLE notification_settings (
   line_notify_token TEXT, -- 暗号化推奨
   
   -- 通知頻度
-  notification_frequency VARCHAR(50) DEFAULT 'immediate', -- 'immediate', 'daily', 'weekly'
+  notification_frequency VARCHAR(50) DEFAULT 'daily', -- 'daily', 'weekly'
   
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

@@ -18,59 +18,6 @@ export interface SlackNotificationPayload {
 }
 
 /**
- * Slack通知を送信（Webhook方式）
- * @param webhookUrl Slack Webhook URL
- * @param payload 通知内容
- */
-export async function sendSlackNotification(
-  webhookUrl: string,
-  payload: SlackNotificationPayload
-): Promise<void> {
-  console.log('[Slack Notification] sendSlackNotification called:', {
-    webhookUrl: webhookUrl.substring(0, 50) + '...',
-    hasText: !!payload.text,
-    blocksCount: payload.blocks?.length || 0,
-  });
-
-  try {
-    console.log('[Slack Notification] Sending request to Slack Webhook:', {
-      url: webhookUrl.substring(0, 50) + '...',
-      textLength: payload.text?.length || 0,
-      blocksCount: payload.blocks?.length || 0,
-    });
-
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    console.log('[Slack Notification] Slack Webhook response status:', response.status, response.statusText);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Slack Notification] Slack Webhook HTTP error:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorText,
-      });
-      throw new Error(`Failed to send Slack notification: ${response.status} ${errorText}`);
-    }
-
-    console.log('[Slack Notification] Slack notification sent successfully via Webhook');
-  } catch (error: any) {
-    console.error('[Slack Notification] Error sending notification:', {
-      error: error.message,
-      stack: error.stack,
-      webhookUrl: webhookUrl.substring(0, 50) + '...',
-    });
-    throw error;
-  }
-}
-
-/**
  * Slack通知を送信（OAuth方式 - Bot Token使用）
  * @param botToken Slack Bot Token
  * @param channelId チャンネルIDまたはUser ID（DM送信の場合）

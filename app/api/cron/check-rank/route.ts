@@ -6,8 +6,9 @@ import { getSitesByUserId, updateSiteTokens } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
-import { sendSlackNotification, sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
+import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
+import { getUserAlertSettings } from "@/lib/db/alert-settings";
 
 /**
  * Cronジョブ: 順位下落をチェックして通知を送信
@@ -212,7 +213,28 @@ export async function GET(request: NextRequest) {
         // ユーザーのロケール設定を取得（デフォルト: 'ja'）
         const locale = (user.locale || "ja") as "ja" | "en";
 
-        // 通知設定を取得（Slack Webhook URLを取得するため）
+        // ユーザーのアラート設定を取得（通知頻度を確認するため）
+        const userAlertSettings = await getUserAlertSettings(user.id);
+        const notificationFrequency = userAlertSettings.notification_frequency || 'daily';
+
+        // 通知頻度に応じて通知を送信するかどうかを判定
+        if (notificationFrequency === 'none') {
+          console.log(`[Cron] Skipping notification for user ${user.email}: notification_frequency is 'none'`);
+          continue;
+        }
+
+        if (notificationFrequency === 'weekly') {
+          // 週1回通知：月曜日に送信
+          const now = new Date();
+          const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+          if (dayOfWeek !== 1) {
+            console.log(`[Cron] Skipping notification for user ${user.email}: notification_frequency is 'weekly' but today is not Monday (dayOfWeek: ${dayOfWeek})`);
+            continue;
+          }
+        }
+
+
+        // 通知設定を取得（Slack通知を取得するため）
         const notificationSettings = await getNotificationSettings(user.id);
 
         // メール通知を送信
@@ -235,8 +257,8 @@ export async function GET(request: NextRequest) {
           throw emailError; // メール送信エラーは通知処理全体を失敗させる
         }
 
-        // Slack通知を送信
-        if (notificationSettings?.slack_webhook_url || notificationSettings?.slack_bot_token) {
+        // Slack通知を送信（OAuth方式のみ）
+        if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
           try {
             const slackPayload = formatSlackBulkNotification(
               items.map((item) => ({
@@ -251,48 +273,24 @@ export async function GET(request: NextRequest) {
               locale
             );
 
-            // OAuth方式（Bot Token）を使用
-            if (notificationSettings.slack_bot_token && notificationSettings.slack_channel_id) {
-              console.log(`[Cron] Sending Slack notification via OAuth to user ${user.email}...`, {
-                hasBotToken: !!notificationSettings.slack_bot_token,
-                channelId: notificationSettings.slack_channel_id,
-                notificationType: notificationSettings.slack_notification_type,
-              });
-              try {
-                await sendSlackNotificationWithBot(
-                  notificationSettings.slack_bot_token,
-                  notificationSettings.slack_channel_id,
-                  slackPayload
-                );
-                console.log(`[Cron] Slack notification sent via OAuth to user ${user.email}`);
-              } catch (slackOAuthError: any) {
-                console.error(`[Cron] Failed to send Slack notification via OAuth to user ${user.email}:`, {
-                  error: slackOAuthError.message,
-                  stack: slackOAuthError.stack,
-                  channelId: notificationSettings.slack_channel_id,
-                });
-                throw slackOAuthError; // エラーを再スローしてcatchブロックで処理
-              }
-            }
-            // Webhook方式（旧方式）を使用
-            else if (notificationSettings.slack_webhook_url) {
-              console.log(`[Cron] Sending Slack notification via Webhook to user ${user.email}...`, {
-                webhookUrl: notificationSettings.slack_webhook_url.substring(0, 50) + "...",
-              });
-              try {
-                await sendSlackNotification(notificationSettings.slack_webhook_url, slackPayload);
-                console.log(`[Cron] Slack notification sent via Webhook to user ${user.email}`);
-              } catch (slackWebhookError: any) {
-                console.error(`[Cron] Failed to send Slack notification via Webhook to user ${user.email}:`, {
-                  error: slackWebhookError.message,
-                  stack: slackWebhookError.stack,
-                  webhookUrl: notificationSettings.slack_webhook_url.substring(0, 50) + "...",
-                });
-                throw slackWebhookError; // エラーを再スローしてcatchブロックで処理
-              }
-            }
+            console.log(`[Cron] Sending Slack notification via OAuth to user ${user.email}...`, {
+              hasBotToken: !!notificationSettings.slack_bot_token,
+              channelId: notificationSettings.slack_channel_id,
+              notificationType: notificationSettings.slack_notification_type,
+            });
+
+            await sendSlackNotificationWithBot(
+              notificationSettings.slack_bot_token,
+              notificationSettings.slack_channel_id,
+              slackPayload
+            );
+            console.log(`[Cron] Slack notification sent via OAuth to user ${user.email}`);
           } catch (slackError: any) {
-            console.error(`[Cron] Failed to send Slack notification to user ${user.email}:`, slackError);
+            console.error(`[Cron] Failed to send Slack notification to user ${user.email}:`, {
+              error: slackError.message,
+              stack: slackError.stack,
+              channelId: notificationSettings.slack_channel_id,
+            });
             // Slack通知のエラーはメール通知の送信を妨げない
           }
         }
@@ -327,13 +325,13 @@ export async function GET(request: NextRequest) {
           }
 
           // Slack通知も送信された場合、Slack通知のレコードも作成
-          if (notificationSettings?.slack_webhook_url) {
+          if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
             const { error: slackNotificationError } = await supabase.from("notifications").insert({
               user_id: user.id,
               article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
               notification_type: "rank_drop",
               channel: "slack",
-              recipient: notificationSettings.slack_webhook_url, // Webhook URLを保存（実際のチャンネル名は取得できない）
+              recipient: notificationSettings.slack_channel_id, // チャンネルIDまたはUser IDを保存
               subject: items.length === 1
                 ? "【ReRank AI】順位下落を検知しました"
                 : `【ReRank AI】順位下落を検知しました（${items.length}件の記事）`,

@@ -2,7 +2,10 @@
   "common": {
     "loading": "Loading...",
     "error": "Error",
-    "logout": "Logout"
+    "logout": "Logout",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel"
   },
   "home": {
     "title": "ReRank AI",
@@ -177,6 +180,7 @@
       "sortByTitle": "Title",
       "titleUrl": "Title/URL",
       "averagePosition": "Average Position",
+      "averagePositionDescription": "Current average position. Shows the average ranking across multiple keywords over the past 7 days (can be changed in alert settings).",
       "previousPosition": "Previous Position",
       "positionChange": "Position Change",
       "lastAnalyzed": "Last Analyzed",
@@ -277,6 +281,37 @@
       "title": "Settings",
       "notificationSettings": "Notification Settings",
       "slackSettings": "Slack Notification Settings"
+    }
+  },
+  "alertSettings": {
+    "title": "Alert Settings",
+    "description": "Customize rank drop detection conditions",
+    "fetchFailed": "Failed to fetch settings",
+    "saveFailed": "Failed to save settings",
+    "saveSuccess": "Settings saved successfully",
+    "errorOccurred": "An error occurred",
+    "resetToDefault": "Reset to Default",
+    "dropConditions": {
+      "title": "Drop Detection Conditions",
+      "positionDropThreshold": "Average Position Drop Threshold",
+      "positionsAbove": "positions or more",
+      "positionDropThresholdDescription": "Notify when the average position drops by this value or more compared to the baseline",
+      "keywordDropThreshold": "Keyword Drop Threshold",
+      "positionsOrBelow": "positions or below",
+      "keywordDropThresholdDescription": "Notify when a specific keyword drops to this position or below"
+    },
+    "comparisonPeriod": {
+      "title": "Comparison Period",
+      "days": "Average position over the past",
+      "daysSuffix": "days",
+      "description": "Compare based on the average position over this period"
+    },
+    "notificationFrequency": {
+      "title": "Notification Frequency",
+      "daily": "Daily (notify only on drops)",
+      "weekly": "Weekly summary (if there are drops)",
+      "none": "Don't notify (check manually)",
+      "description": "Select the notification frequency. Since Search Console data is updated once per day, notifications are sent during daily checks when rank drops are detected"
     }
   }
 }
