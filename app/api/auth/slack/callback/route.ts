@@ -203,24 +203,52 @@ export async function GET(request: NextRequest) {
     }
 
     // ユーザーIDを取得（必要に応じて）
-    const slackUserId = await getSlackUserId(tokens.botToken);
+    console.log("[Slack OAuth] Getting Slack user ID...");
+    let slackUserId: string | null = null;
+    try {
+      slackUserId = await getSlackUserId(tokens.botToken);
+      console.log("[Slack OAuth] Slack user ID obtained:", slackUserId || "null");
+    } catch (userIdError: any) {
+      console.error("[Slack OAuth] Failed to get Slack user ID (continuing anyway):", {
+        error: userIdError.message,
+        stack: userIdError.stack,
+      });
+      // ユーザーID取得の失敗は通知設定保存を妨げない
+    }
 
     // 通知設定を保存（デフォルトはDM送信）
-    await saveOrUpdateNotificationSettings(
-      session.userId,
-      {
-        notification_type: 'rank_drop',
-        channel: 'slack',
-        recipient: tokens.userId || slackUserId || tokens.teamId,
-        is_enabled: true,
-        slack_bot_token: tokens.botToken,
-        slack_user_id: tokens.userId || slackUserId,
-        slack_team_id: tokens.teamId,
-        slack_channel_id: tokens.userId || slackUserId, // デフォルトはDM
-        slack_notification_type: 'dm', // デフォルトはDM
-      },
-      null // 記事固有の設定ではないためnull
-    );
+    console.log("[Slack OAuth] Saving notification settings...", {
+      userId: session.userId,
+      slackUserId: tokens.userId || slackUserId,
+      teamId: tokens.teamId,
+      hasBotToken: !!tokens.botToken,
+    });
+
+    try {
+      await saveOrUpdateNotificationSettings(
+        session.userId,
+        {
+          notification_type: 'rank_drop',
+          channel: 'slack',
+          recipient: tokens.userId || slackUserId || tokens.teamId,
+          is_enabled: true,
+          slack_bot_token: tokens.botToken,
+          slack_user_id: tokens.userId || slackUserId,
+          slack_team_id: tokens.teamId,
+          slack_channel_id: tokens.userId || slackUserId, // デフォルトはDM
+          slack_notification_type: 'dm', // デフォルトはDM
+        },
+        null // 記事固有の設定ではないためnull
+      );
+      console.log("[Slack OAuth] Notification settings saved successfully");
+    } catch (saveError: any) {
+      console.error("[Slack OAuth] Failed to save notification settings:", {
+        error: saveError.message,
+        stack: saveError.stack,
+        userId: session.userId,
+      });
+      throw saveError; // エラーを再スローしてcatchブロックで処理
+    }
 
     // 成功時のリダイレクト
     return new NextResponse(getRedirectHtml(true), {
@@ -230,11 +258,19 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("[Slack OAuth] Callback error:", error);
+    console.error("[Slack OAuth] Callback error:", {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      details: (error as any).details,
+    });
     // エラー時もロケールを取得を試みる
     const session = await auth().catch(() => null);
     const locale = await getLocale(request, session?.userId as string | undefined).catch(() => routing.defaultLocale);
-    const errorRedirectUrl = new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url);
+    const errorMessage = error.message || "Unknown error";
+    const errorRedirectUrl = new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(errorMessage)}`, request.url);
+    console.error("[Slack OAuth] Redirecting to error URL:", errorRedirectUrl.toString());
     return new NextResponse(
       `<!DOCTYPE html>
 <html>
