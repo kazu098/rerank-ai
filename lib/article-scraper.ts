@@ -163,7 +163,7 @@ export class ArticleScraper {
       "";
 
     // 構造化データ（JSON-LD）をチェック（スクリプトタグから抽出するため、除去前に実行）
-    const hasStructuredData = this.checkStructuredData($, html);
+    const hasStructuredData = this.checkStructuredData(html);
 
     // 不要な要素を除去（スクリプトタグは除去するが、構造化データのチェックは既に完了）
     $("script, style, nav, header, footer, aside, .ad, .ads, .advertisement, .sidebar, .menu, .navigation").remove();
@@ -234,15 +234,9 @@ export class ArticleScraper {
    * 構造化データ（JSON-LD）の有無をチェック
    * パフォーマンスを考慮して、scriptタグ内のtype="application/ld+json"を検出するだけの軽量実装
    */
-  private checkStructuredData($: cheerio.CheerioAPI, html: string): boolean {
+  private checkStructuredData(html: string): boolean {
     try {
-      // scriptタグ内のtype="application/ld+json"を検索
-      const jsonLdScripts = $('script[type="application/ld+json"]');
-      if (jsonLdScripts.length > 0) {
-        return true;
-      }
-
-      // 正規表現でも検索（より高速）
+      // 正規表現で検索（パフォーマンス優先、軽量実装）
       const jsonLdPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>/i;
       return jsonLdPattern.test(html);
     } catch (error) {
