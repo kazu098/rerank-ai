@@ -7,10 +7,75 @@
     "saving": "保存中...",
     "cancel": "キャンセル"
   },
+  "navigation": {
+    "features": "機能",
+    "howItWorks": "使い方",
+    "getStarted": "無料で始める"
+  },
+  "footer": {
+    "service": {
+      "title": "サービス",
+      "features": "機能一覧",
+      "howItWorks": "使い方",
+      "pricing": "料金"
+    },
+    "resources": {
+      "title": "リソース",
+      "blog": "ブログ",
+      "documentation": "ドキュメント",
+      "faq": "よくある質問"
+    },
+    "company": {
+      "title": "会社情報",
+      "contact": "お問い合わせ",
+      "privacyPolicy": "プライバシーポリシー",
+      "termsOfService": "利用規約"
+    },
+    "social": {
+      "title": "ソーシャル",
+      "twitter": "Twitter/X"
+    },
+    "allRightsReserved": "All rights reserved."
+  },
   "home": {
     "title": "ReRank AI",
     "subtitle": "「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。",
     "loginWithGoogle": "Googleでログインして始める",
+    "heroTitle": "SEO順位を自動で改善",
+    "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します",
+    "ctaButton": "Googleアカウントで無料開始",
+    "demoVideoTitle": "ReRank AI デモ動画",
+    "videoNotSupported": "お使いのブラウザは動画の再生をサポートしていません。",
+    "features": {
+      "title": "主な機能",
+      "feature1": {
+        "title": "自動順位監視",
+        "description": "毎日自動で順位をチェックし、下落を検知したら即座に通知します"
+      },
+      "feature2": {
+        "title": "競合分析",
+        "description": "上位表示されている競合サイトを自動で分析し、不足している内容を特定します"
+      },
+      "feature3": {
+        "title": "AI改善提案",
+        "description": "Gemini AIが自社記事と競合記事を比較し、具体的な改善案を提案します"
+      }
+    },
+    "howItWorks": {
+      "title": "使い方",
+      "step1": {
+        "title": "Google Search Consoleと連携",
+        "description": "Googleアカウントでログインし、Search Consoleプロパティを選択します"
+      },
+      "step2": {
+        "title": "記事を選択",
+        "description": "分析したい記事のURLを選択または入力します"
+      },
+      "step3": {
+        "title": "AIが自動で分析",
+        "description": "AIが順位データを分析し、競合との差分から改善案を提案します"
+      }
+    },
     "selectProperty": "Search Consoleプロパティを選択",
     "selectPropertyDescription": "分析したいサイトのSearch Consoleプロパティを選択してください。",
     "analyzeArticle": "記事を分析する",
@@ -76,6 +141,7 @@
     "notificationEmailPlaceholder": "example@email.com"
   },
   "analysis": {
+    "progress": "分析の進行状況",
     "step1": "記事の検索順位データを取得中...",
     "step2": "順位が下がっているキーワードを特定中...",
     "step3": "重要なキーワードを選定中...",
@@ -95,7 +161,7 @@
   "results": {
     "topRankingKeywords": "✅ 順位を維持できているキーワード",
     "topRankingDescription": "以下のキーワードでは上位を保てています。この調子で維持していきましょう。",
-    "rankUpBooster": "🚀 ランクアップ・ブースター案",
+    "rankUpBooster": "✨ 改善提案",
     "keywordsAnalyzed": "{count}個のキーワードを分析",
     "keywordSpecificAnalysis": "🔑 キーワード固有の分析",
     "keyword": "キーワード",
@@ -268,6 +334,10 @@
       "slackDisconnected": "Slack連携を解除しました",
       "selectChannel": "チャネルを選択",
       "selectChannelPlaceholder": "チャネルを選択してください",
+      "slackConnectionRequired": "を先に完了してください",
+      "slackConnectionRequiredForNotification": "Slack通知を有効にするには、先にSlack連携を完了する必要があります。連携画面に移動しますか？",
+      "emailAddressRequired": "メールアドレスを入力してください",
+      "notificationRequired": "メール通知またはSlack通知のいずれかを選択してください",
       "greetingTitle": "👋 ReRank AIと連携しました！",
       "greetingMessage": "ReRank AIと連携しました。\n\nこれから、記事の順位下落を検知した際に、このチャネル（またはDM）に通知をお送りします。\n\n通知設定の変更や詳細は、ダッシュボードから行えます。",
       "webhookMethod": "Webhook方式",

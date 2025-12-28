@@ -7,10 +7,75 @@
     "saving": "Saving...",
     "cancel": "Cancel"
   },
+  "navigation": {
+    "features": "Features",
+    "howItWorks": "How It Works",
+    "getStarted": "Get Started"
+  },
+  "footer": {
+    "service": {
+      "title": "Service",
+      "features": "Features",
+      "howItWorks": "How It Works",
+      "pricing": "Pricing"
+    },
+    "resources": {
+      "title": "Resources",
+      "blog": "Blog",
+      "documentation": "Documentation",
+      "faq": "FAQ"
+    },
+    "company": {
+      "title": "Company",
+      "contact": "Contact",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    },
+    "social": {
+      "title": "Social",
+      "twitter": "Twitter/X"
+    },
+    "allRightsReserved": "All rights reserved."
+  },
   "home": {
     "title": "ReRank AI",
     "subtitle": "From preventing ranking drops to boosting rankings, AI automatically identifies differences.",
     "loginWithGoogle": "Sign in with Google to get started",
+    "heroTitle": "Automatically Improve SEO Rankings",
+    "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements",
+    "ctaButton": "Get Started Free with Google Account",
+    "demoVideoTitle": "ReRank AI Demo Video",
+    "videoNotSupported": "Your browser does not support video playback.",
+    "features": {
+      "title": "Key Features",
+      "feature1": {
+        "title": "Automatic Rank Monitoring",
+        "description": "Automatically checks rankings daily and immediately notifies you when drops are detected"
+      },
+      "feature2": {
+        "title": "Competitor Analysis",
+        "description": "Automatically analyzes top-ranking competitor sites and identifies missing content"
+      },
+      "feature3": {
+        "title": "AI Improvement Suggestions",
+        "description": "Gemini AI compares your articles with competitor articles and proposes specific improvements"
+      }
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "step1": {
+        "title": "Connect with Google Search Console",
+        "description": "Sign in with your Google account and select a Search Console property"
+      },
+      "step2": {
+        "title": "Select an Article",
+        "description": "Select or enter the URL of the article you want to analyze"
+      },
+      "step3": {
+        "title": "AI Automatically Analyzes",
+        "description": "AI analyzes ranking data and proposes improvements based on differences with competitors"
+      }
+    },
     "selectProperty": "Select Search Console Property",
     "selectPropertyDescription": "Please select the Search Console property of the site you want to analyze.",
     "analyzeArticle": "Analyze Article",
@@ -76,6 +141,7 @@
     "notificationEmailPlaceholder": "example@email.com"
   },
   "analysis": {
+    "progress": "Analysis Progress",
     "step1": "Retrieving article search ranking data...",
     "step2": "Identifying keywords with dropped rankings...",
     "step3": "Selecting important keywords...",
@@ -95,7 +161,7 @@
   "results": {
     "topRankingKeywords": "✅ Keywords Maintaining Rankings",
     "topRankingDescription": "The following keywords are maintaining top positions. Let's keep this up.",
-    "rankUpBooster": "🚀 Rank Up Booster Plan",
+    "rankUpBooster": "✨ Improvement Suggestions",
     "keywordsAnalyzed": "{count} keywords analyzed",
     "keywordSpecificAnalysis": "🔑 Keyword-Specific Analysis",
     "keyword": "Keyword",
@@ -266,6 +332,10 @@
       "slackDisconnected": "Slack connection disconnected",
       "selectChannel": "Select Channel",
       "selectChannelPlaceholder": "Please select a channel",
+      "slackConnectionRequired": "first",
+      "slackConnectionRequiredForNotification": "To enable Slack notifications, you need to complete Slack connection first. Do you want to go to the connection page?",
+      "emailAddressRequired": "Please enter your email address",
+      "notificationRequired": "Please select either email notification or Slack notification",
       "greetingTitle": "👋 Connected to ReRank AI!",
       "greetingMessage": "Connected to ReRank AI.\n\nFrom now on, we will send notifications to this channel (or DM) when we detect rank drops for your articles.\n\nYou can change notification settings or view details from the dashboard.",
       "webhookMethod": "Webhook Method",

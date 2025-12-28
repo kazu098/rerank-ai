@@ -3,11 +3,82 @@
 import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
-import { useRouter } from "@/src/i18n/routing";
+import { useRouter, usePathname } from "@/src/i18n/routing";
 import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // 分析モードは統一（タブを削除）
+
+// 言語切り替えコンポーネント
+function LanguageSwitcher({ locale, router, pathname }: { locale: string; router: any; pathname: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const languages = [
+    { code: 'ja', label: '日本語', nativeLabel: '日本語' },
+    { code: 'en', label: 'English', nativeLabel: 'English' },
+  ];
+
+  const currentLanguage = languages.find(lang => lang.code === locale) || languages[0];
+
+  const handleLanguageChange = (newLocale: string) => {
+    // パスは常に /[locale]/... の形式なので、先頭のロケールを置き換える
+    const currentPath = pathname.replace(`/${locale}`, '') || '/';
+    const newPath = `/${newLocale}${currentPath === '/' ? '' : currentPath}`;
+    
+    // クエリパラメータとハッシュも保持してリダイレクト
+    const queryString = window.location.search;
+    const hash = window.location.hash;
+    window.location.href = newPath + queryString + hash;
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{currentLanguage.code.toUpperCase()}</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 min-w-[160px] z-20">
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => handleLanguageChange(lang.code)}
+                className="w-full px-4 py-2 text-left hover:bg-gray-700 transition-colors flex items-center justify-between text-sm"
+              >
+                <div>
+                  <span className="text-gray-400 text-xs">{lang.code.toUpperCase()}</span>
+                  <span className="text-white ml-2">{lang.nativeLabel}</span>
+                </div>
+                {locale === lang.code && (
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// 順位をフォーマット（整数の場合は整数表示、小数がある場合は少数第2位まで）
+function formatPosition(position: number | string): string {
+  if (typeof position !== 'number') return String(position);
+  return Number.isInteger(position) ? position.toFixed(0) : position.toFixed(2);
+}
 
 // キーワードの推移グラフコンポーネント
 function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[] }) {
@@ -98,7 +169,7 @@ function KeywordTimeSeriesChart({ keywordTimeSeries }: { keywordTimeSeries: any[
               tick={{ fontSize: 12 }}
               label={{ value: t("rank"), angle: -90, position: "insideLeft" }}
             />
-            <Tooltip />
+            <Tooltip formatter={(value: any) => typeof value === 'number' ? (Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)) : value} />
             <Legend />
             <Line
               type="monotone"
@@ -182,6 +253,7 @@ export default function Home() {
   const t = useTranslations();
   const locale = useLocale();
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -189,8 +261,8 @@ export default function Home() {
   const [articleUrl, setArticleUrl] = useState("");
   const [notificationEmail, setNotificationEmail] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
-  const [processLog, setProcessLog] = useState<string[]>([]);
-  const [displayedLogIndex, setDisplayedLogIndex] = useState(0);
+  const [currentStep, setCurrentStep] = useState<number>(0); // 0 = not started, 1-7 = step number
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [maxKeywords, setMaxKeywords] = useState(3);
   const [maxCompetitorsPerKeyword, setMaxCompetitorsPerKeyword] = useState(3);
   
@@ -215,16 +287,10 @@ export default function Home() {
   const [monitoringEmail, setMonitoringEmail] = useState("");
   const [monitoringTime, setMonitoringTime] = useState("09:00");
   const [savingMonitoring, setSavingMonitoring] = useState(false);
+  const [slackConnected, setSlackConnected] = useState(false);
+  const [enableEmailNotification, setEnableEmailNotification] = useState(true);
+  const [enableSlackNotification, setEnableSlackNotification] = useState(false);
 
-  // プロセスログを1項目ずつ順番に表示（ポーリング方式）
-  useEffect(() => {
-    if (processLog.length > 0 && displayedLogIndex < processLog.length && loading) {
-      const timer = setTimeout(() => {
-        setDisplayedLogIndex(displayedLogIndex + 1);
-      }, 3000); // 3秒ごとに次のログを表示
-      return () => clearTimeout(timer);
-    }
-  }, [processLog, displayedLogIndex, loading]);
 
   const loadGSCProperties = async () => {
     if (propertiesLoaded) return; // 既に読み込み済みの場合はスキップ
@@ -244,7 +310,7 @@ export default function Home() {
         const error = await response.json();
         // トークン期限切れの場合は即座にログイン画面に遷移
         if (error.code === "TOKEN_EXPIRED" || response.status === 401) {
-          signOut({ callbackUrl: "/" });
+            signOut({ callbackUrl: "/" });
           return;
         } else {
           setError(error.error || t("errors.propertyLoadFailed"));
@@ -374,10 +440,24 @@ export default function Home() {
     setShowArticleSelection(false);
   };
 
+  // Slack連携状態を取得
+  const fetchSlackConnectionStatus = async () => {
+    try {
+      const response = await fetch("/api/notification-settings");
+      if (response.ok) {
+        const data = await response.json();
+        setSlackConnected(!!data?.slack_bot_token);
+      }
+    } catch (err) {
+      console.error("[Monitoring] Error fetching Slack status:", err);
+    }
+  };
+
   // GSCプロパティ一覧を取得
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
       loadGSCProperties();
+      fetchSlackConnectionStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session?.accessToken, selectedSiteUrl]);
@@ -428,21 +508,10 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setData(null);
-    setProcessLog([]);
-    setDisplayedLogIndex(0);
+    setCurrentStep(0);
+    setCompletedSteps(new Set());
     
     const analysisStartTime = Date.now();
-
-    // プロセスログの定義（一般ユーザー向けのわかりやすい文言）
-    const logMessages = [
-      t("analysis.step1"),
-      t("analysis.step2"),
-      t("analysis.step3"),
-      t("analysis.step4"),
-      t("analysis.step5"),
-      t("analysis.step6"),
-      t("analysis.step7"),
-    ];
 
     if (!selectedSiteUrl) {
       setError(t("errors.propertyNotSelected"));
@@ -455,16 +524,11 @@ export default function Home() {
       // GSCプロパティとして選択されたsiteUrlを使用
       const siteUrl = selectedSiteUrl.replace(/\/$/, ""); // 末尾のスラッシュを削除
       const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
-
-      // プロセスログを順番に追加（ポーリングで表示される）
-      for (let i = 0; i < logMessages.length; i++) {
-        setProcessLog((prev) => [...prev, logMessages[i]]);
-      }
       
       // 分析実行（段階的に実行）
       
-      // Step 1: GSCデータ取得 + キーワード選定
-      setProcessLog((prev) => [...prev, t("analysis.step1")]);
+      // Step 1: 記事の検索順位データを取得中
+      setCurrentStep(1);
       const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
           headers: {
@@ -490,10 +554,11 @@ export default function Home() {
         uniqueCompetitorUrls: [],
       };
       setData(currentAnalysisResult);
-      setProcessLog((prev) => [...prev, t("analysis.step1Complete")]);
+      // Step 1-3が完了（GSCデータ取得、キーワード特定、キーワード選定）
+      setCompletedSteps(prev => new Set([1, 2, 3]));
+      setCurrentStep(4); // Step 4: 競合サイトのURLを収集中
 
       // Step 2: 競合URL抽出
-      setProcessLog((prev) => [...prev, t("analysis.step4")]);
       const step2Response = await fetch("/api/competitors/analyze-step2", {
         method: "POST",
         headers: {
@@ -553,12 +618,13 @@ export default function Home() {
         };
         setData(currentAnalysisResult);
       }
-      setProcessLog((prev) => [...prev, t("analysis.step2Complete")]);
+      setCompletedSteps(prev => new Set(prev).add(4));
+      setCurrentStep(5); // Step 5: 競合記事の内容を読み込み中
 
       // Step 3: 記事スクレイピング + LLM分析
       if (step2Result.uniqueCompetitorUrls.length > 0) {
-        setProcessLog((prev) => [...prev, t("analysis.step5")]);
-        setProcessLog((prev) => [...prev, t("analysis.step6")]);
+        setCompletedSteps(prev => new Set(prev).add(5));
+        setCurrentStep(6); // Step 6: AIが記事の差分を分析中
         
         const step3Response = await fetch("/api/competitors/analyze-step3", {
           method: "POST",
@@ -579,7 +645,8 @@ export default function Home() {
           const errorData = await step3Response.json();
           // Step 3が失敗しても、Step 1とStep 2の結果は表示
           console.error("Step 3 failed:", errorData);
-          setProcessLog((prev) => [...prev, t("errors.step3Error", { error: errorData.error || t("errors.analysisFailed") })]);
+          setCompletedSteps(prev => new Set([...Array.from(prev), 5, 6, 7]));
+          setCurrentStep(0); // 完了（エラーでも完了としてマーク）
         } else {
           const step3Result = await step3Response.json();
           // Step 3の結果を更新
@@ -588,10 +655,14 @@ export default function Home() {
             ...step3Result,
           };
           setData(currentAnalysisResult);
-          setProcessLog((prev) => [...prev, t("analysis.step3Complete")]);
+          // Step 6-7が完了（AI分析、改善提案生成）
+          setCompletedSteps(prev => new Set([...Array.from(prev), 6, 7]));
+          setCurrentStep(0); // 完了
         }
       } else {
-        setProcessLog((prev) => [...prev, t("errors.step3Skipped")]);
+        // Step 3がスキップされた場合も、すべてのステップを完了としてマーク
+        setCompletedSteps(prev => new Set([...Array.from(prev), 5, 6, 7]));
+        setCurrentStep(0); // 完了
       }
 
       // 分析結果をDBに保存
@@ -614,24 +685,22 @@ export default function Home() {
           if (saveResponse.ok) {
             const saveResult = await saveResponse.json();
             console.log("[Analysis] Saved to database:", saveResult);
-            setProcessLog((prev) => [...prev, t("analysis.savedToDatabase") || "分析結果をデータベースに保存しました"]);
           } else {
             const errorData = await saveResponse.json();
             console.error("[Analysis] Failed to save to database:", errorData);
             // DB保存の失敗は警告のみ（分析結果は表示される）
-            setProcessLog((prev) => [...prev, t("analysis.saveFailed") || "分析結果の保存に失敗しました（表示は可能です）"]);
           }
         } catch (saveError: any) {
           console.error("[Analysis] Error saving to database:", saveError);
           // DB保存のエラーは警告のみ（分析結果は表示される）
-          setProcessLog((prev) => [...prev, t("analysis.saveError") || "分析結果の保存中にエラーが発生しました（表示は可能です）"]);
         }
       }
 
-      setProcessLog((prev) => [...prev, t("analysis.analysisComplete")]);
+      // 分析完了
     } catch (err: any) {
       setError(err.message);
-      setProcessLog((prev) => [...prev, t("analysis.error", { error: err.message })]);
+      setCurrentStep(0);
+      setCompletedSteps(new Set());
     } finally {
       setLoading(false);
     }
@@ -681,82 +750,83 @@ export default function Home() {
 
   if (status === "unauthenticated") {
     return (
-      <div className="min-h-screen p-8 bg-gradient-to-br from-purple-50 to-blue-50">
-        <div className="max-w-4xl mx-auto">
-          <header className="text-center mb-12">
-            <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-              {t("home.title")} <span className="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP</span>
-            </h1>
-            <p className="text-gray-600 italic mb-8">
-              {t("home.subtitle")}
-            </p>
-          </header>
-          
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {t("auth.title")}
-              </h2>
-              <p className="text-gray-600 mb-6">
-                {t("auth.description")}
+      <div className="min-h-screen bg-white">
+        {/* ナビゲーションヘッダー */}
+        <nav className="border-b border-gray-200 bg-white sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center">
+                <Link href={`/${locale}`} className="text-2xl font-bold text-gray-900">
+                  ReRank AI
+                </Link>
+            </div>
+              <div className="hidden md:flex items-center space-x-8">
+                <a href="#features" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+                  {t("navigation.features")}
+                </a>
+                <a href="#how-it-works" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+                  {t("navigation.howItWorks")}
+                </a>
+                <button
+                  onClick={() => {
+                    const sessionAny = session as any;
+                    if (sessionAny?.user?.email) {
+                      localStorage.setItem('lastEmail', sessionAny.user.email);
+                    }
+                    signIn("google", { callbackUrl: `/${locale}` });
+                  }}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                >
+                  {t("navigation.getStarted")}
+                </button>
+                </div>
+              <div className="md:hidden">
+                <button
+                  onClick={() => {
+                    const sessionAny = session as any;
+                    if (sessionAny?.user?.email) {
+                      localStorage.setItem('lastEmail', sessionAny.user.email);
+                    }
+                    signIn("google", { callbackUrl: `/${locale}` });
+                  }}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm font-medium"
+                >
+                  {t("navigation.getStarted")}
+                </button>
+                </div>
+              </div>
+            </div>
+        </nav>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* ヒーローセクション - 分析開始UI */}
+          <section className="py-12 md:py-16">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
+                {t("home.heroTitle")}
+              </h1>
+              <p className="text-base md:text-lg text-gray-600 mb-6 whitespace-nowrap">
+                {t("home.heroSubtitle")}
               </p>
-            </div>
+                  </div>
 
-            {/* 重要な注意事項 */}
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-semibold text-blue-800 mb-2">
-                    {t("auth.accountInfo")}
-                  </h3>
-                  <p className="text-sm text-blue-700">
-                    <strong>{t("auth.accountInfoDescription")}</strong>
-                    <br />
-                    {t("auth.accountInfoNote")}
-                  </p>
-                </div>
+            {/* 簡単な説明 */}
+            <div className="max-w-2xl mx-auto mb-6">
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                <p className="text-xs text-blue-700 whitespace-nowrap">
+                  <strong>{t("auth.accountInfoDescription")}</strong>
+                </p>
               </div>
             </div>
 
-            {/* 連携の流れ */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("auth.flow")}</h3>
-              <div className="space-y-3">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                    1
-                  </div>
-                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step1")}</p>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                    2
-                  </div>
-                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step2")}</p>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                    3
-                  </div>
-                  <p className="text-sm text-gray-600 pt-0.5">{t("auth.step3")}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center">
+            {/* CTAボタン */}
+            <div className="text-center mb-8">
               <button
                 onClick={() => {
-                  // GSC連携時にメールアドレスをlocalStorageに保存
                   const sessionAny = session as any;
                   if (sessionAny?.user?.email) {
                     localStorage.setItem('lastEmail', sessionAny.user.email);
                   }
-                  // 元のページに戻る（分析画面を継続）
                   signIn("google", { callbackUrl: `/${locale}` });
                 }}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg font-bold text-lg inline-flex items-center"
@@ -767,25 +837,239 @@ export default function Home() {
                   <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                {t("home.loginWithGoogle")}
+                {t("home.ctaButton")}
               </button>
             </div>
-          </div>
 
-          {/* 補足情報 */}
-          <div className="bg-gray-50 rounded-lg p-6 text-sm text-gray-600">
-              <p className="mb-2">
-                <strong>{t("auth.noAccessRightsTitle")}</strong>
-              </p>
-              <p>
-                {t("auth.noAccessRightsDescription")}
-                <br />
-                <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                  {t("gsc.openSearchConsole")} →
-                </a>
-              </p>
+            {/* デモ動画 */}
+            <div className="max-w-4xl mx-auto">
+              <div className="relative aspect-video rounded-lg overflow-hidden shadow-xl border border-gray-200 bg-gray-100">
+                <video
+                  className="w-full h-full object-contain"
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  preload="auto"
+                >
+                  <source src="/videos/demo.mp4" type="video/mp4" />
+                  {t("home.videoNotSupported")}
+                </video>
+          </div>
+            </div>
+          </section>
+
+          {/* 機能紹介セクション */}
+          <section id="features" className="py-20 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-20">
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+                {t("home.features.title")}
+              </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* 機能1 */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                  {t("home.features.feature1.title")}
+                </h3>
+                <p className="text-gray-600 text-center">
+                  {t("home.features.feature1.description")}
+                </p>
+              </div>
+
+              {/* 機能2 */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                  {t("home.features.feature2.title")}
+                </h3>
+                <p className="text-gray-600 text-center">
+                  {t("home.features.feature2.description")}
+                </p>
+              </div>
+
+              {/* 機能3 */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                  {t("home.features.feature3.title")}
+                </h3>
+                <p className="text-gray-600 text-center">
+                  {t("home.features.feature3.description")}
+                </p>
+              </div>
+            </div>
+          </div>
+          </section>
+
+          {/* 使い方セクション */}
+          <section id="how-it-works" className="py-20 mb-20">
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+                {t("home.howItWorks.title")}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {/* Step 1 */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-purple-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-6 mx-auto">
+                  1
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  {t("home.howItWorks.step1.title")}
+                </h3>
+                <p className="text-gray-600">
+                  {t("home.howItWorks.step1.description")}
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-blue-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-6 mx-auto">
+                  2
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  {t("home.howItWorks.step2.title")}
+                </h3>
+                <p className="text-gray-600">
+                  {t("home.howItWorks.step2.description")}
+                </p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-indigo-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-6 mx-auto">
+                  3
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  {t("home.howItWorks.step3.title")}
+                </h3>
+                <p className="text-gray-600">
+                  {t("home.howItWorks.step3.description")}
+                </p>
+              </div>
+            </div>
+          </div>
+          </section>
+        </div>
+
+        {/* フッター */}
+        <footer className="bg-gray-900 text-gray-400 mt-20 w-full pt-12 pb-8 rounded-t-3xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+                {/* サービス */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.service.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#features" className="text-sm hover:text-white transition-colors">
+                        {t("footer.service.features")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#how-it-works" className="text-sm hover:text-white transition-colors">
+                        {t("footer.service.howItWorks")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.service.pricing")}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* リソース */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.resources.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.resources.blog")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.resources.documentation")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.resources.faq")}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* 会社情報 */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.company.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.company.contact")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.company.privacyPolicy")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.company.termsOfService")}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* ソーシャル */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.social.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#" target="_blank" rel="noopener noreferrer" className="text-sm hover:text-white transition-colors flex items-center">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                        {t("footer.social.twitter")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" target="_blank" rel="noopener noreferrer" className="text-sm hover:text-white transition-colors flex items-center">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                          <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd"/>
+                        </svg>
+                        GitHub
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+            {/* コピーライトと言語切り替え */}
+            <div className="mt-12 pt-8 border-t border-gray-800">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-sm text-gray-500 text-center md:text-left">
+                  &copy; {new Date().getFullYear()} ReRank AI. {t("footer.allRightsReserved")}
+                </p>
+                {/* 言語切り替え */}
+                <LanguageSwitcher locale={locale} router={router} pathname={pathname} />
           </div>
         </div>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -1020,7 +1304,7 @@ export default function Home() {
                                   <span>{t("article.impressions")}: {article.impressions.toLocaleString()}</span>
                                   <span>{t("article.clicks")}: {article.clicks.toLocaleString()}</span>
                                   {article.position && (
-                                    <span>{t("article.avgPosition")}: {article.position.toFixed(1)}{t("results.rankSuffix")}</span>
+                                    <span>{t("article.avgPosition")}: {formatPosition(article.position)}{t("results.rankSuffix")}</span>
                                   )}
                                 </div>
                               </div>
@@ -1195,21 +1479,46 @@ export default function Home() {
         </div>
         )}
 
-        {/* プロセスログ */}
-        {processLog.length > 0 && (
-          <div className="bg-white p-6 rounded-xl border mb-8 text-sm text-gray-600 space-y-2">
-            {processLog.slice(0, displayedLogIndex + 1).map((log, index) => (
-              <p key={index} className="flex items-center animate-fade-in">
-                {log.startsWith("✓") ? (
-                  <span className="text-green-600 font-bold mr-2">✓</span>
-                ) : log.startsWith("✗") ? (
-                  <span className="text-red-600 font-bold mr-2">✗</span>
-                ) : (
-                  <span className="mr-2 text-purple-600">●</span>
-                )}
-                {log.replace(/^[✓✗●]\s*/, "")}
-              </p>
-            ))}
+        {/* ステップインジケーター */}
+        {loading && (
+          <div className="bg-white p-6 rounded-xl border mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t("analysis.progress")}</h3>
+            <div className="space-y-4">
+              {[
+                { step: 1, key: "step1", label: t("analysis.step1") },
+                { step: 2, key: "step2", label: t("analysis.step2") },
+                { step: 3, key: "step3", label: t("analysis.step3") },
+                { step: 4, key: "step4", label: t("analysis.step4") },
+                { step: 5, key: "step5", label: t("analysis.step5") },
+                { step: 6, key: "step6", label: t("analysis.step6") },
+                { step: 7, key: "step7", label: t("analysis.step7") },
+              ].map(({ step, key, label }) => {
+                const isActive = currentStep === step;
+                const isCompleted = completedSteps.has(step);
+                const isPending = currentStep < step;
+                
+                return (
+                  <div key={key} className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full border-2 transition-colors">
+                      {isCompleted ? (
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : isActive ? (
+                        <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm ${isActive ? 'text-purple-600 font-semibold' : isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
+                        {label}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -1221,12 +1530,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* 結果表示エリア */}
+        {/* 結果表示エリア - 2列レイアウト */}
         {data && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 左列: 検索順位データ・キーワード分析 */}
           <div className="space-y-6">
             {/* 上位を保てているキーワード（安心させる） */}
             {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h3 className="font-bold text-lg mb-3 text-green-800">
                   {t("results.topRankingKeywords")}
                 </h3>
@@ -1239,7 +1550,7 @@ export default function Home() {
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-sm">{kw.keyword}</span>
                         <span className="text-xs text-green-600 font-bold">
-                          {kw.position}{t("results.rankSuffix")}
+                            {typeof kw.position === 'number' ? formatPosition(kw.position) : kw.position}{t("results.rankSuffix")}
                         </span>
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
@@ -1256,7 +1567,10 @@ export default function Home() {
             {data.keywordTimeSeries && data.keywordTimeSeries.length > 0 && (
               <KeywordTimeSeriesChart keywordTimeSeries={data.keywordTimeSeries} />
             )}
+            </div>
 
+            {/* 右列: 競合URL・改善案 */}
+            <div className="space-y-6">
             {/* サマリーカード */}
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-purple-500">
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex items-center justify-between shadow-inner">
@@ -1359,58 +1673,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* キーワードごとの競合URL */}
-                {data.competitorResults && data.competitorResults.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-blue-500 pl-3">
-                      {t("results.competitorUrlsPerKeyword")}
-                    </h3>
-                    <div className="space-y-4">
-                      {data.competitorResults.map((result: any, index: number) => (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                          <div className="mb-3">
-                            <p className="font-semibold text-sm mb-1">{t("results.keyword")}: {result.keyword}</p>
-                            <div className="text-xs text-gray-600">
-                              <span>{t("results.ownUrlRank")}: {result.ownPosition ? `${result.ownPosition}${t("results.rankSuffix")}` : t("results.unknown")}</span>
-                              <span className="ml-4">{t("results.competitorUrlCount")}: {result.competitors.length}{t("results.items")}</span>
-                            </div>
-                            {result.error && (
-                              <p className="text-xs text-red-600 mt-1">⚠️ {result.error}</p>
-                            )}
-                          </div>
-                          {result.competitors && result.competitors.length > 0 && (
-                            <div className="space-y-2">
-                              {result.competitors.map((comp: any, compIndex: number) => (
-                                <div
-                                  key={compIndex}
-                                  className="bg-white p-2 rounded border border-gray-200 hover:border-blue-400 transition-colors"
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <a
-                                      href={comp.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-xs text-blue-600 hover:text-blue-800 underline break-all flex-1"
-                                    >
-                                      {comp.url}
-                                    </a>
-                                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                                      {comp.position}{t("results.rankSuffix")}
-                                    </span>
-                                  </div>
-                                  {comp.title && (
-                                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">{comp.title}</p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* 詳細な分析結果（折りたたみ可能） */}
                 {data.semanticDiffAnalysis && (
                   <details className="mb-6">
@@ -1487,6 +1749,45 @@ export default function Home() {
                   </details>
                 )}
 
+                {/* アクションボタン（改善提案セクション内） */}
+                {data.semanticDiffAnalysis && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="space-y-3">
+                    <button
+                      onClick={async () => {
+                        setMonitoringEmail(session?.user?.email || "");
+                        setEnableEmailNotification(true);
+                        setEnableSlackNotification(false);
+                        // ダイアログを開く前にSlack連携状態を取得
+                        await fetchSlackConnectionStatus();
+                        setShowMonitoringDialog(true);
+                      }}
+                      className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-all shadow-md"
+                    >
+                      {t("notification.settings.startMonitoring")}
+                    </button>
+                      <button
+                        className="w-full bg-white border-2 border-purple-600 text-purple-600 font-bold py-3 rounded-lg hover:bg-purple-50 transition-all"
+                        onClick={() => {
+                          const text = data.semanticDiffAnalysis?.keywordSpecificAnalysis
+                            ?.map((kw: any) => {
+                              const items = kw.whatToAdd?.map((item: any) => {
+                                const itemText = typeof item === 'string' ? item : item.item;
+                                return `- ${itemText}`;
+                              }).join('\n') || '';
+                              return `## ${kw.keyword}\n${items}`;
+                            })
+                            .join('\n\n') || '';
+                          navigator.clipboard.writeText(text);
+                          alert(t("results.copied"));
+                        }}
+                      >
+                        {t("results.copyToClipboard")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* 監視開始ダイアログ */}
                 {showMonitoringDialog && (
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1496,15 +1797,16 @@ export default function Home() {
                       
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-semibold mb-2">
+                          <label className="flex items-center space-x-2 mb-2">
                             <input
                               type="checkbox"
-                              checked={true}
-                              readOnly
-                              className="mr-2"
+                              checked={enableEmailNotification}
+                              onChange={(e) => setEnableEmailNotification(e.target.checked)}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                             />
-                            {t("notification.settings.emailNotification")}
+                            <span className="text-sm font-semibold">{t("notification.settings.emailNotification")}</span>
                           </label>
+                          {enableEmailNotification && (
                           <input
                             type="email"
                             value={monitoringEmail}
@@ -1512,6 +1814,33 @@ export default function Home() {
                             placeholder={session?.user?.email || "your-email@example.com"}
                             className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none mt-2"
                           />
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 mb-2">
+                            <input
+                              type="checkbox"
+                              checked={enableSlackNotification}
+                              onChange={(e) => setEnableSlackNotification(e.target.checked)}
+                              disabled={!slackConnected}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <span className="text-sm font-semibold">{t("notification.settings.slackNotification")}</span>
+                          </label>
+                          {!slackConnected && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              <a 
+                                href={`/${locale}/dashboard/notifications`} 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-purple-600 hover:underline"
+                              >
+                                {t("notification.settings.connectSlack")}
+                              </a>
+                              {" "}{t("notification.settings.slackConnectionRequired")}
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -1531,8 +1860,21 @@ export default function Home() {
                       <div className="flex space-x-3 mt-6">
                         <button
                           onClick={async () => {
-                            if (!monitoringEmail && !session?.user?.email) {
-                              alert("メールアドレスを入力してください");
+                            if (enableEmailNotification && !monitoringEmail && !session?.user?.email) {
+                              alert(t("notification.settings.emailAddressRequired"));
+                              return;
+                            }
+
+                            if (!enableEmailNotification && !enableSlackNotification) {
+                              alert(t("notification.settings.notificationRequired"));
+                              return;
+                            }
+
+                            // Slack通知が選択されているが、Slack連携がされていない場合は連携画面に遷移
+                            if (enableSlackNotification && !slackConnected) {
+                              if (confirm(t("notification.settings.slackConnectionRequiredForNotification"))) {
+                                router.push(`/${locale}/dashboard/notifications`);
+                              }
                               return;
                             }
 
@@ -1544,7 +1886,8 @@ export default function Home() {
                                 body: JSON.stringify({
                                   url: articleUrl,
                                   siteUrl: selectedSiteUrl,
-                                  email: monitoringEmail || session?.user?.email,
+                                  email: enableEmailNotification ? (monitoringEmail || session?.user?.email) : null,
+                                  enableSlack: enableSlackNotification && slackConnected,
                                   notificationTime: `${monitoringTime}:00`,
                                   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                                 }),
@@ -1565,7 +1908,7 @@ export default function Home() {
                             }
                           }}
                           disabled={savingMonitoring}
-                          className="flex-1 bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50"
+                          className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
                         >
                           {savingMonitoring ? t("notification.settings.saving") : t("notification.settings.startMonitoringButton")}
                         </button>
@@ -1581,49 +1924,62 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* アクションボタン */}
-                <div className="space-y-3">
-                  <button
-                    onClick={() => {
-                      setMonitoringEmail(session?.user?.email || "");
-                      setShowMonitoringDialog(true);
-                    }}
-                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-all shadow-lg"
-                  >
-                    📧 {t("notification.settings.startMonitoring")}
-                  </button>
-                  {notificationEmail && (
-                    <button
-                      onClick={sendNotification}
-                      disabled={sendingNotification}
-                      className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-all shadow-lg disabled:opacity-50"
-                    >
-                      {sendingNotification ? t("results.sending") : t("results.sendEmail")}
-                    </button>
-                  )}
-                  <button
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 rounded-lg hover:opacity-90 transition-all shadow-lg"
-                    onClick={() => {
-                      const text = data.semanticDiffAnalysis?.keywordSpecificAnalysis
-                        ?.map((kw: any) => {
-                          const items = kw.whatToAdd?.map((item: any) => {
-                            const itemText = typeof item === 'string' ? item : item.item;
-                            return `- ${itemText}`;
-                          }).join('\n') || '';
-                          return `## ${kw.keyword}\n${items}`;
-                        })
-                        .join('\n\n') || '';
-                      navigator.clipboard.writeText(text);
-                      alert(t("results.copied"));
-                    }}
-                  >
-                    {t("results.copyToClipboard")}
-                  </button>
-                  <p className="text-center text-xs text-gray-400 mt-2">
-                  </p>
-                </div>
               </div>
             </div>
+
+              {/* 競合URLセクション（右列内） */}
+              {data.competitorResults && data.competitorResults.length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg border p-6">
+                  <h3 className="font-bold text-lg mb-4 text-gray-800 border-l-4 border-blue-500 pl-3">
+                    {t("results.competitorUrlsPerKeyword")}
+                  </h3>
+                  <div className="space-y-4">
+                    {data.competitorResults.map((result: any, index: number) => (
+                      <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div className="mb-3">
+                          <p className="font-semibold text-sm mb-1">{t("results.keyword")}: {result.keyword}</p>
+                          <div className="text-xs text-gray-600">
+                            <span>{t("results.ownUrlRank")}: {result.ownPosition ? `${typeof result.ownPosition === 'number' ? formatPosition(result.ownPosition) : result.ownPosition}${t("results.rankSuffix")}` : t("results.unknown")}</span>
+                            <span className="ml-4">{t("results.competitorUrlCount")}: {result.competitors.length}{t("results.items")}</span>
+                          </div>
+                          {result.error && (
+                            <p className="text-xs text-red-600 mt-1">⚠️ {result.error}</p>
+                          )}
+                        </div>
+                        {result.competitors && result.competitors.length > 0 && (
+                          <div className="space-y-2">
+                            {result.competitors.map((comp: any, compIndex: number) => (
+                              <div
+                                key={compIndex}
+                                className="bg-white p-2 rounded border border-gray-200 hover:border-blue-400 transition-colors"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <a
+                                    href={comp.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800 underline break-all flex-1"
+                                  >
+                                    {comp.url}
+                                  </a>
+                                  <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                    {typeof comp.position === 'number' ? formatPosition(comp.position) : comp.position}{t("results.rankSuffix")}
+                                  </span>
+                                </div>
+                                {comp.title && (
+                                  <p className="text-xs text-gray-600 mt-1 line-clamp-2">{comp.title}</p>
+                                )}
+                </div>
+                            ))}
+              </div>
+                        )}
+                      </div>
+                    ))}
+            </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </div>
