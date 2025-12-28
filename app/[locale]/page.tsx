@@ -207,6 +207,8 @@ export default function Home() {
   const [showArticleSelection, setShowArticleSelection] = useState(false);
   const [articleSearchQuery, setArticleSearchQuery] = useState("");
   const [fetchingTitleUrls, setFetchingTitleUrls] = useState<Set<string>>(new Set());
+  const [articlePage, setArticlePage] = useState(1);
+  const articlesPerPage = 50;
 
   // 通知設定関連
   const [showMonitoringDialog, setShowMonitoringDialog] = useState(false);
@@ -315,6 +317,7 @@ export default function Home() {
       const result = await response.json();
       setArticles(result.articles || []);
       setShowArticleSelection(true);
+      setArticlePage(1); // ページをリセット
     } catch (err: any) {
       console.error("[Articles] Error loading articles:", err);
       setError(err.message || t("errors.articleListLoadFailed"));
@@ -966,7 +969,10 @@ export default function Home() {
                       <input
                         type="text"
                         value={articleSearchQuery}
-                        onChange={(e) => setArticleSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setArticleSearchQuery(e.target.value);
+                          setArticlePage(1); // 検索時にページをリセット
+                        }}
                         placeholder={t("article.searchPlaceholder")}
                         className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm"
                       />
@@ -974,17 +980,22 @@ export default function Home() {
 
                     {/* 記事一覧 */}
                     <div className="space-y-2">
-                      {articles
-                        .filter((article) => {
+                      {(() => {
+                        const filteredArticles = articles.filter((article) => {
                           if (!articleSearchQuery) return true;
                           const query = articleSearchQuery.toLowerCase();
                           return (
                             article.url.toLowerCase().includes(query) ||
                             (article.title && article.title.toLowerCase().includes(query))
                           );
-                        })
-                        .slice(0, 50) // 最大50件表示
-                        .map((article, index) => (
+                        });
+                        
+                        const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+                        const startIndex = (articlePage - 1) * articlesPerPage;
+                        const endIndex = startIndex + articlesPerPage;
+                        const paginatedArticles = filteredArticles.slice(startIndex, endIndex);
+                        
+                        return paginatedArticles.map((article, index) => (
                           <div
                             key={index}
                             className="bg-white border border-gray-200 rounded-lg p-3 hover:border-purple-400 transition-colors"
@@ -1032,13 +1043,70 @@ export default function Home() {
                               </div>
                             </div>
                           </div>
-                        ))}
+                        ));
+                      })()}
                     </div>
-                    {articles.length > 50 && (
-                      <p className="text-xs text-gray-500 text-center mt-4">
-                        {t("article.displayingItems", { displayed: 50, total: articles.length })}
-                      </p>
-                    )}
+                    
+                    {/* ページネーション */}
+                    {(() => {
+                      const filteredArticles = articles.filter((article) => {
+                        if (!articleSearchQuery) return true;
+                        const query = articleSearchQuery.toLowerCase();
+                        return (
+                          article.url.toLowerCase().includes(query) ||
+                          (article.title && article.title.toLowerCase().includes(query))
+                        );
+                      });
+                      
+                      const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+                      const startIndex = (articlePage - 1) * articlesPerPage;
+                      const endIndex = Math.min(startIndex + articlesPerPage, filteredArticles.length);
+                      
+                      if (filteredArticles.length <= articlesPerPage) {
+                        return null;
+                      }
+                      
+                      return (
+                        <div className="mt-4">
+                          <p className="text-xs text-gray-500 text-center mb-3">
+                            {t("article.displayingItems", { displayed: endIndex, total: filteredArticles.length })}
+                          </p>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => setArticlePage(1)}
+                              disabled={articlePage === 1}
+                              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              最初
+                            </button>
+                            <button
+                              onClick={() => setArticlePage(articlePage - 1)}
+                              disabled={articlePage === 1}
+                              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              前へ
+                            </button>
+                            <span className="text-xs text-gray-700 px-3">
+                              {articlePage} / {totalPages}
+                            </span>
+                            <button
+                              onClick={() => setArticlePage(articlePage + 1)}
+                              disabled={articlePage >= totalPages}
+                              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              次へ
+                            </button>
+                            <button
+                              onClick={() => setArticlePage(totalPages)}
+                              disabled={articlePage >= totalPages}
+                              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              最後
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </div>
