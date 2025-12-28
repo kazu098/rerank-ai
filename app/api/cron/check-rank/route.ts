@@ -216,11 +216,24 @@ export async function GET(request: NextRequest) {
         const notificationSettings = await getNotificationSettings(user.id);
 
         // メール通知を送信
-        await notificationService.sendBulkNotification({
-          to: user.email,
-          items,
+        console.log(`[Cron] Attempting to send email notification to user ${user.email}...`, {
+          itemsCount: items.length,
           locale,
         });
+        try {
+          await notificationService.sendBulkNotification({
+            to: user.email,
+            items,
+            locale,
+          });
+          console.log(`[Cron] Email notification sent successfully to user ${user.email}`);
+        } catch (emailError: any) {
+          console.error(`[Cron] Failed to send email notification to user ${user.email}:`, {
+            error: emailError.message,
+            stack: emailError.stack,
+          });
+          throw emailError; // メール送信エラーは通知処理全体を失敗させる
+        }
 
         // Slack通知を送信
         if (notificationSettings?.slack_webhook_url || notificationSettings?.slack_bot_token) {
@@ -240,17 +253,43 @@ export async function GET(request: NextRequest) {
 
             // OAuth方式（Bot Token）を使用
             if (notificationSettings.slack_bot_token && notificationSettings.slack_channel_id) {
-              await sendSlackNotificationWithBot(
-                notificationSettings.slack_bot_token,
-                notificationSettings.slack_channel_id,
-                slackPayload
-              );
-              console.log(`[Cron] Slack notification sent via OAuth to user ${user.email}`);
+              console.log(`[Cron] Sending Slack notification via OAuth to user ${user.email}...`, {
+                hasBotToken: !!notificationSettings.slack_bot_token,
+                channelId: notificationSettings.slack_channel_id,
+                notificationType: notificationSettings.slack_notification_type,
+              });
+              try {
+                await sendSlackNotificationWithBot(
+                  notificationSettings.slack_bot_token,
+                  notificationSettings.slack_channel_id,
+                  slackPayload
+                );
+                console.log(`[Cron] Slack notification sent via OAuth to user ${user.email}`);
+              } catch (slackOAuthError: any) {
+                console.error(`[Cron] Failed to send Slack notification via OAuth to user ${user.email}:`, {
+                  error: slackOAuthError.message,
+                  stack: slackOAuthError.stack,
+                  channelId: notificationSettings.slack_channel_id,
+                });
+                throw slackOAuthError; // エラーを再スローしてcatchブロックで処理
+              }
             }
             // Webhook方式（旧方式）を使用
             else if (notificationSettings.slack_webhook_url) {
-              await sendSlackNotification(notificationSettings.slack_webhook_url, slackPayload);
-              console.log(`[Cron] Slack notification sent via Webhook to user ${user.email}`);
+              console.log(`[Cron] Sending Slack notification via Webhook to user ${user.email}...`, {
+                webhookUrl: notificationSettings.slack_webhook_url.substring(0, 50) + "...",
+              });
+              try {
+                await sendSlackNotification(notificationSettings.slack_webhook_url, slackPayload);
+                console.log(`[Cron] Slack notification sent via Webhook to user ${user.email}`);
+              } catch (slackWebhookError: any) {
+                console.error(`[Cron] Failed to send Slack notification via Webhook to user ${user.email}:`, {
+                  error: slackWebhookError.message,
+                  stack: slackWebhookError.stack,
+                  webhookUrl: notificationSettings.slack_webhook_url.substring(0, 50) + "...",
+                });
+                throw slackWebhookError; // エラーを再スローしてcatchブロックで処理
+              }
             }
           } catch (slackError: any) {
             console.error(`[Cron] Failed to send Slack notification to user ${user.email}:`, slackError);
