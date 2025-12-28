@@ -42,7 +42,7 @@
     "subtitle": "「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。",
     "loginWithGoogle": "Googleでログインして始める",
     "heroTitle": "SEO順位を自動で改善",
-    "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します",
+    "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します。\nAI検索（AIO）にも対応。",
     "ctaButton": "Googleアカウントで無料開始",
     "demoVideoTitle": "ReRank AI デモ動画",
     "videoNotSupported": "お使いのブラウザは動画の再生をサポートしていません。",
@@ -187,7 +187,15 @@
     "clickToExpand": "クリックで展開",
     "sectionLabel": "📝 {section}",
     "rankSuffix": "位",
-    "items": "件"
+    "items": "件",
+    "aiSEOOptimization": "🤖 AI検索最適化（AIO対応）",
+    "aiSEOOptimizationDescription": "LLM（AI Overview）に引用されやすいページの特徴をチェックし、不足している要素を提案します",
+    "aiSEOMissingElements": "不足しているAI SEO要素（{count}個）",
+    "aiSEORecommendations": "AI SEO対策の推奨事項",
+    "aiSEOElement": "要素",
+    "aiSEODescription": "説明",
+    "aiSEOFoundIn": "競合記事で見つかった箇所",
+    "aiSEONoMissingElements": "✅ すべてのAI SEO要素が揃っています"
   },
   "auth": {
     "title": "Google Search Consoleと連携して始める",

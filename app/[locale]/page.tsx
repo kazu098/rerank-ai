@@ -805,8 +805,13 @@ export default function Home() {
               <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
                 {t("home.heroTitle")}
               </h1>
-              <p className="text-base md:text-lg text-gray-600 mb-6 whitespace-nowrap">
-                {t("home.heroSubtitle")}
+              <p className="text-base md:text-lg text-gray-600 mb-6">
+                {t("home.heroSubtitle").split('\n').map((line: string, i: number) => (
+                  <span key={i}>
+                    {line}
+                    {i < t("home.heroSubtitle").split('\n').length - 1 && <br />}
+                  </span>
+                ))}
               </p>
                   </div>
 
@@ -1747,6 +1752,63 @@ export default function Home() {
                         )}
                     </div>
                   </details>
+                )}
+
+                {/* AI SEO対策セクション */}
+                {data.aiSEOAnalysis && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-lg mb-2 text-gray-800 border-l-4 border-blue-500 pl-3">
+                      {t("results.aiSEOOptimization")}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      {t("results.aiSEOOptimizationDescription")}
+                    </p>
+                    {data.aiSEOAnalysis.missingElements.length > 0 ? (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-gray-700">
+                          {t("results.aiSEOMissingElements", { count: data.aiSEOAnalysis.missingElements.length })}
+                        </h4>
+                        {data.aiSEOAnalysis.missingElements.map((element: any, i: number) => (
+                          <div key={i} className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <p className="font-semibold text-sm text-gray-800">{element.element}</p>
+                                <p className="text-xs text-gray-600 mt-1">{element.description}</p>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-700 mt-2 mb-2">
+                              <strong>{t("results.aiSEORecommendations")}:</strong> {element.recommendation}
+                            </p>
+                            {element.foundIn && element.foundIn.length > 0 && (
+                              <details className="mt-3 pt-3 border-t border-blue-300">
+                                <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                                  {t("results.aiSEOFoundIn")} ({element.foundIn.length}件)
+                                </summary>
+                                <ul className="mt-2 space-y-1">
+                                  {element.foundIn.map((url: string, j: number) => (
+                                    <li key={j}>
+                                      <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-blue-600 hover:text-blue-800 underline break-all"
+                                      >
+                                        {url}
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </details>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <p className="text-sm text-green-800">{t("results.aiSEONoMissingElements")}</p>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* アクションボタン（改善提案セクション内） */}
