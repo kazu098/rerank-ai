@@ -186,11 +186,19 @@ export async function saveOrUpdateNotificationSettings(
   // 既存の設定を検索（is_enabledの条件は入れない - falseのレコードも見つけるため）
   try {
     // まず、複数のレコードが存在する可能性があるため、すべて取得してから最新のものを選択
-    const { data: existingRecords, error: searchError } = await supabase
+    let query = supabase
       .from('notification_settings')
       .select('*')
-      .eq('user_id', userId)
-      .eq('article_id', articleId || null)
+      .eq('user_id', userId);
+    
+    // article_idがnullの場合は.is()を使い、値がある場合は.eq()を使う
+    if (articleId === null || articleId === undefined) {
+      query = query.is('article_id', null);
+    } else {
+      query = query.eq('article_id', articleId);
+    }
+    
+    const { data: existingRecords, error: searchError } = await query
       .eq('notification_type', settings.notification_type)
       .eq('channel', settings.channel)
       .order('updated_at', { ascending: false });
