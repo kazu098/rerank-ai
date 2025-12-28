@@ -37,7 +37,7 @@ export default function NotificationsPage() {
   const [slackConnected, setSlackConnected] = useState(false);
   const [slackNotificationType, setSlackNotificationType] = useState<'channel' | 'dm' | null>(null);
   const [slackChannelId, setSlackChannelId] = useState<string | null>(null);
-  const [slackChannels, setSlackChannels] = useState<Array<{id: string, name: string}>>([]);
+  const [slackChannels, setSlackChannels] = useState<Array<{id: string, name: string, is_private?: boolean}>>([]);
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
