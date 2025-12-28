@@ -183,30 +183,41 @@ export async function saveOrUpdateNotificationSettings(
     slackNotificationType: settingsData.slack_notification_type,
   });
 
-  // 既存の設定を検索
+  // 既存の設定を検索（is_enabledの条件は入れない - falseのレコードも見つけるため）
   try {
-    const { data: existing, error: searchError } = await supabase
+    // まず、複数のレコードが存在する可能性があるため、すべて取得してから最新のものを選択
+    const { data: existingRecords, error: searchError } = await supabase
       .from('notification_settings')
       .select('*')
       .eq('user_id', userId)
       .eq('article_id', articleId || null)
       .eq('notification_type', settings.notification_type)
       .eq('channel', settings.channel)
-      .single();
+      .order('updated_at', { ascending: false });
 
     if (searchError) {
-      if (searchError.code === 'PGRST116') {
-        // PGRST116は「not found」エラー - これは正常（新規作成）
-        console.log('[Notification Settings DB] No existing settings found (will create new)');
-      } else {
-        console.error('[Notification Settings DB] Error searching for existing settings:', {
-          error: searchError.message,
-          code: searchError.code,
-          details: searchError.details,
-          hint: searchError.hint,
-        });
-        throw new Error(`Failed to search notification settings: ${searchError.message} (code: ${searchError.code})`);
-      }
+      console.error('[Notification Settings DB] Error searching for existing settings:', {
+        error: searchError.message,
+        code: searchError.code,
+        details: searchError.details,
+        hint: searchError.hint,
+      });
+      throw new Error(`Failed to search notification settings: ${searchError.message} (code: ${searchError.code})`);
+    }
+
+    // 既存のレコードが見つかった場合、最新のものを使用（複数ある場合は最新のものを更新）
+    const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
+
+    if (existingRecords && existingRecords.length > 1) {
+      console.warn('[Notification Settings DB] Multiple settings found, using the most recent one:', {
+        totalCount: existingRecords.length,
+        usingId: existing?.id,
+        allIds: existingRecords.map(r => r.id),
+      });
+    }
+
+    if (!existing) {
+      console.log('[Notification Settings DB] No existing settings found (will create new)');
     }
 
     if (existing) {
