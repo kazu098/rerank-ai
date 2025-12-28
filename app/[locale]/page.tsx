@@ -3,11 +3,76 @@
 import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
-import { useRouter } from "@/src/i18n/routing";
+import { useRouter, usePathname } from "@/src/i18n/routing";
 import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // 分析モードは統一（タブを削除）
+
+// 言語切り替えコンポーネント
+function LanguageSwitcher({ locale, router, pathname }: { locale: string; router: any; pathname: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const languages = [
+    { code: 'ja', label: '日本語', nativeLabel: '日本語' },
+    { code: 'en', label: 'English', nativeLabel: 'English' },
+  ];
+
+  const currentLanguage = languages.find(lang => lang.code === locale) || languages[0];
+
+  const handleLanguageChange = (newLocale: string) => {
+    // パスは常に /[locale]/... の形式なので、先頭のロケールを置き換える
+    const currentPath = pathname.replace(`/${locale}`, '') || '/';
+    const newPath = `/${newLocale}${currentPath === '/' ? '' : currentPath}`;
+    
+    // クエリパラメータとハッシュも保持してリダイレクト
+    const queryString = window.location.search;
+    const hash = window.location.hash;
+    window.location.href = newPath + queryString + hash;
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{currentLanguage.code.toUpperCase()}</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 min-w-[160px] z-20">
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => handleLanguageChange(lang.code)}
+                className="w-full px-4 py-2 text-left hover:bg-gray-700 transition-colors flex items-center justify-between text-sm"
+              >
+                <div>
+                  <span className="text-gray-400 text-xs">{lang.code.toUpperCase()}</span>
+                  <span className="text-white ml-2">{lang.nativeLabel}</span>
+                </div>
+                {locale === lang.code && (
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // 順位をフォーマット（整数の場合は整数表示、小数がある場合は少数第2位まで）
 function formatPosition(position: number | string): string {
@@ -188,6 +253,7 @@ export default function Home() {
   const t = useTranslations();
   const locale = useLocale();
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -244,7 +310,7 @@ export default function Home() {
         const error = await response.json();
         // トークン期限切れの場合は即座にログイン画面に遷移
         if (error.code === "TOKEN_EXPIRED" || response.status === 401) {
-          signOut({ callbackUrl: "/" });
+            signOut({ callbackUrl: "/" });
           return;
         } else {
           setError(error.error || t("errors.propertyLoadFailed"));
@@ -458,7 +524,7 @@ export default function Home() {
       // GSCプロパティとして選択されたsiteUrlを使用
       const siteUrl = selectedSiteUrl.replace(/\/$/, ""); // 末尾のスラッシュを削除
       const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
-
+      
       // 分析実行（段階的に実行）
       
       // Step 1: 記事の検索順位データを取得中
@@ -693,7 +759,7 @@ export default function Home() {
                 <Link href={`/${locale}`} className="text-2xl font-bold text-gray-900">
                   ReRank AI
                 </Link>
-              </div>
+            </div>
               <div className="hidden md:flex items-center space-x-8">
                 <a href="#features" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
                   {t("navigation.features")}
@@ -713,7 +779,7 @@ export default function Home() {
                 >
                   {t("navigation.getStarted")}
                 </button>
-              </div>
+                </div>
               <div className="md:hidden">
                 <button
                   onClick={() => {
@@ -727,9 +793,9 @@ export default function Home() {
                 >
                   {t("navigation.getStarted")}
                 </button>
+                </div>
               </div>
             </div>
-          </div>
         </nav>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -742,12 +808,12 @@ export default function Home() {
               <p className="text-base md:text-lg text-gray-600 mb-6 whitespace-nowrap">
                 {t("home.heroSubtitle")}
               </p>
-            </div>
+                  </div>
 
             {/* 簡単な説明 */}
             <div className="max-w-2xl mx-auto mb-6">
               <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
-                <p className="text-sm text-blue-700">
+                <p className="text-xs text-blue-700 whitespace-nowrap">
                   <strong>{t("auth.accountInfoDescription")}</strong>
                 </p>
               </div>
@@ -789,7 +855,7 @@ export default function Home() {
                   <source src="/videos/demo.mp4" type="video/mp4" />
                   {t("home.videoNotSupported")}
                 </video>
-              </div>
+          </div>
             </div>
           </section>
 
@@ -897,6 +963,113 @@ export default function Home() {
           </div>
           </section>
         </div>
+
+        {/* フッター */}
+        <footer className="bg-gray-900 text-gray-400 mt-20 w-full pt-12 pb-8 rounded-t-3xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+                {/* サービス */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.service.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#features" className="text-sm hover:text-white transition-colors">
+                        {t("footer.service.features")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#how-it-works" className="text-sm hover:text-white transition-colors">
+                        {t("footer.service.howItWorks")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.service.pricing")}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* リソース */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.resources.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.resources.blog")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.resources.documentation")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.resources.faq")}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* 会社情報 */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.company.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.company.contact")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.company.privacyPolicy")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm hover:text-white transition-colors">
+                        {t("footer.company.termsOfService")}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* ソーシャル */}
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-4">{t("footer.social.title")}</h3>
+                  <ul className="space-y-3">
+                    <li>
+                      <a href="#" target="_blank" rel="noopener noreferrer" className="text-sm hover:text-white transition-colors flex items-center">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                        {t("footer.social.twitter")}
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" target="_blank" rel="noopener noreferrer" className="text-sm hover:text-white transition-colors flex items-center">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                          <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd"/>
+                        </svg>
+                        GitHub
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+            {/* コピーライトと言語切り替え */}
+            <div className="mt-12 pt-8 border-t border-gray-800">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-sm text-gray-500 text-center md:text-left">
+                  &copy; {new Date().getFullYear()} ReRank AI. {t("footer.allRightsReserved")}
+                </p>
+                {/* 言語切り替え */}
+                <LanguageSwitcher locale={locale} router={router} pathname={pathname} />
+          </div>
+        </div>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -1361,44 +1534,44 @@ export default function Home() {
         {data && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 左列: 検索順位データ・キーワード分析 */}
-            <div className="space-y-6">
-              {/* 上位を保てているキーワード（安心させる） */}
-              {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
+          <div className="space-y-6">
+            {/* 上位を保てているキーワード（安心させる） */}
+            {data.topRankingKeywords && data.topRankingKeywords.length > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h3 className="font-bold text-lg mb-3 text-green-800">
-                    {t("results.topRankingKeywords")}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {t("results.topRankingDescription")}
-                  </p>
-                  <div className="space-y-2">
-                    {data.topRankingKeywords.map((kw: any, index: number) => (
-                      <div key={index} className="bg-white p-3 rounded border border-green-300">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm">{kw.keyword}</span>
-                          <span className="text-xs text-green-600 font-bold">
+                <h3 className="font-bold text-lg mb-3 text-green-800">
+                  {t("results.topRankingKeywords")}
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  {t("results.topRankingDescription")}
+                </p>
+                <div className="space-y-2">
+                  {data.topRankingKeywords.map((kw: any, index: number) => (
+                    <div key={index} className="bg-white p-3 rounded border border-green-300">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm">{kw.keyword}</span>
+                        <span className="text-xs text-green-600 font-bold">
                             {typeof kw.position === 'number' ? formatPosition(kw.position) : kw.position}{t("results.rankSuffix")}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          <span>{t("article.impressions")}: {kw.impressions}</span>
-                          <span className="ml-4">{t("article.clicks")}: {kw.clicks}</span>
-                        </div>
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        <span>{t("article.impressions")}: {kw.impressions}</span>
+                        <span className="ml-4">{t("article.clicks")}: {kw.clicks}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* キーワードの推移グラフ */}
-              {data.keywordTimeSeries && data.keywordTimeSeries.length > 0 && (
-                <KeywordTimeSeriesChart keywordTimeSeries={data.keywordTimeSeries} />
-              )}
+            {/* キーワードの推移グラフ */}
+            {data.keywordTimeSeries && data.keywordTimeSeries.length > 0 && (
+              <KeywordTimeSeriesChart keywordTimeSeries={data.keywordTimeSeries} />
+            )}
             </div>
 
             {/* 右列: 競合URL・改善案 */}
             <div className="space-y-6">
-              {/* サマリーカード */}
+            {/* サマリーカード */}
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-purple-500">
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex items-center justify-between shadow-inner">
                 <span className="font-bold">{t("results.rankUpBooster")}</span>
@@ -1634,13 +1807,13 @@ export default function Home() {
                             <span className="text-sm font-semibold">{t("notification.settings.emailNotification")}</span>
                           </label>
                           {enableEmailNotification && (
-                            <input
-                              type="email"
-                              value={monitoringEmail}
-                              onChange={(e) => setMonitoringEmail(e.target.value)}
-                              placeholder={session?.user?.email || "your-email@example.com"}
-                              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none mt-2"
-                            />
+                          <input
+                            type="email"
+                            value={monitoringEmail}
+                            onChange={(e) => setMonitoringEmail(e.target.value)}
+                            placeholder={session?.user?.email || "your-email@example.com"}
+                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none mt-2"
+                          />
                           )}
                         </div>
 
@@ -1796,13 +1969,13 @@ export default function Home() {
                                 {comp.title && (
                                   <p className="text-xs text-gray-600 mt-1 line-clamp-2">{comp.title}</p>
                                 )}
-                              </div>
+                </div>
                             ))}
-                          </div>
+              </div>
                         )}
                       </div>
                     ))}
-                  </div>
+            </div>
                 </div>
               )}
             </div>

@@ -7,6 +7,12 @@ export const routing = defineRouting({
   
   // ロケールが一致しない場合に使用
   defaultLocale: 'ja',
+  
+  // ロケールのプレフィックス（URLに含める）
+  localePrefix: 'always',
+  
+  // ブラウザの言語設定を検出して使用
+  localeDetection: true,
 });
 
 // Next.jsのナビゲーションAPIのラッパー

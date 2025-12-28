@@ -12,6 +12,31 @@
     "howItWorks": "使い方",
     "getStarted": "無料で始める"
   },
+  "footer": {
+    "service": {
+      "title": "サービス",
+      "features": "機能一覧",
+      "howItWorks": "使い方",
+      "pricing": "料金"
+    },
+    "resources": {
+      "title": "リソース",
+      "blog": "ブログ",
+      "documentation": "ドキュメント",
+      "faq": "よくある質問"
+    },
+    "company": {
+      "title": "会社情報",
+      "contact": "お問い合わせ",
+      "privacyPolicy": "プライバシーポリシー",
+      "termsOfService": "利用規約"
+    },
+    "social": {
+      "title": "ソーシャル",
+      "twitter": "Twitter/X"
+    },
+    "allRightsReserved": "All rights reserved."
+  },
   "home": {
     "title": "ReRank AI",
     "subtitle": "「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。",

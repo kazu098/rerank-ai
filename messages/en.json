@@ -12,6 +12,31 @@
     "howItWorks": "How It Works",
     "getStarted": "Get Started"
   },
+  "footer": {
+    "service": {
+      "title": "Service",
+      "features": "Features",
+      "howItWorks": "How It Works",
+      "pricing": "Pricing"
+    },
+    "resources": {
+      "title": "Resources",
+      "blog": "Blog",
+      "documentation": "Documentation",
+      "faq": "FAQ"
+    },
+    "company": {
+      "title": "Company",
+      "contact": "Contact",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    },
+    "social": {
+      "title": "Social",
+      "twitter": "Twitter/X"
+    },
+    "allRightsReserved": "All rights reserved."
+  },
   "home": {
     "title": "ReRank AI",
     "subtitle": "From preventing ranking drops to boosting rankings, AI automatically identifies differences.",
