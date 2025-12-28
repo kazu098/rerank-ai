@@ -69,7 +69,19 @@ export async function POST(request: NextRequest) {
 
     console.log("[Notification Settings API] User authenticated:", session.userId);
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError: any) {
+      console.error("[Notification Settings API] Failed to parse request body:", {
+        error: parseError.message,
+        stack: parseError.stack,
+      });
+      return NextResponse.json(
+        { error: "Invalid JSON in request body", details: parseError.message },
+        { status: 400 }
+      );
+    }
     console.log("[Notification Settings API] Request body:", {
       hasSlackBotToken: body.slackBotToken !== undefined,
       slackBotToken: body.slackBotToken === null ? "null" : (body.slackBotToken ? "present" : "undefined"),
@@ -157,31 +169,49 @@ export async function POST(request: NextRequest) {
         slackNotificationType: settingsToSave.slack_notification_type,
       });
 
-      const savedSettings = await saveOrUpdateNotificationSettings(
-        session.userId,
-        settingsToSave,
-        articleId || null
-      );
+      try {
+        const savedSettings = await saveOrUpdateNotificationSettings(
+          session.userId,
+          settingsToSave,
+          articleId || null
+        );
 
-      console.log("[Notification Settings API] Settings saved:", {
-        id: savedSettings.id,
-        is_enabled: savedSettings.is_enabled,
-        hasSlackBotToken: !!savedSettings.slack_bot_token,
-        slackBotTokenIsNull: savedSettings.slack_bot_token === null,
-        slackChannelId: savedSettings.slack_channel_id,
-        slackNotificationType: savedSettings.slack_notification_type,
-      });
+        console.log("[Notification Settings API] Settings saved:", {
+          id: savedSettings.id,
+          is_enabled: savedSettings.is_enabled,
+          hasSlackBotToken: !!savedSettings.slack_bot_token,
+          slackBotTokenIsNull: savedSettings.slack_bot_token === null,
+          slackChannelId: savedSettings.slack_channel_id,
+          slackNotificationType: savedSettings.slack_notification_type,
+        });
+      } catch (saveError: any) {
+        console.error("[Notification Settings API] Error saving settings:", {
+          error: saveError.message,
+          stack: saveError.stack,
+          settingsToSave: {
+            is_enabled: settingsToSave.is_enabled,
+            hasSlackBotToken: settingsToSave.slack_bot_token !== undefined,
+            slackBotTokenIsNull: settingsToSave.slack_bot_token === null,
+          },
+        });
+        throw saveError;
+      }
     }
 
     console.log("[Notification Settings API] POST request completed successfully");
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("[Notification Settings API] Error saving settings:", {
+    console.error("[Notification Settings API] Error in POST handler:", {
       error: error.message,
       stack: error.stack,
+      name: error.name,
+      code: error.code,
     });
     return NextResponse.json(
-      { error: error.message || "Failed to save notification settings" },
+      { 
+        error: error.message || "Failed to save notification settings",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
       { status: 500 }
     );
   }

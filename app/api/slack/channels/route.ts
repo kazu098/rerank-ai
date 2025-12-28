@@ -45,9 +45,14 @@ export async function GET(request: NextRequest) {
     console.error("[Slack Channels API] Error:", {
       error: error.message,
       stack: error.stack,
+      name: error.name,
+      code: error.code,
     });
     return NextResponse.json(
-      { error: error.message || "Failed to fetch Slack channels" },
+      { 
+        error: error.message || "Failed to fetch Slack channels",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
       { status: 500 }
     );
   }
