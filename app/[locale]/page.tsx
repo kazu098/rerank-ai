@@ -1831,17 +1831,92 @@ export default function Home() {
                       <button
                         className="w-full bg-white border-2 border-purple-600 text-purple-600 font-bold py-3 rounded-lg hover:bg-purple-50 transition-all"
                         onClick={() => {
-                          const text = data.semanticDiffAnalysis?.keywordSpecificAnalysis
-                            ?.map((kw: any) => {
-                              const items = kw.whatToAdd?.map((item: any) => {
-                                const itemText = typeof item === 'string' ? item : item.item;
-                                return `- ${itemText}`;
-                              }).join('\n') || '';
-                              return `## ${kw.keyword}\n${items}`;
-                            })
-                            .join('\n\n') || '';
-                          navigator.clipboard.writeText(text);
-                          alert(t("results.copied"));
+                          const parts: string[] = [];
+                          
+                          // キーワード固有の分析結果（全キーワードを含む）
+                          if (data.semanticDiffAnalysis?.keywordSpecificAnalysis && data.semanticDiffAnalysis.keywordSpecificAnalysis.length > 0) {
+                            const keywordText = data.semanticDiffAnalysis.keywordSpecificAnalysis
+                              .map((kw: any) => {
+                                const sections: string[] = [];
+                                sections.push(`## ${kw.keyword}`);
+                                
+                                // 順位が下がった理由
+                                if (kw.whyRankingDropped) {
+                                  sections.push(`### 順位が下がった理由\n${kw.whyRankingDropped}`);
+                                }
+                                
+                                // 追加すべき項目
+                                if (kw.whatToAdd && kw.whatToAdd.length > 0) {
+                                  const items = kw.whatToAdd.map((item: any) => {
+                                    const itemText = typeof item === 'string' ? item : item.item;
+                                    return `- ${itemText}`;
+                                  }).join('\n');
+                                  sections.push(`### 追加すべき項目\n${items}`);
+                                }
+                                
+                                return sections.join('\n\n');
+                              })
+                              .join('\n\n---\n\n');
+                            if (keywordText) {
+                              parts.push('【キーワード固有の改善提案】');
+                              parts.push(keywordText);
+                            }
+                          }
+                          
+                          // 詳細な分析結果（semanticAnalysis）
+                          if (data.semanticDiffAnalysis?.semanticAnalysis) {
+                            const semanticParts: string[] = [];
+                            
+                            if (data.semanticDiffAnalysis.semanticAnalysis.whyCompetitorsRankHigher) {
+                              semanticParts.push(`### 競合が上位である理由\n${data.semanticDiffAnalysis.semanticAnalysis.whyCompetitorsRankHigher}`);
+                            }
+                            
+                            if (data.semanticDiffAnalysis.semanticAnalysis.missingContent && data.semanticDiffAnalysis.semanticAnalysis.missingContent.length > 0) {
+                              const missingContentText = data.semanticDiffAnalysis.semanticAnalysis.missingContent
+                                .map((content: string) => `- ${content}`)
+                                .join('\n');
+                              semanticParts.push(`### 不足しているコンテンツ\n${missingContentText}`);
+                            }
+                            
+                            if (data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions && data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0) {
+                              const recommendedText = data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions
+                                .map((rec: any) => {
+                                  const recParts: string[] = [];
+                                  recParts.push(`#### ${rec.section}`);
+                                  if (rec.reason) recParts.push(`理由: ${rec.reason}`);
+                                  if (rec.content) recParts.push(rec.content);
+                                  return recParts.join('\n');
+                                })
+                                .join('\n\n');
+                              semanticParts.push(`### 推奨される追加内容\n${recommendedText}`);
+                            }
+                            
+                            if (semanticParts.length > 0) {
+                              parts.push('\n【詳細な分析結果】');
+                              parts.push(semanticParts.join('\n\n'));
+                            }
+                          }
+                          
+                          // AI SEO対策の結果
+                          if (data.aiSEOAnalysis?.missingElements && data.aiSEOAnalysis.missingElements.length > 0) {
+                            const aiSEOText = data.aiSEOAnalysis.missingElements
+                              .map((element: any) => {
+                                return `## ${element.element}\n${element.recommendation}`;
+                              })
+                              .join('\n\n');
+                            if (aiSEOText) {
+                              parts.push('\n【AI検索最適化（AIO対応）の改善提案】');
+                              parts.push(aiSEOText);
+                            }
+                          }
+                          
+                          const text = parts.join('\n\n');
+                          if (text) {
+                            navigator.clipboard.writeText(text);
+                            alert(t("results.copied"));
+                          } else {
+                            alert(t("results.noContentToCopy"));
+                          }
                         }}
                       >
                         {t("results.copyToClipboard")}

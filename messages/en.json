@@ -184,6 +184,7 @@
     "sending": "Sending...",
     "copyToClipboard": "📋 Copy Modification Content",
     "copied": "Copied!",
+    "noContentToCopy": "No content to copy",
     "clickToExpand": "Click to expand",
     "sectionLabel": "📝 {section}",
     "rankSuffix": "th",
