@@ -184,70 +184,99 @@ export async function saveOrUpdateNotificationSettings(
   });
 
   // 既存の設定を検索
-  const { data: existing, error: searchError } = await supabase
-    .from('notification_settings')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('article_id', articleId || null)
-    .eq('notification_type', settings.notification_type)
-    .eq('channel', settings.channel)
-    .single();
+  try {
+    const { data: existing, error: searchError } = await supabase
+      .from('notification_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('article_id', articleId || null)
+      .eq('notification_type', settings.notification_type)
+      .eq('channel', settings.channel)
+      .single();
 
-  if (searchError && searchError.code !== 'PGRST116') { // PGRST116は「not found」エラー
-    console.error('[Notification Settings DB] Error searching for existing settings:', searchError);
-    throw new Error(`Failed to search notification settings: ${searchError.message}`);
-  }
+    if (searchError) {
+      if (searchError.code === 'PGRST116') {
+        // PGRST116は「not found」エラー - これは正常（新規作成）
+        console.log('[Notification Settings DB] No existing settings found (will create new)');
+      } else {
+        console.error('[Notification Settings DB] Error searching for existing settings:', {
+          error: searchError.message,
+          code: searchError.code,
+          details: searchError.details,
+          hint: searchError.hint,
+        });
+        throw new Error(`Failed to search notification settings: ${searchError.message} (code: ${searchError.code})`);
+      }
+    }
 
-  if (existing) {
-    console.log('[Notification Settings DB] Updating existing settings:', {
-      id: existing.id,
-      currentIsEnabled: existing.is_enabled,
-      currentHasSlackBotToken: !!existing.slack_bot_token,
-      newIsEnabled: settingsData.is_enabled,
-      newHasSlackBotToken: settingsData.slack_bot_token !== undefined,
-    });
-    // 更新
+    if (existing) {
+      console.log('[Notification Settings DB] Updating existing settings:', {
+        id: existing.id,
+        currentIsEnabled: existing.is_enabled,
+        currentHasSlackBotToken: !!existing.slack_bot_token,
+        newIsEnabled: settingsData.is_enabled,
+        newHasSlackBotToken: settingsData.slack_bot_token !== undefined,
+      });
+      // 更新
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .update(settingsData)
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[Notification Settings DB] Error updating settings:', {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw new Error(`Failed to update notification settings: ${error.message} (code: ${error.code})`);
+      }
+
+      console.log('[Notification Settings DB] Settings updated successfully:', {
+        id: data.id,
+        is_enabled: data.is_enabled,
+        hasSlackBotToken: !!data.slack_bot_token,
+        slackBotTokenIsNull: data.slack_bot_token === null,
+      });
+
+      return data as NotificationSettings;
+    }
+
+    console.log('[Notification Settings DB] Creating new settings');
+    // 新規作成
     const { data, error } = await supabase
       .from('notification_settings')
-      .update(settingsData)
-      .eq('id', existing.id)
+      .insert(settingsData)
       .select()
       .single();
 
     if (error) {
-      console.error('[Notification Settings DB] Error updating settings:', error);
-      throw new Error(`Failed to update notification settings: ${error.message}`);
+      console.error('[Notification Settings DB] Error creating settings:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      throw new Error(`Failed to create notification settings: ${error.message} (code: ${error.code})`);
     }
 
-    console.log('[Notification Settings DB] Settings updated successfully:', {
+    console.log('[Notification Settings DB] Settings created successfully:', {
       id: data.id,
       is_enabled: data.is_enabled,
       hasSlackBotToken: !!data.slack_bot_token,
-      slackBotTokenIsNull: data.slack_bot_token === null,
     });
 
     return data as NotificationSettings;
+  } catch (dbError: any) {
+    console.error('[Notification Settings DB] Database operation failed:', {
+      error: dbError.message,
+      stack: dbError.stack,
+      name: dbError.name,
+    });
+    throw dbError;
   }
-
-  console.log('[Notification Settings DB] Creating new settings');
-  // 新規作成
-  const { data, error } = await supabase
-    .from('notification_settings')
-    .insert(settingsData)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('[Notification Settings DB] Error creating settings:', error);
-    throw new Error(`Failed to create notification settings: ${error.message}`);
-  }
-
-  console.log('[Notification Settings DB] Settings created successfully:', {
-    id: data.id,
-    is_enabled: data.is_enabled,
-    hasSlackBotToken: !!data.slack_bot_token,
-  });
-
-  return data as NotificationSettings;
 }
 
