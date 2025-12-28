@@ -184,6 +184,7 @@
     "sending": "送信中...",
     "copyToClipboard": "📋 修正内容をコピー",
     "copied": "コピーしました！",
+    "noContentToCopy": "コピーする内容がありません",
     "clickToExpand": "クリックで展開",
     "sectionLabel": "📝 {section}",
     "rankSuffix": "位",
