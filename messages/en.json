@@ -42,7 +42,7 @@
     "subtitle": "From preventing ranking drops to boosting rankings, AI automatically identifies differences.",
     "loginWithGoogle": "Sign in with Google to get started",
     "heroTitle": "Automatically Improve SEO Rankings",
-    "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements",
+    "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements.\nOptimized for AI search (AIO).",
     "ctaButton": "Get Started Free with Google Account",
     "demoVideoTitle": "ReRank AI Demo Video",
     "videoNotSupported": "Your browser does not support video playback.",
@@ -187,7 +187,15 @@
     "clickToExpand": "Click to expand",
     "sectionLabel": "📝 {section}",
     "rankSuffix": "th",
-    "items": "items"
+    "items": "items",
+    "aiSEOOptimization": "🤖 AI Search Optimization (AIO)",
+    "aiSEOOptimizationDescription": "Check characteristics of pages easily cited by LLMs (AI Overview) and suggest missing elements",
+    "aiSEOMissingElements": "Missing AI SEO Elements ({count} items)",
+    "aiSEORecommendations": "AI SEO Recommendations",
+    "aiSEOElement": "Element",
+    "aiSEODescription": "Description",
+    "aiSEOFoundIn": "Found in Competitor Articles",
+    "aiSEONoMissingElements": "✅ All AI SEO elements are present"
   },
   "auth": {
     "title": "Get Started by Linking with Google Search Console",

@@ -5,6 +5,7 @@ import { CompetitorExtractor, SearchResult } from "./competitor-extractor";
 import { ArticleScraper } from "./article-scraper";
 import { DiffAnalyzer, DiffAnalysisResult } from "./diff-analyzer";
 import { LLMDiffAnalyzer, LLMDiffAnalysisResult } from "./llm-diff-analyzer";
+import { AISEOAnalyzer, AISEOAnalysisResult } from "./ai-seo-analyzer";
 import { filterCompetitorUrls } from "./competitor-filter";
 
 export interface CompetitorAnalysisResult {
@@ -27,6 +28,7 @@ export interface CompetitorAnalysisSummary {
   uniqueCompetitorUrls: string[];
   diffAnalysis?: DiffAnalysisResult; // 基本的な差分分析結果（オプション）
   semanticDiffAnalysis?: LLMDiffAnalysisResult; // 意味レベルの差分分析結果（オプション）
+  aiSEOAnalysis?: AISEOAnalysisResult; // AI SEO対策分析結果（オプション）
   topRankingKeywords?: Array<{
     keyword: string;
     position: number;
@@ -94,6 +96,7 @@ export interface Step2Result {
 export interface Step3Result {
   diffAnalysis?: DiffAnalysisResult;
   semanticDiffAnalysis?: LLMDiffAnalysisResult;
+  aiSEOAnalysis?: AISEOAnalysisResult;
 }
 
 /**
@@ -107,12 +110,15 @@ export class CompetitorAnalyzer {
   private diffAnalyzer: DiffAnalyzer;
   private llmDiffAnalyzer: LLMDiffAnalyzer;
 
+  private aiSEOAnalyzer: AISEOAnalyzer;
+
   constructor() {
     this.keywordPrioritizer = new KeywordPrioritizer();
     this.competitorExtractor = new CompetitorExtractor();
     this.articleScraper = new ArticleScraper();
     this.diffAnalyzer = new DiffAnalyzer();
     this.llmDiffAnalyzer = new LLMDiffAnalyzer();
+    this.aiSEOAnalyzer = new AISEOAnalyzer();
   }
 
   /**
@@ -390,6 +396,7 @@ export class CompetitorAnalyzer {
 
     // 差分分析を実行（競合URLが取得できた場合）
     let diffAnalysis: DiffAnalysisResult | undefined;
+    let aiSEOAnalysis: AISEOAnalysisResult | undefined;
     if (uniqueCompetitorUrls.size > 0 && competitorResults.length > 0) {
       try {
         console.log(
@@ -440,6 +447,19 @@ export class CompetitorAnalyzer {
           console.log(
             `[CompetitorAnalysis] Diff analysis complete: ${diffAnalysis.recommendations.length} recommendations`
           );
+
+          // AI SEO対策分析
+          const aiSEOStart = Date.now();
+          try {
+            console.log(`[CompetitorAnalysis] ⏱️ AI SEO analysis starting`);
+            aiSEOAnalysis = this.aiSEOAnalyzer.analyzeAISEO(ownArticleContent, competitorArticles);
+            console.log(
+              `[CompetitorAnalysis] ⏱️ AI SEO analysis complete: ${aiSEOAnalysis.missingElements.length} missing elements, ${aiSEOAnalysis.recommendations.length} recommendations in ${Date.now() - aiSEOStart}ms`
+            );
+          } catch (error: any) {
+            console.error(`[CompetitorAnalysis] AI SEO analysis failed:`, error);
+            // エラーが発生しても続行
+          }
 
           // 意味レベルの差分分析（LLM APIが利用可能な場合、かつスキップフラグがfalseの場合）
           const step6Start = Date.now();
@@ -675,6 +695,7 @@ export class CompetitorAnalyzer {
                   uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
                   diffAnalysis,
                   semanticDiffAnalysis,
+                  aiSEOAnalysis,
                   topRankingKeywords: topRankingKeywords.length > 0 ? topRankingKeywords : undefined,
                   keywordTimeSeries: keywordTimeSeries.length > 0 ? keywordTimeSeries : undefined,
                 };
@@ -756,6 +777,7 @@ export class CompetitorAnalyzer {
       uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
       diffAnalysis,
       semanticDiffAnalysis: undefined,
+      aiSEOAnalysis,
       topRankingKeywords: topRankingKeywords.length > 0 ? topRankingKeywords : undefined,
       keywordTimeSeries: keywordTimeSeries.length > 0 ? keywordTimeSeries : undefined,
     };

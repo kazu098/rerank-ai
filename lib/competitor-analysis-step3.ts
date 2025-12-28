@@ -1,6 +1,7 @@
 import { ArticleScraper } from "./article-scraper";
 import { DiffAnalyzer, type DiffAnalysisResult } from "./diff-analyzer";
 import { LLMDiffAnalyzer, type LLMDiffAnalysisResult } from "./llm-diff-analyzer";
+import { AISEOAnalyzer, type AISEOAnalysisResult } from "./ai-seo-analyzer";
 import type { Step1Result, Step2Result, Step3Result } from "./competitor-analysis";
 
 /**
@@ -20,9 +21,11 @@ export async function analyzeStep3(
   const articleScraper = new ArticleScraper();
   const diffAnalyzer = new DiffAnalyzer();
   const llmDiffAnalyzer = new LLMDiffAnalyzer();
+  const aiSEOAnalyzer = new AISEOAnalyzer();
 
   let diffAnalysis: DiffAnalysisResult | undefined;
   let semanticDiffAnalysis: LLMDiffAnalysisResult | undefined;
+  let aiSEOAnalysis: AISEOAnalysisResult | undefined;
 
   // 差分分析を実行（競合URLが取得できた場合）
   if (uniqueCompetitorUrls.length > 0 && competitorResults.length > 0) {
@@ -75,6 +78,19 @@ export async function analyzeStep3(
         console.log(
           `[CompetitorAnalysis] ⏱️ Step 3.1 (Diff analysis) complete: ${diffAnalysis.recommendations.length} recommendations`
         );
+
+        // AI SEO対策分析
+        const step3_1_5Start = Date.now();
+        try {
+          console.log(`[CompetitorAnalysis] ⏱️ Step 3.1.5 (AI SEO analysis) starting`);
+          aiSEOAnalysis = aiSEOAnalyzer.analyzeAISEO(ownArticleContent, competitorArticles);
+          console.log(
+            `[CompetitorAnalysis] ⏱️ Step 3.1.5 (AI SEO analysis) complete: ${aiSEOAnalysis.missingElements.length} missing elements, ${aiSEOAnalysis.recommendations.length} recommendations in ${Date.now() - step3_1_5Start}ms`
+          );
+        } catch (error: any) {
+          console.error(`[CompetitorAnalysis] AI SEO analysis failed:`, error);
+          // エラーが発生しても続行
+        }
 
         // 意味レベルの差分分析（LLM APIが利用可能な場合、かつスキップフラグがfalseの場合）
         const step3_2Start = Date.now();
@@ -262,6 +278,7 @@ export async function analyzeStep3(
   return {
     diffAnalysis,
     semanticDiffAnalysis,
+    aiSEOAnalysis,
   };
 }
 
