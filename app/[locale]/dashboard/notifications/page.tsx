@@ -87,9 +87,13 @@ export default function NotificationsPage() {
           setSlackChannelId(null);
           setSlackChannels([]);
         }
-        // 通知時刻を設定（HH:MM:SS形式からHH:MM形式に変換）
-        if (notificationData?.notification_time) {
-          const time = notificationData.notification_time;
+      }
+      // 通知時刻をuser_alert_settingsから取得
+      const alertSettingsResponse = await fetch("/api/alert-settings");
+      if (alertSettingsResponse.ok) {
+        const alertSettingsData = await alertSettingsResponse.json();
+        if (alertSettingsData?.notification_time) {
+          const time = alertSettingsData.notification_time;
           // "09:00:00" -> "09:00"
           const timeParts = time.split(':');
           setNotificationTime(`${timeParts[0]}:${timeParts[1]}`);
@@ -267,11 +271,11 @@ export default function NotificationsPage() {
                 try {
                   // HH:MM形式をHH:MM:SS形式に変換
                   const timeValue = notificationTime + ":00";
-                  const response = await fetch("/api/notification-settings", {
+                  const response = await fetch("/api/alert-settings", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      notificationTime: timeValue,
+                      notification_time: timeValue,
                     }),
                   });
                   if (response.ok) {

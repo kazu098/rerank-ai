@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
       consecutive_drop_days,
       min_impressions,
       notification_cooldown_days,
-      notification_frequency 
+      notification_frequency,
+      notification_time,
+      timezone
     } = body;
 
     // バリデーション
@@ -102,6 +104,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (notification_time !== undefined && typeof notification_time !== 'string') {
+      return NextResponse.json(
+        { error: "notification_time must be a string (HH:MM:SS format)" },
+        { status: 400 }
+      );
+    }
+
     const settings = await saveOrUpdateUserAlertSettings(session.userId, {
       position_drop_threshold,
       keyword_drop_threshold,
@@ -110,6 +119,8 @@ export async function POST(request: NextRequest) {
       min_impressions,
       notification_cooldown_days,
       notification_frequency,
+      notification_time,
+      timezone,
     });
 
     return NextResponse.json(settings);

@@ -63,26 +63,33 @@ export class NotificationChecker {
     const user = await getUserById(userId);
     const userTimezone = user?.timezone || 'UTC';
 
-    // 通知設定を取得（記事固有の設定があればそれを使用、なければデフォルト）
+    // 通知設定を取得（通知チャネル関連の設定のみ：メール/Slackの有効/無効、通知時刻など）
     const settings = await getNotificationSettings(userId, articleId);
     
-    // ユーザーのアラート設定を取得（カスタマイズされた閾値や比較期間）
+    // ユーザーのアラート設定を取得（全ての記事に適用される閾値や比較期間）
     const userAlertSettings = await getUserAlertSettings(userId);
     
-    const effectiveSettings = settings || {
+    // 通知設定から通知チャネル関連の設定を取得（なければデフォルト）
+    const notificationChannelSettings = settings || {
       ...DEFAULT_NOTIFICATION_SETTINGS,
       user_id: userId,
       article_id: articleId,
-      timezone: userTimezone,
-      notification_time: '09:00:00',
     } as any;
 
-    // ユーザーのアラート設定を適用（カスタマイズされた値で上書き）
-    if (userAlertSettings) {
-      effectiveSettings.drop_threshold = userAlertSettings.position_drop_threshold;
-      effectiveSettings.keyword_drop_threshold = userAlertSettings.keyword_drop_threshold;
-      effectiveSettings.comparison_days = userAlertSettings.comparison_days;
-    }
+    // アラート設定は全てuser_alert_settingsから取得（記事固有の設定は不要）
+    const effectiveSettings = {
+      ...notificationChannelSettings,
+      // アラート設定はuser_alert_settingsから取得
+      drop_threshold: userAlertSettings.position_drop_threshold,
+      keyword_drop_threshold: userAlertSettings.keyword_drop_threshold,
+      comparison_days: userAlertSettings.comparison_days,
+      consecutive_drop_days: userAlertSettings.consecutive_drop_days,
+      min_impressions: userAlertSettings.min_impressions,
+      notification_cooldown_days: userAlertSettings.notification_cooldown_days,
+      // 通知時刻とタイムゾーンもuser_alert_settingsから取得
+      notification_time: userAlertSettings.notification_time,
+      timezone: userAlertSettings.timezone || userTimezone,
+    };
 
     // 修正済みフラグが立っている場合は、順位上昇を優先的にチェック
     if (article.is_fixed) {

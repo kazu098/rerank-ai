@@ -8,14 +8,6 @@ export interface NotificationSettings {
   channel: string;
   recipient: string;
   is_enabled: boolean;
-  drop_threshold: number;
-  keyword_drop_threshold: number;
-  comparison_days: number;
-  consecutive_drop_days: number;
-  min_impressions: number;
-  notification_cooldown_days: number;
-  notification_time: string | null; // TIME型（例: '09:00:00'）
-  timezone: string | null; // タイムゾーン（例: 'Asia/Tokyo'）
   slack_bot_token: string | null; // Slack Bot Token（OAuth方式）
   slack_user_id: string | null; // Slack User ID（Uで始まる）
   slack_team_id: string | null; // Slack Team ID（Tで始まる）
@@ -30,14 +22,6 @@ export interface NotificationSettings {
  */
 export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'user_id' | 'article_id' | 'notification_type' | 'channel' | 'recipient' | 'created_at' | 'updated_at'> = {
   is_enabled: true,
-  drop_threshold: 2.0,
-  keyword_drop_threshold: 10.0,
-  comparison_days: 7,
-  consecutive_drop_days: 3,
-  min_impressions: 100,
-  notification_cooldown_days: 7,
-  notification_time: '09:00:00',
-  timezone: null,
   slack_bot_token: null,
   slack_user_id: null,
   slack_team_id: null,
@@ -228,14 +212,6 @@ export async function saveOrUpdateNotificationSettings(
     channel: settings.channel,
     recipient: settings.recipient,
     is_enabled: settings.is_enabled ?? true,
-    drop_threshold: settings.drop_threshold ?? DEFAULT_NOTIFICATION_SETTINGS.drop_threshold,
-    keyword_drop_threshold: settings.keyword_drop_threshold ?? DEFAULT_NOTIFICATION_SETTINGS.keyword_drop_threshold,
-    comparison_days: settings.comparison_days ?? DEFAULT_NOTIFICATION_SETTINGS.comparison_days,
-    consecutive_drop_days: settings.consecutive_drop_days ?? DEFAULT_NOTIFICATION_SETTINGS.consecutive_drop_days,
-    min_impressions: settings.min_impressions ?? DEFAULT_NOTIFICATION_SETTINGS.min_impressions,
-    notification_cooldown_days: settings.notification_cooldown_days ?? DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days,
-    notification_time: settings.notification_time ?? '09:00:00',
-    timezone: settings.timezone ?? null, // NULLの場合はusersテーブルのタイムゾーンを使用
     updated_at: new Date().toISOString(),
   };
 
