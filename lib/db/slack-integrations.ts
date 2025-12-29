@@ -7,7 +7,7 @@ export interface SlackIntegration {
   slack_user_id: string | null;
   slack_team_id: string;
   slack_channel_id: string | null;
-  slack_notification_type: 'channel' | 'dm';
+  slack_notification_type: 'channel' | 'dm' | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,7 +44,7 @@ export async function saveOrUpdateSlackIntegration(
     slack_user_id?: string | null;
     slack_team_id: string;
     slack_channel_id?: string | null;
-    slack_notification_type?: 'channel' | 'dm';
+    slack_notification_type?: 'channel' | 'dm' | null;
   }
 ): Promise<SlackIntegration> {
   const supabase = createSupabaseClient();
