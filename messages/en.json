@@ -84,7 +84,11 @@
     "analyzing": "Analyzing...",
     "propertyLoading": "Loading properties...",
     "selectedProperty": "Selected Property",
-    "selectAnotherProperty": "Select another property"
+    "selectAnotherProperty": "Select another property",
+    "suggestArticle": "Article Suggestion",
+    "suggestArticleDescription": "Based on Search Console data and analysis of existing articles, we suggest new article titles and content that are effective for SEO.",
+    "suggestArticleComingSoon": "Article suggestion feature is coming soon.",
+    "newArticleSuggestion": "New Article Suggestion"
   },
   "chart": {
     "keywordRankingTrend": "Search Keyword Ranking Trends",

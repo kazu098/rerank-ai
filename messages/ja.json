@@ -84,7 +84,11 @@
     "analyzing": "分析中...",
     "propertyLoading": "プロパティを取得中...",
     "selectedProperty": "選択中のプロパティ",
-    "selectAnotherProperty": "別のプロパティを選択"
+    "selectAnotherProperty": "別のプロパティを選択",
+    "suggestArticle": "記事提案",
+    "suggestArticleDescription": "Search Consoleのデータと既存記事の分析から、SEO対策として効果的な新規記事のタイトルや内容を提案します。",
+    "suggestArticleComingSoon": "記事提案機能は準備中です。",
+    "newArticleSuggestion": "新規記事提案"
   },
   "chart": {
     "keywordRankingTrend": "検索キーワードの順位推移",

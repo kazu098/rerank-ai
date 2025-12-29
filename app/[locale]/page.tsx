@@ -284,6 +284,9 @@ export default function Home() {
   // 通知設定関連
   const [analyzedArticleId, setAnalyzedArticleId] = useState<string | null>(null);
 
+  // タブ管理
+  const [activeTab, setActiveTab] = useState<"analysis" | "suggestion">("analysis");
+
 
   const loadGSCProperties = async () => {
     if (propertiesLoaded) return; // 既に読み込み済みの場合はスキップ
@@ -1243,12 +1246,39 @@ export default function Home() {
         {/* メインコンテンツ（プロパティ選択済みの場合のみ表示） */}
         {selectedSiteUrl && (
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-purple-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            {t("home.analyzeArticle")}
-          </h2>
-          <p className="text-gray-600 mb-6">
-            {t("home.analyzeArticleDescription")}
-          </p>
+          {/* タブUI */}
+          <div className="flex border-b border-gray-200 mb-6">
+            <button
+              onClick={() => setActiveTab("analysis")}
+              className={`px-6 py-3 font-semibold text-sm transition-colors ${
+                activeTab === "analysis"
+                  ? "text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t("home.analyzeArticle")}
+            </button>
+            <button
+              onClick={() => setActiveTab("suggestion")}
+              className={`px-6 py-3 font-semibold text-sm transition-colors ${
+                activeTab === "suggestion"
+                  ? "text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t("home.newArticleSuggestion") || "新規記事提案"}
+            </button>
+          </div>
+
+          {/* タブコンテンツ */}
+          {activeTab === "analysis" ? (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              {t("home.analyzeArticle")}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {t("home.analyzeArticleDescription")}
+            </p>
 
           {/* 記事選択セクション */}
           <div className="mb-6">
@@ -1511,11 +1541,9 @@ export default function Home() {
               <span>{t("home.startAnalysis")}</span>
             )}
           </button>
-        </div>
-        )}
 
-        {/* ステップインジケーター */}
-        {loading && (
+          {/* ステップインジケーター */}
+          {loading && (
           <div className="bg-white p-6 rounded-xl border mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">{t("analysis.progress")}</h3>
             <div className="space-y-4">
@@ -1557,17 +1585,25 @@ export default function Home() {
           </div>
         )}
 
-        {/* エラー表示 */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-            <p className="text-red-800 font-semibold">{t("common.error")}</p>
-            <p className="text-red-600">{error}</p>
-          </div>
-        )}
+            {/* エラー表示 */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+                <p className="text-red-800 font-semibold">{t("common.error")}</p>
+                <p className="text-red-600">{error}</p>
+              </div>
+            )}
 
-        {/* 結果表示エリア - 2列レイアウト */}
-        {data && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* エラー表示 */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+              <p className="text-red-800 font-semibold">{t("common.error")}</p>
+              <p className="text-red-600">{error}</p>
+            </div>
+          )}
+
+          {/* 結果表示エリア - 2列レイアウト */}
+          {data && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 左列: 検索順位データ・キーワード分析 */}
           <div className="space-y-6">
             {/* 上位を保てているキーワード（安心させる） */}
@@ -2009,8 +2045,53 @@ export default function Home() {
                 </div>
               )}
             </div>
-
           </div>
+          )}
+          </div>
+          ) : (
+          /* 記事提案タブ */
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              {t("home.newArticleSuggestion") || "新規記事提案"}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {t("home.suggestArticleDescription")}
+            </p>
+
+            {/* 選択済みプロパティの表示 */}
+            {selectedSiteUrl && (
+              <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-green-800">
+                      {t("home.selectedProperty")}: {selectedSiteUrl}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      {t("home.suggestArticleDescription")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* プロパティが選択されていない場合 */}
+            {!selectedSiteUrl && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 rounded">
+                <p className="text-sm text-yellow-800">
+                  {t("home.selectPropertyDescription")}
+                </p>
+              </div>
+            )}
+            
+            {/* 記事提案のUI（後で実装） */}
+            <div className="bg-gray-50 rounded-lg p-6 text-center">
+              <p className="text-gray-600">
+                {t("home.suggestArticleComingSoon")}
+              </p>
+            </div>
+          </div>
+          )}
+        </div>
         )}
       </div>
     </div>
