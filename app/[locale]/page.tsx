@@ -293,6 +293,7 @@ export default function Home() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [suggestionSiteUrl, setSuggestionSiteUrl] = useState<string>("");
+  const [sites, setSites] = useState<Array<{ id: string; site_url: string }>>([]);
 
 
   const loadGSCProperties = async () => {
@@ -471,6 +472,50 @@ export default function Home() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session?.accessToken, selectedSiteUrl]);
+
+  // URLパラメータからsiteIdとtabを受け取る
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const siteIdParam = params.get("siteId");
+      const tabParam = params.get("tab");
+      
+      if (tabParam === "suggestion") {
+        setActiveTab("suggestion");
+      }
+      
+      if (siteIdParam && status === "authenticated") {
+        // サイト一覧を取得して、siteIdに対応するサイトURLを設定
+        fetch("/api/sites")
+          .then((res) => res.json())
+          .then((data) => {
+            const sitesArray = Array.isArray(data) ? data : [];
+            setSites(sitesArray);
+            const site = sitesArray.find((s: any) => s.id === siteIdParam);
+            if (site) {
+              setSuggestionSiteUrl(site.site_url);
+              setSelectedSiteId(siteIdParam);
+            }
+          })
+          .catch((err) => console.error("Error fetching sites:", err));
+      }
+    }
+  }, [status]);
+
+  // 選択中のプロパティが変更されたら、新規記事提案タブのテキストフィールドも更新
+  useEffect(() => {
+    if (selectedSiteUrl) {
+      // https://形式に統一
+      let normalizedUrl = selectedSiteUrl;
+      if (normalizedUrl.startsWith("sc-domain:")) {
+        const domain = normalizedUrl.replace("sc-domain:", "");
+        normalizedUrl = `https://${domain}/`;
+      } else if (!normalizedUrl.startsWith("https://") && !normalizedUrl.startsWith("http://")) {
+        normalizedUrl = `https://${normalizedUrl}/`;
+      }
+      setSuggestionSiteUrl(normalizedUrl);
+    }
+  }, [selectedSiteUrl]);
 
   // ローカルストレージから選択済みプロパティを読み込む
   useEffect(() => {
@@ -2105,6 +2150,20 @@ export default function Home() {
             <p className="text-gray-600 mb-6">
               {t("home.suggestArticleDescription")}
             </p>
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    {t("home.suggestArticleNote") || "注意: Search Consoleからキーワードデータを取得できない場合（インプレッションやクリックがない場合）、新規記事の提案ができない場合があります。"}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* ドメイン入力フィールド */}
             <div className="mb-6">
@@ -2194,7 +2253,13 @@ export default function Home() {
 
                       if (!response.ok) {
                         const errorData = await response.json();
-                        throw new Error(errorData.error || t("errors.suggestionGenerationFailed"));
+                        // 特別なエラーメッセージを処理
+                        if (errorData.error === "NO_KEYWORDS_FOUND") {
+                          throw new Error("NO_KEYWORDS_FOUND");
+                        } else if (errorData.error === "NO_GAP_KEYWORDS_FOUND") {
+                          throw new Error("NO_GAP_KEYWORDS_FOUND");
+                        }
+                        throw new Error(errorData.error || errorData.message || t("errors.suggestionGenerationFailed"));
                       }
 
                       const result = await response.json();
@@ -2204,7 +2269,14 @@ export default function Home() {
                       loadSuggestions(siteId);
                     } catch (err: any) {
                       console.error("Error generating suggestions:", err);
-                      setError(err.message || t("errors.suggestionGenerationFailed"));
+                      // 特別なエラーメッセージを処理
+                      if (err.message === "NO_KEYWORDS_FOUND") {
+                        setError(t("errors.noKeywordsFound") || "Search Consoleからキーワードデータを取得できませんでした。このサイトにはまだインプレッションやクリックがない可能性があります。");
+                      } else if (err.message === "NO_GAP_KEYWORDS_FOUND") {
+                        setError(t("errors.noGapKeywordsFound") || "新規記事として提案できるキーワードが見つかりませんでした。既存の記事で十分にカバーされているか、インプレッション数が少ない可能性があります。");
+                      } else {
+                        setError(err.message || t("errors.suggestionGenerationFailed"));
+                      }
                     } finally {
                       setGeneratingSuggestions(false);
                     }
@@ -2239,7 +2311,16 @@ export default function Home() {
                     {suggestions.map((suggestion) => (
                       <div
                         key={suggestion.id}
-                        className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                        onClick={() => {
+                          // 記事のsite_idをURLパラメータとして渡す（site_id形式で統一）
+                          const siteId = suggestion.site_id || selectedSiteId;
+                          if (siteId) {
+                            router.push(`/dashboard/article-suggestions?site_id=${siteId}`);
+                          } else {
+                            router.push("/dashboard/article-suggestions");
+                          }
+                        }}
+                        className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -2273,53 +2354,16 @@ export default function Home() {
                             )}
                           </div>
                           <div className="ml-4 flex flex-col gap-2">
-                            <span
-                              className={`px-3 py-1 text-xs font-semibold rounded ${
-                                suggestion.status === "completed"
-                                  ? "bg-green-100 text-green-800"
-                                  : suggestion.status === "in_progress"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : suggestion.status === "skipped"
-                                  ? "bg-gray-100 text-gray-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}
-                            >
-                              {t(`home.status.${suggestion.status}`)}
-                            </span>
-                            <button
-                              onClick={async () => {
-                                const newStatus =
-                                  suggestion.status === "pending"
-                                    ? "in_progress"
-                                    : suggestion.status === "in_progress"
-                                    ? "completed"
-                                    : "pending";
-                                try {
-                                  const response = await fetch(
-                                    `/api/article-suggestions/${suggestion.id}/status`,
-                                    {
-                                      method: "PATCH",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                      },
-                                      body: JSON.stringify({ status: newStatus }),
-                                    }
-                                  );
-                                  if (response.ok && selectedSiteId) {
-                                    loadSuggestions(selectedSiteId);
-                                  }
-                                } catch (err) {
-                                  console.error("Error updating status:", err);
-                                }
-                              }}
-                              className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-                            >
-                              {suggestion.status === "pending"
-                                ? t("home.action.startCreating")
-                                : suggestion.status === "in_progress"
-                                ? t("home.action.complete")
-                                : t("home.action.reset")}
-                            </button>
+                            {suggestion.status === "completed" && (
+                              <span className="px-3 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">
+                                {t("home.status.completed")}
+                              </span>
+                            )}
+                            {suggestion.status === "skipped" && (
+                              <span className="px-3 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-800">
+                                {t("home.status.skipped")}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

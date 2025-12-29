@@ -87,6 +87,7 @@
     "selectAnotherProperty": "別のプロパティを選択",
     "suggestArticle": "記事提案",
     "suggestArticleDescription": "Search Consoleのデータと既存記事の分析から、SEO対策として効果的な新規記事のタイトルや内容を提案します。",
+    "suggestArticleNote": "注意: Search Consoleからキーワードデータを取得できない場合（インプレッションやクリックがない場合）、新規記事の提案ができない場合があります。",
     "suggestArticleComingSoon": "記事提案機能は準備中です。",
     "newArticleSuggestion": "新規記事提案",
     "siteUrlOrDomain": "サイトURLまたはドメイン",
@@ -250,7 +251,9 @@
     "notificationSent": "通知を送信しました",
     "step3Skipped": "⚠ 競合URLが取得できなかったため、Step 3をスキップしました",
     "step3Error": "⚠ Step 3でエラー: {error}",
-    "suggestionGenerationFailed": "提案の生成に失敗しました"
+    "suggestionGenerationFailed": "提案の生成に失敗しました",
+    "noKeywordsFound": "Search Consoleからキーワードデータを取得できませんでした。このサイトにはまだインプレッションやクリックがない可能性があります。",
+    "noGapKeywordsFound": "新規記事として提案できるキーワードが見つかりませんでした。既存の記事で十分にカバーされているか、インプレッション数が少ない可能性があります。"
   },
   "notification": {
     "rankDropDetected": "順位下落を検知しました",
@@ -332,10 +335,21 @@
     },
     "sidebar": {
       "overview": "概要",
-      "articles": "記事",
+      "articleAnalysis": "記事分析",
+      "articleSuggestions": "新規提案記事",
       "notifications": "通知",
       "settings": "設定",
       "billing": "課金"
+    },
+    "articleSuggestions": {
+      "title": "新規提案記事",
+      "generateNew": "新規提案を生成",
+      "filterBySite": "サイトで絞り込み",
+      "filterByStatus": "ステータスで絞り込み",
+      "all": "すべて",
+      "noSuggestions": "提案がありません。新規提案を生成してください。",
+      "priority": "優先度",
+      "createdAt": "作成日"
     }
   },
   "notification": {

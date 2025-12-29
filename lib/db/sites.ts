@@ -1,5 +1,34 @@
 import { createSupabaseClient } from '@/lib/supabase';
 
+/**
+ * サイトURLを正規化（https://形式に統一）
+ * sc-domain:形式をhttps://形式に変換
+ */
+function normalizeSiteUrl(siteUrl: string): string {
+  // 既にhttps://形式の場合はそのまま返す
+  if (siteUrl.startsWith("https://")) {
+    return siteUrl;
+  }
+  
+  // sc-domain:形式をhttps://形式に変換
+  if (siteUrl.startsWith("sc-domain:")) {
+    const domain = siteUrl.replace("sc-domain:", "");
+    return `https://${domain}/`;
+  }
+  
+  // http://形式をhttps://形式に変換
+  if (siteUrl.startsWith("http://")) {
+    return siteUrl.replace("http://", "https://");
+  }
+  
+  // その他の場合はhttps://を追加
+  if (!siteUrl.startsWith("http")) {
+    return `https://${siteUrl}/`;
+  }
+  
+  return siteUrl;
+}
+
 export interface Site {
   id: string;
   user_id: string;
@@ -28,19 +57,35 @@ export async function saveOrUpdateSite(
 ): Promise<Site> {
   const supabase = createSupabaseClient();
 
-  // 既存のサイトを検索
-  const { data: existingSite } = await supabase
+  // URLを正規化（https://形式に統一）
+  const normalizedSiteUrl = normalizeSiteUrl(siteUrl);
+
+  // 既存のサイトを検索（正規化前後の両方の形式で検索）
+  // まず元のURLで検索
+  let { data: existingSite } = await supabase
     .from('sites')
     .select('*')
     .eq('user_id', userId)
     .eq('site_url', siteUrl)
     .single();
+  
+  // 見つからない場合は正規化されたURLで検索
+  if (!existingSite && siteUrl !== normalizedSiteUrl) {
+    const { data } = await supabase
+      .from('sites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('site_url', normalizedSiteUrl)
+      .single();
+    existingSite = data;
+  }
 
   if (existingSite) {
-    // 更新
+    // 更新（URLも正規化して更新）
     const { data: updatedSite, error } = await supabase
       .from('sites')
       .update({
+        site_url: normalizedSiteUrl, // 正規化されたURLに更新
         gsc_access_token: accessToken,
         gsc_refresh_token: refreshToken,
         gsc_token_expires_at: expiresAt.toISOString(),
@@ -59,13 +104,13 @@ export async function saveOrUpdateSite(
     return updatedSite as Site;
   }
 
-  // 新規作成
+  // 新規作成（正規化されたURLで保存）
   const { data: newSite, error } = await supabase
     .from('sites')
     .insert({
       user_id: userId,
-      site_url: siteUrl,
-      display_name: displayName || siteUrl,
+      site_url: normalizedSiteUrl, // 正規化されたURLで保存
+      display_name: displayName || normalizedSiteUrl,
       gsc_access_token: accessToken,
       gsc_refresh_token: refreshToken,
       gsc_token_expires_at: expiresAt.toISOString(),
@@ -99,7 +144,11 @@ export async function getSitesByUserId(userId: string): Promise<Site[]> {
     throw new Error(`Failed to get sites: ${error.message}`);
   }
 
-  return (data || []) as Site[];
+  // 取得したサイトのURLを正規化して返す
+  return (data || []).map((site: Site) => ({
+    ...site,
+    site_url: normalizeSiteUrl(site.site_url),
+  })) as Site[];
 }
 
 /**
