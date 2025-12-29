@@ -127,6 +127,30 @@ export class GSCApiClient {
   }
 
   /**
+   * ドメイン全体のキーワード（クエリ）データを取得
+   * pageUrlを指定しないことで、ドメイン全体のキーワードを取得
+   * ページネーション対応（最大25,000行まで1回で取得可能）
+   */
+  async getAllKeywords(
+    siteUrl: string,
+    startDate: string,
+    endDate: string,
+    rowLimit: number = 25000,
+    startRow: number = 0
+  ): Promise<GSCResponse> {
+    const params: GSCQueryParams = {
+      startDate,
+      endDate,
+      dimensions: ["query"],
+      rowLimit,
+      startRow,
+    };
+
+    // pageUrlは指定しない（ドメイン全体のキーワードを取得）
+    return this.query(siteUrl, params);
+  }
+
+  /**
    * GSC APIにクエリを送信
    */
   private async query(
