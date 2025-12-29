@@ -111,13 +111,14 @@ export default function DashboardLayout({
         {/* サイドバー */}
         <aside
           className={`
-            fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-200 ease-in-out
-            lg:translate-x-0 lg:static lg:inset-0
+            fixed top-16 left-0 bottom-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-200 ease-in-out
+            lg:translate-x-0
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
-          <div className="flex flex-col h-full pt-16 lg:pt-0">
-            <nav className="flex-1 px-4 py-6 space-y-1">
+          <div className="flex flex-col h-full">
+            {/* スクロール可能なナビゲーション部分 */}
+            <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 min-h-0">
               {sidebarItems.map((item) => {
                 const active = isActive(item.href);
                 return (
@@ -146,6 +147,23 @@ export default function DashboardLayout({
                 );
               })}
             </nav>
+            {/* ログアウトボタン（固定位置） */}
+            <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 bg-white">
+              <button
+                onClick={() => {
+                  setSidebarOpen(false);
+                  signOut({ callbackUrl: `/${locale}/auth/signin` });
+                }}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+              >
+                <span className="mr-3 text-gray-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </span>
+                {t("common.logout")}
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -158,7 +176,7 @@ export default function DashboardLayout({
         )}
 
         {/* メインコンテンツ */}
-        <main className="flex-1 lg:ml-0">
+        <main className="flex-1 lg:ml-64">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </div>
