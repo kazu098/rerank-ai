@@ -532,8 +532,17 @@ export class NotificationService {
     items.forEach((item, index) => {
       const { articleUrl, articleTitle, articleId, rankDropInfo, rankRiseInfo, notificationType } = item;
       const displayTitle = articleTitle || articleUrl;
-      const isRise = notificationType === 'rank_rise' && rankRiseInfo;
-      const rankInfo = isRise ? rankRiseInfo : rankDropInfo;
+      // riseAmountが負の値（順位が下がっている）場合は、isRiseをfalseにする
+      // rankRiseInfoが存在してもriseAmountが負の値の場合は、rankDropInfoとして扱う
+      const isRise = notificationType === 'rank_rise' && rankRiseInfo && rankRiseInfo.riseAmount > 0;
+      // rankRiseInfoが存在するがriseAmountが負の値の場合は、rankDropInfoとして扱う
+      const effectiveRankDropInfo = rankDropInfo || (rankRiseInfo && rankRiseInfo.riseAmount <= 0 ? {
+        baseAveragePosition: rankRiseInfo.baseAveragePosition,
+        currentAveragePosition: rankRiseInfo.currentAveragePosition,
+        dropAmount: Math.abs(rankRiseInfo.riseAmount),
+        droppedKeywords: [],
+      } : null);
+      const rankInfo = isRise ? rankRiseInfo : effectiveRankDropInfo;
 
       html += `
         <div class="article-section">
@@ -552,10 +561,10 @@ export class NotificationService {
                 from: rankRiseInfo.baseAveragePosition.toFixed(1),
                 to: rankRiseInfo.currentAveragePosition.toFixed(1),
                 change: rankRiseInfo.riseAmount.toFixed(1),
-              }) : rankDropInfo ? t('notification.email.rankChange', {
-                from: rankDropInfo.baseAveragePosition.toFixed(1),
-                to: rankDropInfo.currentAveragePosition.toFixed(1),
-                change: rankDropInfo.dropAmount.toFixed(1),
+              }) : effectiveRankDropInfo ? t('notification.email.rankChange', {
+                from: effectiveRankDropInfo.baseAveragePosition.toFixed(1),
+                to: effectiveRankDropInfo.currentAveragePosition.toFixed(1),
+                change: effectiveRankDropInfo.dropAmount.toFixed(1),
               }) : ''}
             </div>
             ${isRise ? `
@@ -576,10 +585,10 @@ export class NotificationService {
                 </div>
               `).join('')}
             </div>
-          ` : rankDropInfo && rankDropInfo.droppedKeywords.length > 0 ? `
+          ` : effectiveRankDropInfo && effectiveRankDropInfo.droppedKeywords.length > 0 ? `
             <div class="keyword-list">
               <strong>${t('notification.email.keyword')}:</strong>
-              ${rankDropInfo.droppedKeywords.slice(0, 3).map((kw) => `
+              ${effectiveRankDropInfo.droppedKeywords.slice(0, 3).map((kw) => `
                 <div class="keyword-item">
                   <strong>${kw.keyword}</strong><br>
                   <small>${t('notification.email.rank')}: ${kw.position.toFixed(1)} | Impressions: ${kw.impressions.toLocaleString()}</small>
