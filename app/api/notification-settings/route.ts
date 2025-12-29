@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { saveOrUpdateNotificationSettings, getNotificationSettings } from "@/lib/db/notification-settings";
+import { saveOrUpdateNotificationSettings, getNotificationSettings, NotificationSettings } from "@/lib/db/notification-settings";
 import { getUserById } from "@/lib/db/users";
 import { sendSlackNotificationWithBot } from "@/lib/slack-notification";
 import jaMessages from "@/messages/ja.json";
@@ -56,15 +56,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const responseData = settings || {};
+    const responseData: Partial<NotificationSettings> = settings || {};
     if (slackConnectionInfo) {
       // Slack連携情報を追加（is_enabled=falseでもslack_bot_tokenが存在する場合）
       Object.assign(responseData, slackConnectionInfo);
     }
 
     // Slack連携済みの場合、workspace名とチャネル名を取得
-    let slackWorkspaceName = null;
-    let slackChannelName = null;
+    let slackWorkspaceName: string | null = null;
+    let slackChannelName: string | null = null;
     if (responseData.slack_bot_token && responseData.slack_team_id) {
       try {
         // Workspace情報を取得
