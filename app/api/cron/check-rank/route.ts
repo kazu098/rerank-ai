@@ -283,15 +283,34 @@ export async function GET(request: NextRequest) {
         if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
           try {
             const slackPayload = formatSlackBulkNotification(
-              items.map((item) => ({
-                url: item.articleUrl,
-                title: item.articleTitle ?? null,
-                averagePositionChange: {
-                  from: item.rankDropInfo.baseAveragePosition,
-                  to: item.rankDropInfo.currentAveragePosition,
-                  change: item.rankDropInfo.dropAmount,
-                },
-              })),
+              items
+                .filter((item) => item.rankDropInfo || item.rankRiseInfo) // rankDropInfoまたはrankRiseInfoが存在するもののみ
+                .map((item) => {
+                  // 順位上昇の場合はrankRiseInfoを使用、順位下落の場合はrankDropInfoを使用
+                  const rankInfo = item.rankRiseInfo
+                    ? {
+                        from: item.rankRiseInfo.baseAveragePosition,
+                        to: item.rankRiseInfo.currentAveragePosition,
+                        change: item.rankRiseInfo.riseAmount,
+                      }
+                    : item.rankDropInfo
+                    ? {
+                        from: item.rankDropInfo.baseAveragePosition,
+                        to: item.rankDropInfo.currentAveragePosition,
+                        change: item.rankDropInfo.dropAmount,
+                      }
+                    : null;
+
+                  if (!rankInfo) {
+                    throw new Error(`Missing rank info for article ${item.articleUrl}`);
+                  }
+
+                  return {
+                    url: item.articleUrl,
+                    title: item.articleTitle ?? null,
+                    averagePositionChange: rankInfo,
+                  };
+                }),
               locale
             );
 
