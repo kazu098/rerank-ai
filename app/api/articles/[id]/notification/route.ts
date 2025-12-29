@@ -107,15 +107,6 @@ export async function POST(
           channel: 'email',
           recipient: user.email || '',
           is_enabled: enabled,
-          // その他の設定はデフォルト設定または現在の設定から継承
-          drop_threshold: currentSettings?.drop_threshold ?? defaultSettings?.drop_threshold,
-          keyword_drop_threshold: currentSettings?.keyword_drop_threshold ?? defaultSettings?.keyword_drop_threshold,
-          comparison_days: currentSettings?.comparison_days ?? defaultSettings?.comparison_days,
-          consecutive_drop_days: currentSettings?.consecutive_drop_days ?? defaultSettings?.consecutive_drop_days,
-          min_impressions: currentSettings?.min_impressions ?? defaultSettings?.min_impressions,
-          notification_cooldown_days: currentSettings?.notification_cooldown_days ?? defaultSettings?.notification_cooldown_days,
-          notification_time: currentSettings?.notification_time ?? defaultSettings?.notification_time,
-          timezone: currentSettings?.timezone ?? defaultSettings?.timezone,
         },
         articleId
       );
@@ -142,15 +133,6 @@ export async function POST(
           slack_team_id: slackSettings.slack_team_id,
           slack_channel_id: slackSettings.slack_channel_id,
           slack_notification_type: slackSettings.slack_notification_type,
-          // その他の設定もデフォルト設定または現在の設定から継承
-          drop_threshold: currentSettings?.drop_threshold ?? (defaultSettings?.drop_threshold ?? slackSettings.drop_threshold),
-          keyword_drop_threshold: currentSettings?.keyword_drop_threshold ?? (defaultSettings?.keyword_drop_threshold ?? slackSettings.keyword_drop_threshold),
-          comparison_days: currentSettings?.comparison_days ?? (defaultSettings?.comparison_days ?? slackSettings.comparison_days),
-          consecutive_drop_days: currentSettings?.consecutive_drop_days ?? (defaultSettings?.consecutive_drop_days ?? slackSettings.consecutive_drop_days),
-          min_impressions: currentSettings?.min_impressions ?? (defaultSettings?.min_impressions ?? slackSettings.min_impressions),
-          notification_cooldown_days: currentSettings?.notification_cooldown_days ?? (defaultSettings?.notification_cooldown_days ?? slackSettings.notification_cooldown_days),
-          notification_time: currentSettings?.notification_time ?? (defaultSettings?.notification_time ?? slackSettings.notification_time),
-          timezone: currentSettings?.timezone ?? (defaultSettings?.timezone ?? slackSettings.timezone),
         },
         articleId
       );
