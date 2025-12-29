@@ -17,12 +17,15 @@ import { getUserAlertSettings } from "@/lib/db/alert-settings";
  * 使用方法:
  *   curl -X GET "http://localhost:3000/api/cron/check-rank/test?dryRun=true" \
  *        -H "Authorization: Bearer YOUR_TEST_SECRET"
+ *   または
+ *   curl -X POST "http://localhost:3000/api/cron/check-rank/test?dryRun=true" \
+ *        -H "Authorization: Bearer YOUR_TEST_SECRET"
  * 
  * クエリパラメータ:
  *   - dryRun: true の場合、通知は送信せずログのみ出力
  *   - articleId: 特定の記事IDのみをチェック（オプション）
  */
-export async function GET(request: NextRequest) {
+async function handleRequest(request: NextRequest) {
   // テスト用の認証（環境変数 TEST_SECRET、CRON_TEST_SECRET または CRON_SECRET を使用）
   const authHeader = request.headers.get("authorization");
   const testSecret = process.env.TEST_SECRET || process.env.CRON_TEST_SECRET || process.env.CRON_SECRET;
@@ -266,18 +269,18 @@ export async function GET(request: NextRequest) {
             dropAmount: checkResult.rankDropResult.dropAmount,
             baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
             currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
-            droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords.length,
-            droppedKeywords: checkResult.rankDropResult.droppedKeywords.slice(0, 5).map(kw => ({
+            droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords?.length ?? 0,
+            droppedKeywords: checkResult.rankDropResult.droppedKeywords?.slice(0, 5).map(kw => ({
               keyword: kw.keyword,
               position: kw.position,
               impressions: kw.impressions,
-            })),
+            })) ?? [],
           } : null,
           rankRiseResult: checkResult.rankRiseResult ? {
             riseAmount: checkResult.rankRiseResult.riseAmount,
             baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
             currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
-            risenKeywordsCount: checkResult.rankRiseResult.risenKeywords.length,
+            risenKeywordsCount: checkResult.rankRiseResult.risenKeywords?.length ?? 0,
           } : null,
           settings: checkResult.settings,
         });
@@ -294,13 +297,13 @@ export async function GET(request: NextRequest) {
               dropAmount: checkResult.rankDropResult.dropAmount,
               baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
-              droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords.length,
+              droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords?.length ?? 0,
             } : null,
             rankRiseResult: checkResult.rankRiseResult ? {
               riseAmount: checkResult.rankRiseResult.riseAmount,
               baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
-              risenKeywordsCount: checkResult.rankRiseResult.risenKeywords.length,
+              risenKeywordsCount: checkResult.rankRiseResult.risenKeywords?.length ?? 0,
             } : null,
             settings: checkResult.settings,
           },
@@ -360,7 +363,7 @@ export async function GET(request: NextRequest) {
               baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
               riseAmount: checkResult.rankRiseResult.riseAmount,
-              risenKeywords: checkResult.rankRiseResult.risenKeywords.map((kw) => ({
+              risenKeywords: (checkResult.rankRiseResult.risenKeywords ?? []).map((kw) => ({
                 keyword: kw.keyword,
                 position: kw.position,
                 impressions: kw.impressions,
@@ -375,7 +378,7 @@ export async function GET(request: NextRequest) {
             articleId: article.id,
             notificationType: 'rank_drop',
             analysisResult: {
-              prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+              prioritizedKeywords: (checkResult.rankDropResult.droppedKeywords ?? []).map((kw) => ({
                 keyword: kw.keyword,
                 priority: kw.impressions,
                 impressions: kw.impressions,
@@ -389,7 +392,7 @@ export async function GET(request: NextRequest) {
               baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
               dropAmount: checkResult.rankDropResult.dropAmount,
-              droppedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+              droppedKeywords: (checkResult.rankDropResult.droppedKeywords ?? []).map((kw) => ({
                 keyword: kw.keyword,
                 position: kw.position,
                 impressions: kw.impressions,
@@ -626,5 +629,13 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handleRequest(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleRequest(request);
 }
 

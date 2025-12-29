@@ -262,7 +262,8 @@ export class NotificationChecker {
     );
 
     // 順位上昇が検知された場合は、順位上昇を優先（順位下落より良いニュース）
-    if (rankRiseResult.hasRise) {
+    // riseAmountが負の値（順位が下がっている）場合は、hasRiseをfalseにする
+    if (rankRiseResult.hasRise && rankRiseResult.riseAmount > 0) {
       return {
         shouldNotify: true,
         notificationType: 'rank_rise',

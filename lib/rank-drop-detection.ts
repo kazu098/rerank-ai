@@ -298,8 +298,12 @@ export class RankDropDetector {
     const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
     const risenKeywords = this.identifyRisenKeywords(keywordRows);
 
+    // riseAmountが負の値（順位が下がっている）場合は、hasRiseをfalseにする
+    // 順位上昇は、riseAmountが正の値で閾値以上の場合のみ
+    const hasRise = riseAmount > 0 && (riseAmount >= riseThreshold || risenKeywords.length > 0);
+
     return {
-      hasRise: riseAmount >= riseThreshold || risenKeywords.length > 0,
+      hasRise,
       riseAmount,
       baseAveragePosition,
       currentAveragePosition,
