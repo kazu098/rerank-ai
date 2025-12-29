@@ -331,32 +331,55 @@ export async function GET(request: NextRequest) {
 
         const userNotifications = notificationsByUser.get(article.user_id)!;
 
-        userNotifications.items.push({
-          articleUrl: article.url,
-          articleTitle: article.title,
-          articleId: article.id,
-          analysisResult: {
-            prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
-              keyword: kw.keyword,
-              priority: kw.impressions,
-              impressions: kw.impressions,
-              clicks: kw.clicks,
-              position: kw.position,
-            })),
-            competitorResults: [],
-            uniqueCompetitorUrls: [],
-          },
-          rankDropInfo: {
-            baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
-            currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
-            dropAmount: checkResult.rankDropResult.dropAmount,
-            droppedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
-              keyword: kw.keyword,
-              position: kw.position,
-              impressions: kw.impressions,
-            })),
-          },
-        });
+        // 通知タイプに応じて情報を設定
+        if (checkResult.notificationType === 'rank_rise' && checkResult.rankRiseResult) {
+          // 順位上昇の通知
+          userNotifications.items.push({
+            articleUrl: article.url,
+            articleTitle: article.title,
+            articleId: article.id,
+            notificationType: 'rank_rise',
+            rankRiseInfo: {
+              baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
+              currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
+              riseAmount: checkResult.rankRiseResult.riseAmount,
+              risenKeywords: checkResult.rankRiseResult.risenKeywords.map((kw) => ({
+                keyword: kw.keyword,
+                position: kw.position,
+                impressions: kw.impressions,
+              })),
+            },
+          });
+        } else {
+          // 順位下落の通知
+          userNotifications.items.push({
+            articleUrl: article.url,
+            articleTitle: article.title,
+            articleId: article.id,
+            notificationType: 'rank_drop',
+            analysisResult: {
+              prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+                keyword: kw.keyword,
+                priority: kw.impressions,
+                impressions: kw.impressions,
+                clicks: kw.clicks,
+                position: kw.position,
+              })),
+              competitorResults: [],
+              uniqueCompetitorUrls: [],
+            },
+            rankDropInfo: {
+              baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
+              currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
+              dropAmount: checkResult.rankDropResult.dropAmount,
+              droppedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+                keyword: kw.keyword,
+                position: kw.position,
+                impressions: kw.impressions,
+              })),
+            },
+          });
+        }
 
         console.log(`[Test Cron] Article ${article.id} added to notification queue`);
       } catch (error: any) {
@@ -451,15 +474,34 @@ export async function GET(request: NextRequest) {
           if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
             try {
               const slackPayload = formatSlackBulkNotification(
-                items.map((item) => ({
-                  url: item.articleUrl,
-                  title: item.articleTitle ?? null,
-                  averagePositionChange: {
-                    from: item.rankDropInfo.baseAveragePosition,
-                    to: item.rankDropInfo.currentAveragePosition,
-                    change: item.rankDropInfo.dropAmount,
-                  },
-                })),
+                items
+                  .filter((item) => item.rankDropInfo || item.rankRiseInfo) // rankDropInfoまたはrankRiseInfoが存在するもののみ
+                  .map((item) => {
+                    // 順位上昇の場合はrankRiseInfoを使用、順位下落の場合はrankDropInfoを使用
+                    const rankInfo = item.rankRiseInfo
+                      ? {
+                          from: item.rankRiseInfo.baseAveragePosition,
+                          to: item.rankRiseInfo.currentAveragePosition,
+                          change: item.rankRiseInfo.riseAmount,
+                        }
+                      : item.rankDropInfo
+                      ? {
+                          from: item.rankDropInfo.baseAveragePosition,
+                          to: item.rankDropInfo.currentAveragePosition,
+                          change: item.rankDropInfo.dropAmount,
+                        }
+                      : null;
+
+                    if (!rankInfo) {
+                      throw new Error(`Missing rank info for article ${item.articleUrl}`);
+                    }
+
+                    return {
+                      url: item.articleUrl,
+                      title: item.articleTitle ?? null,
+                      averagePositionChange: rankInfo,
+                    };
+                  }),
                 locale
               );
 
