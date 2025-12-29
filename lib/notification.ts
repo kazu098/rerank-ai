@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { DiffAnalysisResult } from "./diff-analyzer";
 import { CompetitorAnalysisSummary } from "./competitor-analysis";
 import { LLMDiffAnalysisResult } from "./llm-diff-analyzer";
+import { routing } from '@/src/i18n/routing';
 
 // 多言語対応用のメッセージ（サーバーサイド用）
 const messages: Record<string, Record<string, any>> = {
@@ -528,6 +529,12 @@ export class NotificationService {
           <div class="content">
     `;
 
+    // appUrlの末尾にlocaleが含まれている場合は削除（汎用的に処理）
+    // 設定されているすべてのlocaleに対応
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rerank-ai.com';
+    const localePattern = routing.locales.join('|');
+    appUrl = appUrl.replace(new RegExp(`\\/(${localePattern})\\/?$`, 'i'), '');
+
     // 各記事の情報を追加
     items.forEach((item, index) => {
       const { articleUrl, articleTitle, articleId, rankDropInfo, rankRiseInfo, notificationType } = item;
@@ -600,17 +607,22 @@ export class NotificationService {
           <!-- ボタン -->
           ${item.articleId ? `
             <div style="margin-top: 16px; text-align: center;">
-              ${isRise ? `
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/${locale}/dashboard/articles/${item.articleId}" 
-                   style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
-                  ${t('notification.email.viewRankChangeDetails')}
-                </a>
-              ` : `
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/${locale}/dashboard/articles/${item.articleId}?analyze=true" 
-                   style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
-                  ${t('notification.email.viewCompetitorsAndRecommendations')}
-                </a>
-              `}
+              ${(() => {
+                const articleDetailUrl = isRise 
+                  ? `${appUrl}/${locale}/dashboard/articles/${item.articleId}`
+                  : `${appUrl}/${locale}/dashboard/articles/${item.articleId}?analyze=true`;
+                return isRise ? `
+                  <a href="${articleDetailUrl}" 
+                     style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
+                    ${t('notification.email.viewRankChangeDetails')}
+                  </a>
+                ` : `
+                  <a href="${articleDetailUrl}" 
+                     style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
+                    ${t('notification.email.viewCompetitorsAndRecommendations')}
+                  </a>
+                `;
+              })()}
             </div>
           ` : ''}
         </div>
