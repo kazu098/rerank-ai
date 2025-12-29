@@ -93,10 +93,15 @@ export async function GET(request: NextRequest) {
         let refreshToken = site.gsc_refresh_token;
 
         // トークンが期限切れまたは期限切れ間近（10分前）の場合、リフレッシュを試みる
-        if (tokenExpiresAt && now >= tokenExpiresAt - 10 * 60 * 1000) {
+        // tokenExpiresAtがnullの場合でも、リフレッシュトークンがあればリフレッシュを試みる（安全のため）
+        const shouldRefresh = tokenExpiresAt 
+          ? now >= tokenExpiresAt - 10 * 60 * 1000
+          : refreshToken !== null; // tokenExpiresAtがnullでリフレッシュトークンがある場合、リフレッシュを試みる
+
+        if (shouldRefresh) {
           if (!refreshToken) {
             console.warn(
-              `[Cron] GSC access token expired for site ${site.id}, but no refresh token available. Skipping.`
+              `[Cron] GSC access token expired or missing expiration date for site ${site.id}, but no refresh token available. Skipping article ${article.id}.`
             );
             continue;
           }
@@ -122,8 +127,11 @@ export async function GET(request: NextRequest) {
             console.log(`[Cron] Successfully refreshed GSC access token for site ${site.id}`);
           } catch (error: any) {
             console.error(
-              `[Cron] Failed to refresh GSC access token for site ${site.id}:`,
+              `[Cron] Failed to refresh GSC access token for site ${site.id}, article ${article.id}:`,
               error.message
+            );
+            console.error(
+              `[Cron] Skipping article ${article.id} due to token refresh failure. User should re-authenticate.`
             );
             continue;
           }
@@ -139,13 +147,34 @@ export async function GET(request: NextRequest) {
         // 通知判定を実行
         // 注意: GSC APIのデータは1日単位で更新されるため、タイムゾーンチェックは省略
         // 通知は1日1回実行時に送信される（ユーザーが設定した時刻とは異なる可能性がある）
-        const checker = new NotificationChecker(gscClient);
-        const checkResult = await checker.checkNotificationNeeded(
-          article.user_id,
-          article.id,
-          site.site_url,
-          article.url
-        );
+        let checkResult;
+        try {
+          const checker = new NotificationChecker(gscClient);
+          checkResult = await checker.checkNotificationNeeded(
+            article.user_id,
+            article.id,
+            site.site_url,
+            article.url
+          );
+        } catch (error: any) {
+          // GSC API呼び出し時のエラーをハンドリング（特に401エラー）
+          const errorMessage = error.message || String(error);
+          if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('invalid_token')) {
+            console.error(
+              `[Cron] GSC API authentication error for site ${site.id}, article ${article.id}:`,
+              errorMessage
+            );
+            console.error(
+              `[Cron] Token may be expired or invalid. Skipping article ${article.id}. User should re-authenticate.`
+            );
+          } else {
+            console.error(
+              `[Cron] GSC API error for site ${site.id}, article ${article.id}:`,
+              errorMessage
+            );
+          }
+          continue;
+        }
 
         if (!checkResult.shouldNotify) {
           console.log(

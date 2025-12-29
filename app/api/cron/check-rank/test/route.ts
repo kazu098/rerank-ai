@@ -180,10 +180,15 @@ async function handleRequest(request: NextRequest) {
         let refreshToken = site.gsc_refresh_token;
 
         // トークンが期限切れまたは期限切れ間近（10分前）の場合、リフレッシュを試みる
-        if (tokenExpiresAt && now >= tokenExpiresAt - 10 * 60 * 1000) {
+        // tokenExpiresAtがnullの場合でも、リフレッシュトークンがあればリフレッシュを試みる（安全のため）
+        const shouldRefresh = tokenExpiresAt 
+          ? now >= tokenExpiresAt - 10 * 60 * 1000
+          : refreshToken !== null; // tokenExpiresAtがnullでリフレッシュトークンがある場合、リフレッシュを試みる
+
+        if (shouldRefresh) {
           if (!refreshToken) {
             console.warn(
-              `[Test Cron] GSC access token expired for site ${site.id}, but no refresh token available. Skipping.`
+              `[Test Cron] GSC access token expired or missing expiration date for site ${site.id}, but no refresh token available. Skipping article ${article.id}.`
             );
             checkResults.push({
               articleId: article.id,
@@ -216,15 +221,18 @@ async function handleRequest(request: NextRequest) {
             console.log(`[Test Cron] Successfully refreshed GSC access token for site ${site.id}`);
           } catch (error: any) {
             console.error(
-              `[Test Cron] Failed to refresh GSC access token for site ${site.id}:`,
+              `[Test Cron] Failed to refresh GSC access token for site ${site.id}, article ${article.id}:`,
               error.message
+            );
+            console.error(
+              `[Test Cron] Skipping article ${article.id} due to token refresh failure. User should re-authenticate.`
             );
             checkResults.push({
               articleId: article.id,
               articleUrl: article.url,
               shouldNotify: false,
               reason: "Failed to refresh GSC token",
-              details: { error: error.message },
+              details: { error: error.message, siteId: site.id },
             });
             continue;
           }
@@ -252,13 +260,48 @@ async function handleRequest(request: NextRequest) {
 
         // 通知判定を実行
         console.log(`[Test Cron] Checking notification needed for article ${article.id}...`);
-        const checker = new NotificationChecker(gscClient);
-        const checkResult = await checker.checkNotificationNeeded(
-          article.user_id,
-          article.id,
-          site.site_url,
-          article.url
-        );
+        let checkResult;
+        try {
+          const checker = new NotificationChecker(gscClient);
+          checkResult = await checker.checkNotificationNeeded(
+            article.user_id,
+            article.id,
+            site.site_url,
+            article.url
+          );
+        } catch (error: any) {
+          // GSC API呼び出し時のエラーをハンドリング（特に401エラー）
+          const errorMessage = error.message || String(error);
+          if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('invalid_token')) {
+            console.error(
+              `[Test Cron] GSC API authentication error for site ${site.id}, article ${article.id}:`,
+              errorMessage
+            );
+            console.error(
+              `[Test Cron] Token may be expired or invalid. Skipping article ${article.id}. User should re-authenticate.`
+            );
+            checkResults.push({
+              articleId: article.id,
+              articleUrl: article.url,
+              shouldNotify: false,
+              reason: "GSC API authentication error (token expired or invalid)",
+              details: { error: errorMessage, siteId: site.id },
+            });
+          } else {
+            console.error(
+              `[Test Cron] GSC API error for site ${site.id}, article ${article.id}:`,
+              errorMessage
+            );
+            checkResults.push({
+              articleId: article.id,
+              articleUrl: article.url,
+              shouldNotify: false,
+              reason: "GSC API error",
+              details: { error: errorMessage, siteId: site.id },
+            });
+          }
+          continue;
+        }
 
         console.log(`[Test Cron] Notification check result for article ${article.id}:`, {
           shouldNotify: checkResult.shouldNotify,
