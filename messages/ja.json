@@ -42,7 +42,7 @@
     "subtitle": "「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。",
     "loginWithGoogle": "Googleでログインして始める",
     "heroTitle": "SEO順位を自動で改善",
-    "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します。\nAI検索（AIO）にも対応。",
+    "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します。\nAI検索（AIO）や新規記事の提案にも対応。",
     "ctaButton": "Googleアカウントで無料開始",
     "demoVideoTitle": "ReRank AI デモ動画",
     "videoNotSupported": "お使いのブラウザは動画の再生をサポートしていません。",
@@ -59,6 +59,10 @@
       "feature3": {
         "title": "AI改善提案",
         "description": "Gemini AIが自社記事と競合記事を比較し、具体的な改善案を提案します"
+      },
+      "feature4": {
+        "title": "新規記事提案",
+        "description": "Search Consoleのデータから、SEO対策として効果的な新規記事のタイトルや内容を自動提案します"
       }
     },
     "howItWorks": {

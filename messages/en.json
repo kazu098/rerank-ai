@@ -42,7 +42,7 @@
     "subtitle": "From preventing ranking drops to boosting rankings, AI automatically identifies differences.",
     "loginWithGoogle": "Sign in with Google to get started",
     "heroTitle": "Automatically Improve SEO Rankings",
-    "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements.\nOptimized for AI search (AIO).",
+    "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements.\nSupports AI search (AIO) and new article suggestions.",
     "ctaButton": "Get Started Free with Google Account",
     "demoVideoTitle": "ReRank AI Demo Video",
     "videoNotSupported": "Your browser does not support video playback.",
@@ -59,6 +59,10 @@
       "feature3": {
         "title": "AI Improvement Suggestions",
         "description": "Gemini AI compares your articles with competitor articles and proposes specific improvements"
+      },
+      "feature4": {
+        "title": "New Article Suggestions",
+        "description": "Automatically suggests new article titles and content that are effective for SEO based on Search Console data"
       }
     },
     "howItWorks": {
