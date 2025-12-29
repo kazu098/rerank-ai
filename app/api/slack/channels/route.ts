@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (!slackBotToken) {
       const { createSupabaseClient } = await import("@/lib/supabase");
       const supabase = createSupabaseClient();
-      const { data: slackSettingsData } = await supabase
+      const { data: slackSettingsData, error: slackError } = await supabase
         .from('notification_settings')
         .select('slack_bot_token')
         .eq('user_id', session.userId)
@@ -35,10 +35,13 @@ export async function GET(request: NextRequest) {
         .not('slack_bot_token', 'is', null)
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       
-      if (slackSettingsData) {
+      if (slackSettingsData && !slackError) {
         slackBotToken = slackSettingsData.slack_bot_token;
+      } else if (slackError && slackError.code !== 'PGRST116') {
+        // PGRST116はレコードが見つからない場合のエラーコード（正常）
+        console.error("[Slack Channels API] Error fetching Slack settings:", slackError);
       }
     }
     
