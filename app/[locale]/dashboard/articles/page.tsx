@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 interface Article {
@@ -59,6 +60,9 @@ export default function ArticlesPage() {
   const prevPathnameRef = useRef<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const searchParams = useSearchParams();
+  const highlightedArticleId = searchParams.get("highlight");
+  const [slackConnected, setSlackConnected] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -114,6 +118,17 @@ export default function ArticlesPage() {
       const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
       if (currentPage > totalPages && totalPages > 0) {
         setCurrentPage(1);
+      }
+      
+      // ハイライトされた記事が現在のページにない場合は、該当ページに移動
+      if (highlightedArticleId) {
+        const highlightedIndex = filteredArticles.findIndex((a: Article) => a.id === highlightedArticleId);
+        if (highlightedIndex >= 0) {
+          const targetPage = Math.floor(highlightedIndex / itemsPerPage) + 1;
+          if (targetPage !== currentPage) {
+            setCurrentPage(targetPage);
+          }
+        }
       }
     } catch (err: any) {
       console.error("[Articles] Error:", err);
@@ -373,6 +388,15 @@ export default function ArticlesPage() {
         </div>
       </div>
 
+      {/* ハイライトメッセージ */}
+      {highlightedArticleId && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg shadow mb-4">
+          <p className="text-sm text-yellow-800">
+            {t("dashboard.articles.highlightedArticleMessage")}
+          </p>
+        </div>
+      )}
+
       {/* 記事一覧テーブル */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
           {articles.length === 0 ? (
@@ -469,7 +493,9 @@ export default function ArticlesPage() {
                   <tr
                     key={article.id}
                     onClick={() => router.push(`/dashboard/articles/${article.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className={`hover:bg-gray-50 cursor-pointer ${
+                      highlightedArticleId === article.id ? "bg-yellow-50 border-l-4 border-yellow-400" : ""
+                    }`}
                   >
                     <td className="px-6 py-4 w-80">
                       <div className="flex items-start gap-2">
@@ -642,40 +668,68 @@ export default function ArticlesPage() {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const currentStatus = article.notificationStatus?.slack;
-                          const newStatus = currentStatus === true ? false : true;
-                          
-                          // 楽観的更新: 即座にUIを更新
-                          setArticles((prevArticles) =>
-                            prevArticles.map((a) =>
-                              a.id === article.id
-                                ? {
-                                    ...a,
-                                    notificationStatus: {
-                                      email: a.notificationStatus?.email ?? null,
-                                      slack: newStatus,
-                                    },
-                                  }
-                                : a
-                            )
-                          );
-
-                          try {
-                            const response = await fetch(
-                              `/api/articles/${article.id}/notification`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  channel: "slack",
-                                  enabled: newStatus,
-                                }),
+                      <div className="group relative inline-block">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            
+                            // Slack未連携の場合は通知設定ページへ遷移
+                            if (!slackConnected) {
+                              if (confirm(t("dashboard.articles.slackConnectionRequiredTooltip") + "\n通知設定ページに移動しますか？")) {
+                                router.push(`/dashboard/notifications`);
                               }
+                              return;
+                            }
+                            
+                            const currentStatus = article.notificationStatus?.slack;
+                            const newStatus = currentStatus === true ? false : true;
+                            
+                            // 楽観的更新: 即座にUIを更新
+                            setArticles((prevArticles) =>
+                              prevArticles.map((a) =>
+                                a.id === article.id
+                                  ? {
+                                      ...a,
+                                      notificationStatus: {
+                                        email: a.notificationStatus?.email ?? null,
+                                        slack: newStatus,
+                                      },
+                                    }
+                                  : a
+                              )
                             );
-                            if (!response.ok) {
+
+                            try {
+                              const response = await fetch(
+                                `/api/articles/${article.id}/notification`,
+                                {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    channel: "slack",
+                                    enabled: newStatus,
+                                  }),
+                                }
+                              );
+                              if (!response.ok) {
+                                // エラーの場合、元の状態に戻す
+                                setArticles((prevArticles) =>
+                                  prevArticles.map((a) =>
+                                    a.id === article.id
+                                      ? {
+                                          ...a,
+                                          notificationStatus: {
+                                            email: a.notificationStatus?.email ?? null,
+                                            slack: currentStatus ?? null,
+                                          },
+                                        }
+                                      : a
+                                  )
+                                );
+                                const errorData = await response.json();
+                                alert(errorData.error || t("dashboard.articles.updateSlackNotificationFailed"));
+                              }
+                            } catch (error: any) {
                               // エラーの場合、元の状態に戻す
                               setArticles((prevArticles) =>
                                 prevArticles.map((a) =>
@@ -690,53 +744,47 @@ export default function ArticlesPage() {
                                     : a
                                 )
                               );
-                              const errorData = await response.json();
-                              alert(errorData.error || t("dashboard.articles.updateSlackNotificationFailed"));
+                              console.error("Failed to toggle Slack notification:", error);
+                              alert(`${t("dashboard.articles.updateSlackNotificationFailed")}: ${error.message}`);
                             }
-                          } catch (error: any) {
-                            // エラーの場合、元の状態に戻す
-                            setArticles((prevArticles) =>
-                              prevArticles.map((a) =>
-                                a.id === article.id
-                                  ? {
-                                      ...a,
-                                      notificationStatus: {
-                                        email: a.notificationStatus?.email ?? null,
-                                        slack: currentStatus ?? null,
-                                      },
-                                    }
-                                  : a
-                              )
-                            );
-                            console.error("Failed to toggle Slack notification:", error);
-                            alert(`${t("dashboard.articles.updateSlackNotificationFailed")}: ${error.message}`);
-                          }
-                        }}
-                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        style={{
-                          backgroundColor:
-                            article.notificationStatus?.slack === true
-                              ? "#3b82f6"
+                          }}
+                          disabled={!slackConnected && article.notificationStatus?.slack !== true}
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            backgroundColor:
+                              article.notificationStatus?.slack === true
+                                ? "#3b82f6"
+                                : article.notificationStatus?.slack === false
+                                ? "#d1d5db"
+                                : "#e5e7eb",
+                          }}
+                          title={
+                            !slackConnected
+                              ? t("dashboard.articles.slackConnectionRequiredTooltip")
+                              : article.notificationStatus?.slack === true
+                              ? t("dashboard.articles.slackNotificationOn")
                               : article.notificationStatus?.slack === false
-                              ? "#d1d5db"
-                              : "#e5e7eb",
-                        }}
-                        title={
-                          article.notificationStatus?.slack === true
-                            ? t("dashboard.articles.slackNotificationOn")
-                            : article.notificationStatus?.slack === false
-                            ? t("dashboard.articles.slackNotificationOff")
-                            : t("dashboard.articles.slackNotificationDefault")
-                        }
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            article.notificationStatus?.slack === true
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
-                        />
-                      </button>
+                              ? t("dashboard.articles.slackNotificationOff")
+                              : t("dashboard.articles.slackNotificationDefault")
+                          }
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              article.notificationStatus?.slack === true
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                        {!slackConnected && (
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 whitespace-normal">
+                            {t("dashboard.articles.slackConnectionRequiredTooltip")}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-1">
+                              <div className="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">

@@ -288,7 +288,9 @@
       "retry": "Retry",
       "rankUnit": "",
       "noData": "N/A",
-      "noDataDash": "-"
+      "noDataDash": "-",
+      "slackConnectionRequiredTooltip": "Slack connection is required to enable Slack notifications. Please connect Slack in notification settings",
+      "highlightedArticleMessage": "You can configure notifications for this article"
     },
     "notifications": {
       "title": "Unread Notifications",
@@ -363,7 +365,9 @@
       "error": "Failed to save settings",
       "title": "Settings",
       "notificationSettings": "Notification Settings",
-      "slackSettings": "Slack Notification Settings"
+      "slackSettings": "Slack Notification Settings",
+      "goToDashboardToSetup": "Monitor This Article",
+      "goToDashboardToSetupDescription": "Automatically track rankings and notify you with improvement suggestions when rankings drop"
     }
   },
   "alertSettings": {

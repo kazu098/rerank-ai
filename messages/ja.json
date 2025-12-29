@@ -290,7 +290,9 @@
       "retry": "再試行",
       "rankUnit": "位",
       "noData": "N/A",
-      "noDataDash": "-"
+      "noDataDash": "-",
+      "slackConnectionRequiredTooltip": "Slack通知を有効にするには、通知設定でSlack連携が必要です",
+      "highlightedArticleMessage": "この記事の通知設定を行えます"
     },
     "notifications": {
       "title": "未読通知",
@@ -365,7 +367,9 @@
       "error": "設定の保存に失敗しました",
       "title": "設定",
       "notificationSettings": "通知設定",
-      "slackSettings": "Slack通知設定"
+      "slackSettings": "Slack通知設定",
+      "goToDashboardToSetup": "この記事を監視する",
+      "goToDashboardToSetupDescription": "順位を自動でトラッキングし、順位が下がった際に改善案を通知します"
     }
   },
   "alertSettings": {
