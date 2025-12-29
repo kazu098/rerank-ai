@@ -260,7 +260,8 @@ export async function GET(request: NextRequest) {
         console.log(`[Test Cron] Notification check result for article ${article.id}:`, {
           shouldNotify: checkResult.shouldNotify,
           reason: checkResult.reason,
-          rankDropResult: {
+          notificationType: checkResult.notificationType,
+          rankDropResult: checkResult.rankDropResult ? {
             hasDrop: checkResult.rankDropResult.hasDrop,
             dropAmount: checkResult.rankDropResult.dropAmount,
             baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
@@ -271,7 +272,13 @@ export async function GET(request: NextRequest) {
               position: kw.position,
               impressions: kw.impressions,
             })),
-          },
+          } : null,
+          rankRiseResult: checkResult.rankRiseResult ? {
+            riseAmount: checkResult.rankRiseResult.riseAmount,
+            baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
+            currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
+            risenKeywordsCount: checkResult.rankRiseResult.risenKeywords.length,
+          } : null,
           settings: checkResult.settings,
         });
 
@@ -282,32 +289,42 @@ export async function GET(request: NextRequest) {
           reason: checkResult.reason.key,
           details: {
             reasonParams: checkResult.reason.params,
-            rankDropResult: {
+            rankDropResult: checkResult.rankDropResult ? {
               hasDrop: checkResult.rankDropResult.hasDrop,
               dropAmount: checkResult.rankDropResult.dropAmount,
               baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
               droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords.length,
-            },
+            } : null,
+            rankRiseResult: checkResult.rankRiseResult ? {
+              riseAmount: checkResult.rankRiseResult.riseAmount,
+              baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
+              currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
+              risenKeywordsCount: checkResult.rankRiseResult.risenKeywords.length,
+            } : null,
             settings: checkResult.settings,
           },
         });
 
         // 順位データをDBに保存（通知が必要かどうかに関わらず更新）
         try {
-          const currentPosition = checkResult.rankDropResult.currentAveragePosition;
+          // rankDropResultまたはrankRiseResultから現在の順位を取得
+          const currentPosition = checkResult.rankDropResult?.currentAveragePosition 
+            ?? checkResult.rankRiseResult?.currentAveragePosition;
           const previousPosition = article.current_average_position;
           
-          await updateArticleAnalysis(
-            article.id,
-            currentPosition,
-            previousPosition !== null ? previousPosition : undefined
-          );
-          
-          console.log(`[Test Cron] Updated article analysis data for article ${article.id}:`, {
-            currentPosition,
-            previousPosition,
-          });
+          if (currentPosition !== undefined) {
+            await updateArticleAnalysis(
+              article.id,
+              currentPosition,
+              previousPosition !== null ? previousPosition : undefined
+            );
+            
+            console.log(`[Test Cron] Updated article analysis data for article ${article.id}:`, {
+              currentPosition,
+              previousPosition,
+            });
+          }
         } catch (updateError: any) {
           console.error(`[Test Cron] Failed to update article analysis for article ${article.id}:`, updateError);
           // エラーが発生しても処理を続行
@@ -350,7 +367,7 @@ export async function GET(request: NextRequest) {
               })),
             },
           });
-        } else {
+        } else if (checkResult.rankDropResult) {
           // 順位下落の通知
           userNotifications.items.push({
             articleUrl: article.url,
@@ -379,6 +396,10 @@ export async function GET(request: NextRequest) {
               })),
             },
           });
+        } else {
+          // rankDropResultもrankRiseResultも存在しない場合（通常は発生しないはず）
+          console.warn(`[Test Cron] No rank info available for article ${article.id}, skipping notification item`);
+          continue;
         }
 
         console.log(`[Test Cron] Article ${article.id} added to notification queue`);
