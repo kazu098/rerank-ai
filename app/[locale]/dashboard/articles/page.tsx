@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, usePathname } from "@/src/i18n/routing";
+import { useRouter, usePathname, Link } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 
 interface Article {
   id: string;
@@ -66,7 +65,7 @@ export default function ArticlesPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push(`/${locale}`);
+      router.push(`/`);
       return;
     }
 
@@ -328,7 +327,7 @@ export default function ArticlesPage() {
               {t("alertSettings.title")}
             </button>
           <Link
-            href={`/${locale}`}
+            href={`/`}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
               {t("dashboard.articles.startNewAnalysis")}
@@ -403,7 +402,7 @@ export default function ArticlesPage() {
             <div className="px-6 py-12 text-center text-gray-500">
             <p>{t("dashboard.articles.noArticlesInList")}</p>
               <Link
-                href={`/${locale}`}
+                href={`/`}
                 className="mt-4 inline-block text-blue-600 hover:text-blue-700"
               >
               {t("dashboard.articles.startNewAnalysis")}

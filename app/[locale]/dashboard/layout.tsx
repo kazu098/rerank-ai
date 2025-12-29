@@ -2,8 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
-import { useRouter, usePathname } from "@/src/i18n/routing";
-import Link from "next/link";
+import { useRouter, usePathname, Link } from "@/src/i18n/routing";
 import { useState } from "react";
 
 interface SidebarItem {
@@ -27,7 +26,7 @@ export default function DashboardLayout({
 
   const sidebarItems: SidebarItem[] = [
     {
-      href: `/${locale}/dashboard`,
+      href: `/dashboard`,
       label: t("dashboard.sidebar.overview"),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +35,7 @@ export default function DashboardLayout({
       ),
     },
     {
-      href: `/${locale}/dashboard/articles`,
+      href: `/dashboard/articles`,
       label: t("dashboard.sidebar.articles"),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,7 +44,7 @@ export default function DashboardLayout({
       ),
     },
     {
-      href: `/${locale}/dashboard/notifications`,
+      href: `/dashboard/notifications`,
       label: t("dashboard.sidebar.notifications"),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +53,7 @@ export default function DashboardLayout({
       ),
     },
     {
-      href: `/${locale}/dashboard/settings`,
+      href: `/dashboard/settings`,
       label: t("dashboard.sidebar.settings"),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,8 +65,8 @@ export default function DashboardLayout({
   ];
 
   const isActive = (href: string) => {
-    if (href === `/${locale}/dashboard`) {
-      return pathname === `/${locale}/dashboard`;
+    if (href === `/dashboard`) {
+      return pathname === `/dashboard`;
     }
     return pathname?.startsWith(href);
   };
@@ -94,7 +93,7 @@ export default function DashboardLayout({
             </div>
             <div className="flex items-center gap-4">
               <Link
-                href={`/${locale}`}
+                href={`/`}
                 className="text-gray-600 hover:text-gray-900 text-sm"
               >
                 {t("dashboard.startAnalysis")}

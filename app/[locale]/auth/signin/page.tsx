@@ -46,7 +46,7 @@ export default function SignInPage() {
           // メールアドレスをlocalStorageに保存
           localStorage.setItem("lastEmail", email);
           // ダッシュボードにリダイレクト（ログイン画面からの場合はダッシュボードへ）
-          router.push(`/${locale}/dashboard`);
+          router.push(`/dashboard`);
         }
       } else {
         // 登録
@@ -80,7 +80,7 @@ export default function SignInPage() {
       localStorage.setItem("lastEmail", email);
     }
     // ログイン画面からの場合はダッシュボードへ
-    signIn("google", { callbackUrl: `/${locale}/dashboard` });
+    signIn("google", { callbackUrl: `/dashboard` });
   };
 
   return (

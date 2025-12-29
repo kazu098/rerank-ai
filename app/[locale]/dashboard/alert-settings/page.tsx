@@ -63,7 +63,7 @@ export default function AlertSettingsPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push(`/${locale}`);
+      router.push(`/`);
       return;
     }
 

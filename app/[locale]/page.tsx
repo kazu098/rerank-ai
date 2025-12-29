@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
-import { useRouter, usePathname } from "@/src/i18n/routing";
-import Link from "next/link";
+import { useRouter, usePathname, Link } from "@/src/i18n/routing";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // 分析モードは統一（タブを削除）
@@ -485,6 +484,59 @@ export default function Home() {
   }, [status, session?.accessToken, session?.userId]);
 
   const startAnalysis = async () => {
+    if (!selectedSiteUrl) {
+      setError(t("errors.propertyNotSelected"));
+      return;
+    }
+
+    // 今日既に分析されているかチェックし、分析結果を取得
+    try {
+      const checkResponse = await fetch("/api/articles/check-recent-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: articleUrl,
+        }),
+      });
+
+      if (checkResponse.ok) {
+        const checkResult = await checkResponse.json();
+        if (checkResult.analyzedToday) {
+          // 今日既に分析されている場合は、DBから分析結果を取得して表示
+          const latestAnalysisResponse = await fetch("/api/analysis/get-latest-by-url", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              url: articleUrl,
+            }),
+          });
+
+          if (latestAnalysisResponse.ok) {
+            const latestAnalysisData = await latestAnalysisResponse.json();
+            if (latestAnalysisData.hasAnalysis && latestAnalysisData.analysisResult) {
+              // 分析結果を表示
+              setData(latestAnalysisData.analysisResult);
+              setCompletedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
+              setCurrentStep(0);
+              setLoading(false);
+              // 記事IDを保存（通知設定ボタン表示用）
+              if (latestAnalysisData.articleId) {
+                setAnalyzedArticleId(latestAnalysisData.articleId);
+              }
+              return; // 新しい分析を実行せずに終了
+            }
+          }
+        }
+      }
+    } catch (checkError: any) {
+      console.error("[Analysis] Error checking recent analysis:", checkError);
+      // チェックエラーは無視して続行
+    }
+
     setLoading(true);
     setError(null);
     setData(null);
@@ -492,12 +544,6 @@ export default function Home() {
     setCompletedSteps(new Set());
     
     const analysisStartTime = Date.now();
-
-    if (!selectedSiteUrl) {
-      setError(t("errors.propertyNotSelected"));
-      setLoading(false);
-      return;
-    }
 
     try {
       const urlObj = new URL(articleUrl);
@@ -740,7 +786,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <Link href={`/${locale}`} className="text-2xl font-bold text-gray-900">
+                <Link href={`/`} className="text-2xl font-bold text-gray-900">
                   ReRank AI
                 </Link>
             </div>
@@ -1074,7 +1120,7 @@ export default function Home() {
             </h1>
             <div className="flex items-center gap-4">
               <Link
-                href={`/${locale}/dashboard`}
+                href={`/dashboard`}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
               >
                 {t("dashboard.title")}
