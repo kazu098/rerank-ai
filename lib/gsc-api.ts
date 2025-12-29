@@ -9,7 +9,7 @@ interface GSCQueryParams {
   startRow?: number;
 }
 
-interface GSCRow {
+export interface GSCRow {
   keys: string[];
   clicks: number;
   impressions: number;
@@ -127,6 +127,30 @@ export class GSCApiClient {
   }
 
   /**
+   * ドメイン全体のキーワード（クエリ）データを取得
+   * pageUrlを指定しないことで、ドメイン全体のキーワードを取得
+   * ページネーション対応（最大25,000行まで1回で取得可能）
+   */
+  async getAllKeywords(
+    siteUrl: string,
+    startDate: string,
+    endDate: string,
+    rowLimit: number = 25000,
+    startRow: number = 0
+  ): Promise<GSCResponse> {
+    const params: GSCQueryParams = {
+      startDate,
+      endDate,
+      dimensions: ["query"],
+      rowLimit,
+      startRow,
+    };
+
+    // pageUrlは指定しない（ドメイン全体のキーワードを取得）
+    return this.query(siteUrl, params);
+  }
+
+  /**
    * GSC APIにクエリを送信
    */
   private async query(
@@ -156,6 +180,11 @@ export class GSCApiClient {
       dimensions: params.dimensions || [],
       rowLimit: params.rowLimit || 1000,
     };
+
+    // startRowが指定されている場合は追加
+    if (params.startRow !== undefined && params.startRow > 0) {
+      requestBody.startRow = params.startRow;
+    }
 
     if (pageUrl) {
       // ページURLが相対パスの場合、完全なURL形式に変換
