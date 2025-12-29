@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (!settings?.slack_bot_token) {
       const { createSupabaseClient } = await import("@/lib/supabase");
       const supabase = createSupabaseClient();
-      const { data: slackSettingsData } = await supabase
+      const { data: slackSettingsData, error: slackError } = await supabase
         .from('notification_settings')
         .select('slack_bot_token, slack_user_id, slack_team_id, slack_channel_id, slack_notification_type')
         .eq('user_id', session.userId)
@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
         .not('slack_bot_token', 'is', null)
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       
-      if (slackSettingsData) {
+      if (slackSettingsData && !slackError) {
         slackConnectionInfo = {
           slack_bot_token: slackSettingsData.slack_bot_token,
           slack_user_id: slackSettingsData.slack_user_id,

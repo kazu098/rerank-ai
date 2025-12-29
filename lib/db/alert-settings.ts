@@ -70,26 +70,45 @@ export async function saveOrUpdateUserAlertSettings(
 ): Promise<UserAlertSettings> {
   const supabase = createSupabaseClient();
 
-  const settingsData: any = {
-    user_id: userId,
-    position_drop_threshold: settings.position_drop_threshold ?? DEFAULT_ALERT_SETTINGS.position_drop_threshold,
-    keyword_drop_threshold: settings.keyword_drop_threshold ?? DEFAULT_ALERT_SETTINGS.keyword_drop_threshold,
-    comparison_days: settings.comparison_days ?? DEFAULT_ALERT_SETTINGS.comparison_days,
-    consecutive_drop_days: settings.consecutive_drop_days ?? DEFAULT_ALERT_SETTINGS.consecutive_drop_days,
-    min_impressions: settings.min_impressions ?? DEFAULT_ALERT_SETTINGS.min_impressions,
-    notification_cooldown_days: settings.notification_cooldown_days ?? DEFAULT_ALERT_SETTINGS.notification_cooldown_days,
-    notification_frequency: settings.notification_frequency ?? DEFAULT_ALERT_SETTINGS.notification_frequency,
-    notification_time: settings.notification_time ?? DEFAULT_ALERT_SETTINGS.notification_time,
-    timezone: settings.timezone !== undefined ? settings.timezone : DEFAULT_ALERT_SETTINGS.timezone,
-    updated_at: new Date().toISOString(),
-  };
-
   // 既存の設定を確認
   const { data: existing } = await supabase
     .from('user_alert_settings')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
+
+  // 更新データを構築（部分更新に対応：undefinedの場合は既存値またはデフォルト値を使用）
+  const settingsData: any = {
+    user_id: userId,
+    position_drop_threshold: settings.position_drop_threshold !== undefined 
+      ? settings.position_drop_threshold 
+      : (existing?.position_drop_threshold ?? DEFAULT_ALERT_SETTINGS.position_drop_threshold),
+    keyword_drop_threshold: settings.keyword_drop_threshold !== undefined 
+      ? settings.keyword_drop_threshold 
+      : (existing?.keyword_drop_threshold ?? DEFAULT_ALERT_SETTINGS.keyword_drop_threshold),
+    comparison_days: settings.comparison_days !== undefined 
+      ? settings.comparison_days 
+      : (existing?.comparison_days ?? DEFAULT_ALERT_SETTINGS.comparison_days),
+    consecutive_drop_days: settings.consecutive_drop_days !== undefined 
+      ? settings.consecutive_drop_days 
+      : (existing?.consecutive_drop_days ?? DEFAULT_ALERT_SETTINGS.consecutive_drop_days),
+    min_impressions: settings.min_impressions !== undefined 
+      ? settings.min_impressions 
+      : (existing?.min_impressions ?? DEFAULT_ALERT_SETTINGS.min_impressions),
+    notification_cooldown_days: settings.notification_cooldown_days !== undefined 
+      ? settings.notification_cooldown_days 
+      : (existing?.notification_cooldown_days ?? DEFAULT_ALERT_SETTINGS.notification_cooldown_days),
+    notification_frequency: settings.notification_frequency !== undefined 
+      ? settings.notification_frequency 
+      : (existing?.notification_frequency ?? DEFAULT_ALERT_SETTINGS.notification_frequency),
+    notification_time: settings.notification_time !== undefined 
+      ? settings.notification_time 
+      : (existing?.notification_time ?? DEFAULT_ALERT_SETTINGS.notification_time),
+    timezone: settings.timezone !== undefined 
+      ? settings.timezone 
+      : (existing?.timezone ?? DEFAULT_ALERT_SETTINGS.timezone),
+    updated_at: new Date().toISOString(),
+  };
 
   if (existing) {
     // 更新
