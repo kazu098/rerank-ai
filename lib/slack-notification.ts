@@ -2,6 +2,8 @@
  * Slack通知送信機能
  */
 
+import { routing } from '@/src/i18n/routing';
+
 export interface SlackNotificationPayload {
   text: string;
   blocks?: Array<{
@@ -257,7 +259,11 @@ export function formatSlackBulkNotification(
   ];
 
   // 各記事の情報を表示（最大10件）
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rerank-ai.com';
+  let appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rerank-ai.com';
+  // appUrlの末尾にlocaleが含まれている場合は削除（汎用的に処理）
+  // 設定されているすべてのlocaleに対応
+  const localePattern = routing.locales.join('|');
+  appUrl = appUrl.replace(new RegExp(`\\/(${localePattern})\\/?$`, 'i'), '');
   articles.slice(0, 10).forEach((article) => {
     const isRise = article.notificationType === 'rank_rise';
     const articleUrl = article.articleId 
