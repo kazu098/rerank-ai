@@ -1,4 +1,5 @@
 import { createSupabaseClient } from '@/lib/supabase';
+import { getSlackIntegrationByUserId } from './slack-integrations';
 
 export interface NotificationSettings {
   id: string;
@@ -8,11 +9,13 @@ export interface NotificationSettings {
   channel: string;
   recipient: string;
   is_enabled: boolean;
-  slack_bot_token: string | null; // Slack Bot Token（OAuth方式）
-  slack_user_id: string | null; // Slack User ID（Uで始まる）
-  slack_team_id: string | null; // Slack Team ID（Tで始まる）
-  slack_channel_id: string | null; // チャンネルIDまたはUser ID（DM送信の場合）
-  slack_notification_type: string | null; // 'channel' or 'dm'
+  slack_integration_id: string | null; // slack_integrationsテーブルへの参照
+  // 後方互換性のため、slack_integrationsから取得した情報を動的に追加
+  slack_bot_token?: string | null;
+  slack_user_id?: string | null;
+  slack_team_id?: string | null;
+  slack_channel_id?: string | null;
+  slack_notification_type?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,11 +25,7 @@ export interface NotificationSettings {
  */
 export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'user_id' | 'article_id' | 'notification_type' | 'channel' | 'recipient' | 'created_at' | 'updated_at'> = {
   is_enabled: true,
-  slack_bot_token: null,
-  slack_user_id: null,
-  slack_team_id: null,
-  slack_channel_id: null,
-  slack_notification_type: null,
+  slack_integration_id: null,
 };
 
 /**
@@ -55,9 +54,41 @@ export async function getNotificationSettings(
       .maybeSingle();
 
     if (!error && data) {
+      // slack_integration_idがある場合は、slack_integrationsテーブルから情報を取得
+      if (data.slack_integration_id) {
+        const { createSupabaseClient } = await import('@/lib/supabase');
+        const supabase = createSupabaseClient();
+        const { data: integrationData } = await supabase
+          .from('slack_integrations')
+          .select('*')
+          .eq('id', data.slack_integration_id)
+          .maybeSingle();
+        
+        if (integrationData) {
+          // 後方互換性のため、slack_integrationsの情報を設定に追加
+          (data as any).slack_bot_token = integrationData.slack_bot_token;
+          (data as any).slack_user_id = integrationData.slack_user_id;
+          (data as any).slack_team_id = integrationData.slack_team_id;
+          (data as any).slack_channel_id = integrationData.slack_channel_id;
+          (data as any).slack_notification_type = integrationData.slack_notification_type;
+        }
+      } else if (!data.slack_bot_token) {
+        // slack_integration_idがなく、slack_bot_tokenもない場合は、slack_integrationsテーブルから取得を試みる
+        const slackIntegration = await getSlackIntegrationByUserId(userId);
+        if (slackIntegration) {
+          (data as any).slack_bot_token = slackIntegration.slack_bot_token;
+          (data as any).slack_user_id = slackIntegration.slack_user_id;
+          (data as any).slack_team_id = slackIntegration.slack_team_id;
+          (data as any).slack_channel_id = slackIntegration.slack_channel_id;
+          (data as any).slack_notification_type = slackIntegration.slack_notification_type;
+          (data as any).slack_integration_id = slackIntegration.id;
+        }
+      }
+      
       console.log('[Notification Settings DB] Found article-specific settings:', {
         id: data.id,
         is_enabled: data.is_enabled,
+        hasSlackIntegrationId: !!data.slack_integration_id,
         hasSlackBotToken: !!data.slack_bot_token,
         slackChannelId: data.slack_channel_id,
       });
@@ -76,9 +107,41 @@ export async function getNotificationSettings(
     .maybeSingle();
 
   if (!error && data) {
+    // slack_integration_idがある場合は、slack_integrationsテーブルから情報を取得
+    if (data.slack_integration_id) {
+      const { createSupabaseClient } = await import('@/lib/supabase');
+      const supabase = createSupabaseClient();
+      const { data: integrationData } = await supabase
+        .from('slack_integrations')
+        .select('*')
+        .eq('id', data.slack_integration_id)
+        .maybeSingle();
+      
+      if (integrationData) {
+        // 後方互換性のため、slack_integrationsの情報を設定に追加
+        (data as any).slack_bot_token = integrationData.slack_bot_token;
+        (data as any).slack_user_id = integrationData.slack_user_id;
+        (data as any).slack_team_id = integrationData.slack_team_id;
+        (data as any).slack_channel_id = integrationData.slack_channel_id;
+        (data as any).slack_notification_type = integrationData.slack_notification_type;
+      }
+    } else if (!data.slack_bot_token) {
+      // slack_integration_idがなく、slack_bot_tokenもない場合は、slack_integrationsテーブルから取得を試みる
+      const slackIntegration = await getSlackIntegrationByUserId(userId);
+      if (slackIntegration) {
+        (data as any).slack_bot_token = slackIntegration.slack_bot_token;
+        (data as any).slack_user_id = slackIntegration.slack_user_id;
+        (data as any).slack_team_id = slackIntegration.slack_team_id;
+        (data as any).slack_channel_id = slackIntegration.slack_channel_id;
+        (data as any).slack_notification_type = slackIntegration.slack_notification_type;
+        (data as any).slack_integration_id = slackIntegration.id;
+      }
+    }
+    
     console.log('[Notification Settings DB] Found default settings:', {
       id: data.id,
       is_enabled: data.is_enabled,
+      hasSlackIntegrationId: !!data.slack_integration_id,
       hasSlackBotToken: !!data.slack_bot_token,
       slackBotTokenIsNull: data.slack_bot_token === null,
       slackChannelId: data.slack_channel_id,
@@ -199,10 +262,7 @@ export async function saveOrUpdateNotificationSettings(
     notification_type: settings.notification_type,
     channel: settings.channel,
     is_enabled: settings.is_enabled,
-    hasSlackBotToken: settings.slack_bot_token !== undefined,
-    slackBotTokenIsNull: settings.slack_bot_token === null,
-    slackChannelId: settings.slack_channel_id,
-    slackNotificationType: settings.slack_notification_type,
+    hasSlackIntegrationId: settings.slack_integration_id !== undefined,
   });
 
   const supabase = createSupabaseClient();
@@ -217,22 +277,9 @@ export async function saveOrUpdateNotificationSettings(
     updated_at: new Date().toISOString(),
   };
 
-  // Slack OAuth関連のフィールドを追加（提供されている場合）
-  if (settings.slack_bot_token !== undefined) {
-    settingsData.slack_bot_token = settings.slack_bot_token;
-    console.log('[Notification Settings DB] slack_bot_token set:', settings.slack_bot_token === null ? 'null' : 'present');
-  }
-  if (settings.slack_user_id !== undefined) {
-    settingsData.slack_user_id = settings.slack_user_id;
-  }
-  if (settings.slack_team_id !== undefined) {
-    settingsData.slack_team_id = settings.slack_team_id;
-  }
-  if (settings.slack_channel_id !== undefined) {
-    settingsData.slack_channel_id = settings.slack_channel_id;
-  }
-  if (settings.slack_notification_type !== undefined) {
-    settingsData.slack_notification_type = settings.slack_notification_type;
+  // slack_integration_idを追加（提供されている場合）
+  if (settings.slack_integration_id !== undefined) {
+    settingsData.slack_integration_id = settings.slack_integration_id;
   }
 
   console.log('[Notification Settings DB] Settings data to save:', {
@@ -292,9 +339,9 @@ export async function saveOrUpdateNotificationSettings(
       console.log('[Notification Settings DB] Updating existing settings:', {
         id: existing.id,
         currentIsEnabled: existing.is_enabled,
-        currentHasSlackBotToken: !!existing.slack_bot_token,
+        currentHasSlackIntegrationId: !!existing.slack_integration_id,
         newIsEnabled: settingsData.is_enabled,
-        newHasSlackBotToken: settingsData.slack_bot_token !== undefined,
+        newHasSlackIntegrationId: settingsData.slack_integration_id !== undefined,
       });
       // 更新
       const { data, error } = await supabase
@@ -317,8 +364,7 @@ export async function saveOrUpdateNotificationSettings(
       console.log('[Notification Settings DB] Settings updated successfully:', {
         id: data.id,
         is_enabled: data.is_enabled,
-        hasSlackBotToken: !!data.slack_bot_token,
-        slackBotTokenIsNull: data.slack_bot_token === null,
+        hasSlackIntegrationId: !!data.slack_integration_id,
       });
 
       return data as NotificationSettings;
@@ -345,7 +391,7 @@ export async function saveOrUpdateNotificationSettings(
     console.log('[Notification Settings DB] Settings created successfully:', {
       id: data.id,
       is_enabled: data.is_enabled,
-      hasSlackBotToken: !!data.slack_bot_token,
+      hasSlackIntegrationId: !!data.slack_integration_id,
     });
 
     return data as NotificationSettings;

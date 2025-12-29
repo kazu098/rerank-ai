@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { saveOrUpdateNotificationSettings, getNotificationSettings, NotificationSettings } from "@/lib/db/notification-settings";
+import { getSlackIntegrationByUserId, saveOrUpdateSlackIntegration, deleteSlackIntegration } from "@/lib/db/slack-integrations";
 import { getUserById } from "@/lib/db/users";
 import { sendSlackNotificationWithBot } from "@/lib/slack-notification";
 import jaMessages from "@/messages/ja.json";
@@ -29,37 +30,17 @@ export async function GET(request: NextRequest) {
 
     const settings = await getNotificationSettings(session.userId, articleId);
 
-    // Slack連携状態を確認（is_enabledに関わらずslack_bot_tokenの存在を確認）
-    let slackConnectionInfo = null;
-    if (!settings?.slack_bot_token) {
-      const { createSupabaseClient } = await import("@/lib/supabase");
-      const supabase = createSupabaseClient();
-      const { data: slackSettingsData, error: slackError } = await supabase
-        .from('notification_settings')
-        .select('slack_bot_token, slack_user_id, slack_team_id, slack_channel_id, slack_notification_type')
-        .eq('user_id', session.userId)
-        .is('article_id', null)
-        .eq('channel', 'slack')
-        .not('slack_bot_token', 'is', null)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (slackSettingsData && !slackError) {
-        slackConnectionInfo = {
-          slack_bot_token: slackSettingsData.slack_bot_token,
-          slack_user_id: slackSettingsData.slack_user_id,
-          slack_team_id: slackSettingsData.slack_team_id,
-          slack_channel_id: slackSettingsData.slack_channel_id,
-          slack_notification_type: slackSettingsData.slack_notification_type,
-        };
-      }
-    }
-
+    // Slack連携状態を確認（slack_integrationsテーブルから取得）
+    const slackIntegration = await getSlackIntegrationByUserId(session.userId);
+    
     const responseData: Partial<NotificationSettings> = settings || {};
-    if (slackConnectionInfo) {
-      // Slack連携情報を追加（is_enabled=falseでもslack_bot_tokenが存在する場合）
-      Object.assign(responseData, slackConnectionInfo);
+    if (slackIntegration) {
+      // Slack連携情報を追加
+      responseData.slack_bot_token = slackIntegration.slack_bot_token;
+      responseData.slack_user_id = slackIntegration.slack_user_id;
+      responseData.slack_team_id = slackIntegration.slack_team_id;
+      responseData.slack_channel_id = slackIntegration.slack_channel_id;
+      responseData.slack_notification_type = slackIntegration.slack_notification_type;
     }
 
     // Slack連携済みの場合、workspace名とチャネル名を取得
@@ -208,7 +189,7 @@ export async function POST(request: NextRequest) {
     const { slackBotToken, slackUserId, slackTeamId, slackChannelId, slackNotificationType } = body;
     // slackBotTokenまたはslackUserIdが明示的に指定されている場合（null含む）に更新
     if (slackBotToken !== undefined || slackUserId !== undefined || slackTeamId !== undefined || slackChannelId !== undefined || slackNotificationType !== undefined) {
-      // 連携解除の場合（slackBotTokenがnull）はslack_bot_tokenをnullにする
+      // 連携解除の場合（slackBotTokenがnull）は削除
       const isDisconnecting = slackBotToken === null;
       console.log("[Notification Settings API] Updating Slack OAuth settings:", {
         isDisconnecting,
@@ -219,108 +200,84 @@ export async function POST(request: NextRequest) {
         slackNotificationType,
       });
 
-      const settingsToSave = {
-        notification_type: 'rank_drop',
-        channel: 'slack',
-        recipient: slackUserId || slackChannelId || '',
-        // is_enabledは連携ステータスとは無関係（記事ごとの通知の有効/無効を管理）
-        // 連携ステータスはslack_bot_tokenの有無で判定する
-        is_enabled: true, // デフォルト値（記事ごとの通知設定で個別に管理）
-        slack_bot_token: slackBotToken !== undefined ? (slackBotToken || null) : undefined,
-        slack_user_id: slackUserId !== undefined ? (slackUserId || null) : undefined,
-        slack_team_id: slackTeamId !== undefined ? (slackTeamId || null) : undefined,
-        slack_channel_id: slackChannelId !== undefined ? (slackChannelId || null) : undefined,
-        slack_notification_type: slackNotificationType !== undefined ? (slackNotificationType || null) : undefined,
-      };
-
-      console.log("[Notification Settings API] Settings to save:", {
-        is_enabled: settingsToSave.is_enabled,
-        hasSlackBotToken: settingsToSave.slack_bot_token !== undefined,
-        slackBotTokenIsNull: settingsToSave.slack_bot_token === null,
-        slackUserId: settingsToSave.slack_user_id,
-        slackChannelId: settingsToSave.slack_channel_id,
-        slackNotificationType: settingsToSave.slack_notification_type,
-      });
-
       try {
-        const savedSettings = await saveOrUpdateNotificationSettings(
-          session.userId,
-          settingsToSave,
-          articleId || null
-        );
+        if (isDisconnecting) {
+          // 連携解除
+          await deleteSlackIntegration(session.userId);
+          console.log("[Notification Settings API] Slack integration deleted");
+        } else if (slackBotToken && slackTeamId) {
+          // 連携作成または更新
+          const savedIntegration = await saveOrUpdateSlackIntegration(session.userId, {
+            slack_bot_token: slackBotToken,
+            slack_user_id: slackUserId,
+            slack_team_id: slackTeamId,
+            slack_channel_id: slackChannelId,
+            slack_notification_type: slackNotificationType as 'channel' | 'dm' | undefined,
+          });
 
-        console.log("[Notification Settings API] Settings saved:", {
-          id: savedSettings.id,
-          is_enabled: savedSettings.is_enabled,
-          hasSlackBotToken: !!savedSettings.slack_bot_token,
-          slackBotTokenIsNull: savedSettings.slack_bot_token === null,
-          slackChannelId: savedSettings.slack_channel_id,
-          slackNotificationType: savedSettings.slack_notification_type,
-        });
+          console.log("[Notification Settings API] Slack integration saved:", {
+            id: savedIntegration.id,
+            channelId: savedIntegration.slack_channel_id,
+            notificationType: savedIntegration.slack_notification_type,
+          });
 
-        // チャネルまたはDMが選択された場合、挨拶メッセージを送信
-        if (
-          !isDisconnecting &&
-          savedSettings.slack_bot_token &&
-          savedSettings.slack_channel_id &&
-          savedSettings.slack_notification_type &&
-          (slackChannelId !== undefined || slackNotificationType !== undefined)
-        ) {
-          try {
-            console.log("[Notification Settings API] Sending greeting message to Slack:", {
-              channelId: savedSettings.slack_channel_id,
-              notificationType: savedSettings.slack_notification_type,
-            });
+          // チャネルまたはDMが選択された場合、挨拶メッセージを送信
+          if (
+            savedIntegration.slack_channel_id &&
+            savedIntegration.slack_notification_type &&
+            (slackChannelId !== undefined || slackNotificationType !== undefined)
+          ) {
+            try {
+              console.log("[Notification Settings API] Sending greeting message to Slack:", {
+                channelId: savedIntegration.slack_channel_id,
+                notificationType: savedIntegration.slack_notification_type,
+              });
 
-            // ユーザーのロケールを取得
-            const user = await getUserById(session.userId);
-            const locale = (user?.locale || 'ja') as 'ja' | 'en';
+              // ユーザーのロケールを取得
+              const user = await getUserById(session.userId);
+              const locale = (user?.locale || 'ja') as 'ja' | 'en';
 
-            // 翻訳ファイルから挨拶メッセージを取得
-            const messages = (locale === 'en' ? enMessages : jaMessages) as any;
-            const greeting = {
-              text: messages.notification.settings.greetingTitle,
-              message: messages.notification.settings.greetingMessage,
-            };
+              // 翻訳ファイルから挨拶メッセージを取得
+              const messages = (locale === 'en' ? enMessages : jaMessages) as any;
+              const greeting = {
+                text: messages.notification.settings.greetingTitle,
+                message: messages.notification.settings.greetingMessage,
+              };
 
-            const greetingPayload = {
-              text: greeting.text,
-              blocks: [
-                {
-                  type: 'section',
-                  text: {
-                    type: 'mrkdwn',
-                    text: greeting.message,
+              const greetingPayload = {
+                text: greeting.text,
+                blocks: [
+                  {
+                    type: 'section',
+                    text: {
+                      type: 'mrkdwn',
+                      text: greeting.message,
+                    },
                   },
-                },
-              ],
-            };
+                ],
+              };
 
-            await sendSlackNotificationWithBot(
-              savedSettings.slack_bot_token,
-              savedSettings.slack_channel_id,
-              greetingPayload
-            );
+              await sendSlackNotificationWithBot(
+                savedIntegration.slack_bot_token,
+                savedIntegration.slack_channel_id,
+                greetingPayload
+              );
 
-            console.log("[Notification Settings API] Greeting message sent successfully");
-          } catch (greetingError: any) {
-            // 挨拶メッセージの送信に失敗しても、設定の保存は成功しているので続行
-            console.error("[Notification Settings API] Failed to send greeting message:", {
-              error: greetingError.message,
-              stack: greetingError.stack,
-            });
-            // エラーはログに記録するが、設定保存の成功は返す
+              console.log("[Notification Settings API] Greeting message sent successfully");
+            } catch (greetingError: any) {
+              // 挨拶メッセージの送信に失敗しても、設定の保存は成功しているので続行
+              console.error("[Notification Settings API] Failed to send greeting message:", {
+                error: greetingError.message,
+                stack: greetingError.stack,
+              });
+              // エラーはログに記録するが、設定保存の成功は返す
+            }
           }
         }
       } catch (saveError: any) {
-        console.error("[Notification Settings API] Error saving settings:", {
+        console.error("[Notification Settings API] Error saving Slack integration:", {
           error: saveError.message,
           stack: saveError.stack,
-          settingsToSave: {
-            is_enabled: settingsToSave.is_enabled,
-            hasSlackBotToken: settingsToSave.slack_bot_token !== undefined,
-            slackBotTokenIsNull: settingsToSave.slack_bot_token === null,
-          },
         });
         throw saveError;
       }
