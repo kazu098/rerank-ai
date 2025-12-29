@@ -95,17 +95,29 @@ export default function NotificationsPage() {
         }
       }
       // 通知時刻をuser_alert_settingsから取得
-      const alertSettingsResponse = await fetch("/api/alert-settings");
-      if (alertSettingsResponse.ok) {
-        const alertSettingsData = await alertSettingsResponse.json();
-        if (alertSettingsData?.notification_time) {
-          const time = alertSettingsData.notification_time;
-          // "09:00:00" -> "09:00"
-          const timeParts = time.split(':');
-          setNotificationTime(`${timeParts[0]}:${timeParts[1]}`);
+      try {
+        const alertSettingsResponse = await fetch("/api/alert-settings");
+        if (alertSettingsResponse.ok) {
+          const alertSettingsData = await alertSettingsResponse.json();
+          console.log("[Notifications] Alert settings data:", {
+            hasNotificationTime: !!alertSettingsData?.notification_time,
+            notificationTime: alertSettingsData?.notification_time,
+          });
+          if (alertSettingsData?.notification_time) {
+            const time = alertSettingsData.notification_time;
+            // "09:00:00" -> "09:00"
+            const timeParts = time.split(':');
+            setNotificationTime(`${timeParts[0]}:${timeParts[1]}`);
+          } else {
+            setNotificationTime("09:00"); // デフォルト値
+          }
         } else {
+          console.error("[Notifications] Failed to fetch alert settings:", alertSettingsResponse.status);
           setNotificationTime("09:00"); // デフォルト値
         }
+      } catch (alertErr: any) {
+        console.error("[Notifications] Error fetching alert settings:", alertErr);
+        setNotificationTime("09:00"); // デフォルト値
       }
     } catch (err: any) {
       console.error("[Notifications] Error fetching Slack settings:", err);
@@ -287,6 +299,8 @@ export default function NotificationsPage() {
                   if (response.ok) {
                     setSuccess(t("notification.settings.saved"));
                     setTimeout(() => setSuccess(null), 3000);
+                    // 設定を再取得して画面を更新
+                    await fetchSlackSettings();
                   } else {
                     const errorData = await response.json();
                     setError(errorData.error || t("notification.settings.error"));
