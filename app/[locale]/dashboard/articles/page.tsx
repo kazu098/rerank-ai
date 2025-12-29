@@ -50,6 +50,9 @@ export default function ArticlesPage() {
     position_drop_threshold: 2.0,
     keyword_drop_threshold: 10,
     comparison_days: 7,
+    consecutive_drop_days: 3,
+    min_impressions: 100,
+    notification_cooldown_days: 7,
     notification_frequency: 'daily' as 'daily' | 'weekly' | 'none',
   });
   const [savingAlertSettings, setSavingAlertSettings] = useState(false);
@@ -210,7 +213,15 @@ export default function ArticlesPage() {
       const response = await fetch("/api/alert-settings");
       if (response.ok) {
         const data = await response.json();
-        setAlertSettings(data);
+        setAlertSettings({
+          position_drop_threshold: data.position_drop_threshold ?? 2.0,
+          keyword_drop_threshold: data.keyword_drop_threshold ?? 10,
+          comparison_days: data.comparison_days ?? 7,
+          consecutive_drop_days: data.consecutive_drop_days ?? 3,
+          min_impressions: data.min_impressions ?? 100,
+          notification_cooldown_days: data.notification_cooldown_days ?? 7,
+          notification_frequency: data.notification_frequency ?? 'daily',
+        });
       }
     } catch (err) {
       console.error("[Articles] Error fetching alert settings:", err);
@@ -223,7 +234,15 @@ export default function ArticlesPage() {
       const response = await fetch("/api/alert-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(alertSettings),
+        body: JSON.stringify({
+          position_drop_threshold: alertSettings.position_drop_threshold,
+          keyword_drop_threshold: alertSettings.keyword_drop_threshold,
+          comparison_days: alertSettings.comparison_days,
+          consecutive_drop_days: alertSettings.consecutive_drop_days,
+          min_impressions: alertSettings.min_impressions,
+          notification_cooldown_days: alertSettings.notification_cooldown_days,
+          notification_frequency: alertSettings.notification_frequency,
+        }),
       });
 
       if (!response.ok) {
@@ -245,6 +264,9 @@ export default function ArticlesPage() {
       position_drop_threshold: 2.0,
       keyword_drop_threshold: 10,
       comparison_days: 7,
+      consecutive_drop_days: 3,
+      min_impressions: 100,
+      notification_cooldown_days: 7,
       notification_frequency: 'daily',
     });
   };
@@ -690,11 +712,11 @@ export default function ArticlesPage() {
                             alert(`${t("dashboard.articles.updateSlackNotificationFailed")}: ${error.message}`);
                           }
                         }}
-                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         style={{
                           backgroundColor:
                             article.notificationStatus?.slack === true
-                              ? "#9333ea"
+                              ? "#3b82f6"
                               : article.notificationStatus?.slack === false
                               ? "#d1d5db"
                               : "#e5e7eb",
@@ -889,7 +911,7 @@ export default function ArticlesPage() {
                         type="number"
                         id="position_drop_threshold"
                         min="0"
-                        step="0.5"
+                        step="0.1"
                         value={alertSettings.position_drop_threshold}
                         onChange={(e) =>
                           setAlertSettings({
@@ -962,6 +984,102 @@ export default function ArticlesPage() {
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
                       {t("alertSettings.comparisonPeriod.description")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 連続下落日数 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.consecutiveDropDays.title")}
+                  </h3>
+                  <div>
+                    <label htmlFor="consecutive_drop_days" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.consecutiveDropDays.days")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="consecutive_drop_days"
+                        min="1"
+                        step="1"
+                        value={alertSettings.consecutive_drop_days}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            consecutive_drop_days: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.comparisonPeriod.daysSuffix")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.consecutiveDropDays.description")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 最小インプレッション数 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.minImpressions.title")}
+                  </h3>
+                  <div>
+                    <label htmlFor="min_impressions" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.minImpressions.count")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="min_impressions"
+                        min="1"
+                        step="1"
+                        value={alertSettings.min_impressions}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            min_impressions: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.minImpressions.impressions")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.minImpressions.description")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 通知クールダウン */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.notificationCooldownDays.title")}
+                  </h3>
+                  <div>
+                    <label htmlFor="notification_cooldown_days" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.notificationCooldownDays.days")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="notification_cooldown_days"
+                        min="0"
+                        step="1"
+                        value={alertSettings.notification_cooldown_days}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            notification_cooldown_days: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.comparisonPeriod.daysSuffix")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.notificationCooldownDays.description")}
                     </p>
                   </div>
                 </div>

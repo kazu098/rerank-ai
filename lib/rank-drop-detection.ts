@@ -11,6 +11,25 @@ export interface RankDropResult {
   analysisTargetKeywords: string[];
 }
 
+export interface RankRiseResult {
+  hasRise: boolean;
+  riseAmount: number;
+  baseAveragePosition: number;
+  currentAveragePosition: number;
+  baseDate: string;
+  currentDate: string;
+  risenKeywords: RisenKeyword[];
+}
+
+export interface RisenKeyword {
+  keyword: string;
+  position: number;
+  previousPosition?: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+}
+
 export interface DroppedKeyword {
   keyword: string;
   position: number;
@@ -215,6 +234,110 @@ export class RankDropDetector {
     }
 
     return [];
+  }
+
+  /**
+   * 順位上昇を検知
+   * @param siteUrl サイトURL
+   * @param pageUrl ページURL
+   * @param comparisonDays 比較期間（デフォルト: 7日）
+   * @param riseThreshold 上昇の閾値（デフォルト: 2位）
+   */
+  async detectRankRise(
+    siteUrl: string,
+    pageUrl: string,
+    comparisonDays: number = 7,
+    riseThreshold: number = 2
+  ): Promise<RankRiseResult> {
+    const endDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+    const startDate = new Date(
+      Date.now() - (comparisonDays + 2) * 24 * 60 * 60 * 1000
+    )
+      .toISOString()
+      .split("T")[0];
+
+    // 時系列データを取得
+    const timeSeriesData = await this.client.getPageTimeSeriesData(
+      siteUrl,
+      pageUrl,
+      startDate,
+      endDate
+    );
+
+    // 過去N日間の平均順位を計算（rowsが存在することを確認）
+    const timeSeriesRows = Array.isArray(timeSeriesData?.rows) ? timeSeriesData.rows : [];
+    const baseAveragePosition = this.calculateAveragePosition(
+      timeSeriesRows,
+      comparisonDays
+    );
+
+    // 現在（直近）の平均順位を計算
+    const currentAveragePosition = this.calculateAveragePosition(
+      timeSeriesRows,
+      1
+    );
+
+    const riseAmount = baseAveragePosition - currentAveragePosition; // 上昇なので base - current
+
+    // キーワードデータを取得
+    const keywordDataStartDate = new Date(
+      Date.now() - Math.max(comparisonDays + 2, 30) * 24 * 60 * 60 * 1000
+    )
+      .toISOString()
+      .split("T")[0];
+    const keywordData = await this.client.getKeywordData(
+      siteUrl,
+      pageUrl,
+      keywordDataStartDate,
+      endDate
+    );
+
+    // 上昇したキーワードを特定（rowsが存在することを確認）
+    const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
+    const risenKeywords = this.identifyRisenKeywords(keywordRows);
+
+    return {
+      hasRise: riseAmount >= riseThreshold || risenKeywords.length > 0,
+      riseAmount,
+      baseAveragePosition,
+      currentAveragePosition,
+      baseDate: startDate,
+      currentDate: endDate,
+      risenKeywords,
+    };
+  }
+
+  /**
+   * 上昇したキーワードを特定
+   */
+  private identifyRisenKeywords(
+    keywordRows: Array<{
+      keys: string[];
+      position: number;
+      impressions: number;
+      clicks: number;
+      ctr: number;
+    }>
+  ): RisenKeyword[] {
+    if (!Array.isArray(keywordRows)) {
+      return [];
+    }
+
+    // 現在のキーワードデータから、順位が良い（小さい）キーワードを抽出
+    // インプレッション数が多い順にソート
+    return keywordRows
+      .filter((row) => row && row.position > 0 && row.position <= 20) // 20位以内のキーワード
+      .map((row) => ({
+        keyword: row.keys[0],
+        position: row.position,
+        impressions: row.impressions,
+        clicks: row.clicks,
+        ctr: row.ctr,
+      }))
+      .sort((a, b) => b.impressions - a.impressions) // インプレッション数でソート
+      .slice(0, 5); // 上位5つ
   }
 }
 

@@ -5,6 +5,9 @@ export interface UserAlertSettings {
   position_drop_threshold: number;  // 平均順位の下落幅（デフォルト: 2.0）
   keyword_drop_threshold: number;   // 特定キーワードの転落条件（デフォルト: 10）
   comparison_days: number;          // 過去何日間の平均順位（デフォルト: 7）
+  consecutive_drop_days: number;    // 連続下落日数（デフォルト: 3）
+  min_impressions: number;          // 最小インプレッション数（デフォルト: 100）
+  notification_cooldown_days: number; // 通知クールダウン日数（デフォルト: 7）
   notification_frequency: 'daily' | 'weekly' | 'none'; // 通知頻度（デフォルト: 'daily'）
   created_at: string;
   updated_at: string;
@@ -17,6 +20,9 @@ export const DEFAULT_ALERT_SETTINGS: Omit<UserAlertSettings, 'user_id' | 'create
   position_drop_threshold: 2.0,
   keyword_drop_threshold: 10,
   comparison_days: 7,
+  consecutive_drop_days: 3,
+  min_impressions: 100,
+  notification_cooldown_days: 7,
   notification_frequency: 'daily',
 };
 
@@ -42,6 +48,9 @@ export async function getUserAlertSettings(userId: string): Promise<Omit<UserAle
     position_drop_threshold: data.position_drop_threshold ?? DEFAULT_ALERT_SETTINGS.position_drop_threshold,
     keyword_drop_threshold: data.keyword_drop_threshold ?? DEFAULT_ALERT_SETTINGS.keyword_drop_threshold,
     comparison_days: data.comparison_days ?? DEFAULT_ALERT_SETTINGS.comparison_days,
+    consecutive_drop_days: data.consecutive_drop_days ?? DEFAULT_ALERT_SETTINGS.consecutive_drop_days,
+    min_impressions: data.min_impressions ?? DEFAULT_ALERT_SETTINGS.min_impressions,
+    notification_cooldown_days: data.notification_cooldown_days ?? DEFAULT_ALERT_SETTINGS.notification_cooldown_days,
     notification_frequency: (data.notification_frequency as 'daily' | 'weekly' | 'none') ?? DEFAULT_ALERT_SETTINGS.notification_frequency,
   };
 }
@@ -60,6 +69,9 @@ export async function saveOrUpdateUserAlertSettings(
     position_drop_threshold: settings.position_drop_threshold ?? DEFAULT_ALERT_SETTINGS.position_drop_threshold,
     keyword_drop_threshold: settings.keyword_drop_threshold ?? DEFAULT_ALERT_SETTINGS.keyword_drop_threshold,
     comparison_days: settings.comparison_days ?? DEFAULT_ALERT_SETTINGS.comparison_days,
+    consecutive_drop_days: settings.consecutive_drop_days ?? DEFAULT_ALERT_SETTINGS.consecutive_drop_days,
+    min_impressions: settings.min_impressions ?? DEFAULT_ALERT_SETTINGS.min_impressions,
+    notification_cooldown_days: settings.notification_cooldown_days ?? DEFAULT_ALERT_SETTINGS.notification_cooldown_days,
     notification_frequency: settings.notification_frequency ?? DEFAULT_ALERT_SETTINGS.notification_frequency,
     updated_at: new Date().toISOString(),
   };

@@ -42,7 +42,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { position_drop_threshold, keyword_drop_threshold, comparison_days, notification_frequency } = body;
+    const { 
+      position_drop_threshold, 
+      keyword_drop_threshold, 
+      comparison_days, 
+      consecutive_drop_days,
+      min_impressions,
+      notification_cooldown_days,
+      notification_frequency 
+    } = body;
 
     // バリデーション
     if (position_drop_threshold !== undefined && (typeof position_drop_threshold !== 'number' || position_drop_threshold < 0)) {
@@ -73,10 +81,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (consecutive_drop_days !== undefined && (typeof consecutive_drop_days !== 'number' || consecutive_drop_days < 1)) {
+      return NextResponse.json(
+        { error: "consecutive_drop_days must be a positive number" },
+        { status: 400 }
+      );
+    }
+
+    if (min_impressions !== undefined && (typeof min_impressions !== 'number' || min_impressions < 1)) {
+      return NextResponse.json(
+        { error: "min_impressions must be a positive number" },
+        { status: 400 }
+      );
+    }
+
+    if (notification_cooldown_days !== undefined && (typeof notification_cooldown_days !== 'number' || notification_cooldown_days < 0)) {
+      return NextResponse.json(
+        { error: "notification_cooldown_days must be a non-negative number" },
+        { status: 400 }
+      );
+    }
+
     const settings = await saveOrUpdateUserAlertSettings(session.userId, {
       position_drop_threshold,
       keyword_drop_threshold,
       comparison_days,
+      consecutive_drop_days,
+      min_impressions,
+      notification_cooldown_days,
       notification_frequency,
     });
 

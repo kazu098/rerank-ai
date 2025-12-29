@@ -368,7 +368,7 @@
   },
   "alertSettings": {
     "title": "Alert Settings",
-    "description": "Customize rank drop detection conditions",
+    "description": "Customize rank change (drop and rise) detection conditions. Notifications are sent for both rank drops and rank rises.",
     "fetchFailed": "Failed to fetch settings",
     "saveFailed": "Failed to save settings",
     "saveSuccess": "Settings saved successfully",
@@ -378,16 +378,16 @@
       "title": "Drop Detection Conditions",
       "positionDropThreshold": "Average Position Drop Threshold",
       "positionsAbove": "positions or more",
-      "positionDropThresholdDescription": "Notify when the average position drops by this value or more compared to the baseline",
+      "positionDropThresholdDescription": "Notify when the current average position drops by this value or more compared to the comparison period average. Rank rises are also notified using the same threshold (e.g., if set to 2.0, notifications are sent for drops or rises of 2.0 positions or more). Can be set in 0.1 increments (e.g., 0.1, 0.5, 1.0, 2.0)",
       "keywordDropThreshold": "Keyword Drop Threshold",
       "positionsOrBelow": "positions or below",
-      "keywordDropThresholdDescription": "Notify when a specific keyword drops to this position or below"
+      "keywordDropThresholdDescription": "Notify when any keyword related to the article drops to this position or below. If multiple keywords meet the condition, all of them will be included in the notification"
     },
     "comparisonPeriod": {
       "title": "Comparison Period",
       "days": "Average position over the past",
       "daysSuffix": "days",
-      "description": "Compare based on the average position over this period"
+      "description": "Use the average position over this period as the baseline to compare with the current average position. For example, if set to 7 days, the system compares the average position over the past 7 days with the current average position to detect drops"
     },
     "notificationFrequency": {
       "title": "Notification Frequency",
@@ -395,6 +395,22 @@
       "weekly": "Weekly summary (if there are drops)",
       "none": "Don't notify (check manually)",
       "description": "Select the notification frequency. Since Search Console data is updated once per day, notifications are sent during daily checks when rank drops are detected"
+    },
+    "consecutiveDropDays": {
+      "title": "Consecutive Drop Days",
+      "days": "Consecutive Drop Days",
+      "description": "Notify when rank has dropped for this many consecutive days. The system checks daily if the rank has dropped, and sends a notification when the drop continues for the specified number of consecutive days (e.g., if set to 3, notification is sent when the drop continues for 3 consecutive days)"
+    },
+    "minImpressions": {
+      "title": "Minimum Impressions",
+      "count": "Minimum Impressions",
+      "impressions": "impressions or more",
+      "description": "Only keywords with this many impressions or more will be included in notifications. Keywords with fewer impressions (keywords that appear less frequently in search results) are excluded from notifications. For example, if set to 100, keywords with fewer than 100 impressions will not be included in notifications"
+    },
+    "notificationCooldownDays": {
+      "title": "Notification Cooldown",
+      "days": "Notification Cooldown Period",
+      "description": "Do not send notifications for the same article within this number of days. This serves two main purposes: 1) After sending a rank drop notification, no further notifications will be sent until the specified number of days have passed (prevents daily notifications even if the rank continues to drop). 2) If an article is marked as fixed, notifications will not be sent until this number of days have passed since the fix date (stops notifications during improvement work). If set to 0, the cooldown is disabled"
     }
   }
 }
