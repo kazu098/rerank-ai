@@ -287,6 +287,13 @@ export default function Home() {
   // タブ管理
   const [activeTab, setActiveTab] = useState<"analysis" | "suggestion">("analysis");
 
+  // 記事提案関連
+  const [generatingSuggestions, setGeneratingSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [suggestionSiteUrl, setSuggestionSiteUrl] = useState<string>("");
+
 
   const loadGSCProperties = async () => {
     if (propertiesLoaded) return; // 既に読み込み済みの場合はスキップ
@@ -353,6 +360,11 @@ export default function Home() {
       // 状態を更新
       setSelectedSiteUrl(siteUrl);
       setShowPropertySelection(false);
+      
+      // サイトIDを取得
+      if (result.site?.id) {
+        setSelectedSiteId(result.site.id);
+      }
       
       // ローカルストレージに保存（次回アクセス時に使用）
       localStorage.setItem("selectedGSCSiteUrl", siteUrl);
@@ -436,6 +448,22 @@ export default function Home() {
     setShowArticleSelection(false);
   };
 
+  // 提案一覧を読み込む
+  const loadSuggestions = async (siteId: string) => {
+    setLoadingSuggestions(true);
+    try {
+      const response = await fetch(`/api/article-suggestions?siteId=${siteId}`);
+      if (response.ok) {
+        const result = await response.json();
+        setSuggestions(result.suggestions || []);
+      }
+    } catch (err: any) {
+      console.error("Error loading suggestions:", err);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
   // GSCプロパティ一覧を取得
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
@@ -466,6 +494,10 @@ export default function Home() {
             if (response.ok) {
               const result = await response.json();
               setSelectedSiteUrl(savedSiteUrl);
+              // サイトIDを取得
+              if (result.site?.id) {
+                setSelectedSiteId(result.site.id);
+              }
               // 記事一覧を読み込む
               loadArticles(savedSiteUrl);
             } else {
@@ -2058,37 +2090,234 @@ export default function Home() {
               {t("home.suggestArticleDescription")}
             </p>
 
-            {/* 選択済みプロパティの表示 */}
-            {selectedSiteUrl && (
-              <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-green-800">
-                      {t("home.selectedProperty")}: {selectedSiteUrl}
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      {t("home.suggestArticleDescription")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* プロパティが選択されていない場合 */}
-            {!selectedSiteUrl && (
-              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 rounded">
-                <p className="text-sm text-yellow-800">
-                  {t("home.selectPropertyDescription")}
-                </p>
-              </div>
-            )}
-            
-            {/* 記事提案のUI（後で実装） */}
-            <div className="bg-gray-50 rounded-lg p-6 text-center">
-              <p className="text-gray-600">
-                {t("home.suggestArticleComingSoon")}
+            {/* ドメイン入力フィールド */}
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                {t("home.siteUrlOrDomain") || "サイトURLまたはドメイン"}
+              </label>
+              <input
+                type="text"
+                value={suggestionSiteUrl || selectedSiteUrl || ""}
+                onChange={(e) => setSuggestionSiteUrl(e.target.value)}
+                placeholder="https://example.com または example.com"
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {t("home.siteUrlOrDomainHint") || "記事URLまたはドメインを入力してください。ドメインを入力した場合、そのドメイン全体のキーワードから提案を生成します。"}
               </p>
             </div>
+
+            {/* 提案生成ボタン */}
+            <div className="mb-6">
+              <button
+                onClick={async () => {
+                  const inputUrl = suggestionSiteUrl || selectedSiteUrl;
+                  if (!inputUrl) {
+                    setError("サイトURLまたはドメインを入力してください");
+                    return;
+                  }
+
+                    setGeneratingSuggestions(true);
+                    setError(null);
+                    try {
+                      // 入力されたURL/ドメインからサイトを取得または作成
+                      let siteId = selectedSiteId;
+                      
+                      // まず、入力されたURL/ドメインに一致するサイトを探す
+                      const sitesResponse = await fetch("/api/sites");
+                      if (sitesResponse.ok) {
+                        const sites = await sitesResponse.json();
+                        // URLを正規化して比較
+                        const normalizedInput = inputUrl.trim().replace(/\/$/, "");
+                        const site = sites.find((s: any) => {
+                          const normalizedSiteUrl = s.site_url?.trim().replace(/\/$/, "");
+                          return normalizedSiteUrl === normalizedInput || 
+                                 normalizedSiteUrl === `sc-domain:${normalizedInput.replace(/^https?:\/\//, "").replace(/^www\./, "")}` ||
+                                 normalizedInput.replace(/^https?:\/\//, "").replace(/^www\./, "") === normalizedSiteUrl?.replace(/^sc-domain:/, "").replace(/^https?:\/\//, "").replace(/^www\./, "");
+                        });
+                        
+                        if (site) {
+                          siteId = site.id;
+                          setSelectedSiteId(site.id);
+                        } else {
+                          // サイトが存在しない場合は、新規作成を試みる
+                          const saveResponse = await fetch("/api/sites/save", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              siteUrl: normalizedInput,
+                              displayName: normalizedInput,
+                            }),
+                          });
+                          
+                          if (saveResponse.ok) {
+                            const saveResult = await saveResponse.json();
+                            if (saveResult.site?.id) {
+                              siteId = saveResult.site.id;
+                              setSelectedSiteId(saveResult.site.id);
+                            }
+                          }
+                        }
+                      }
+
+                      if (!siteId) {
+                        throw new Error("サイトの取得または作成に失敗しました");
+                      }
+
+                      const response = await fetch("/api/article-suggestions/generate", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          siteId: siteId,
+                        }),
+                      });
+
+                      if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || t("errors.suggestionGenerationFailed"));
+                      }
+
+                      const result = await response.json();
+                      setSuggestions(result.suggestions || []);
+                      
+                      // 提案一覧を再読み込み
+                      loadSuggestions(siteId);
+                    } catch (err: any) {
+                      console.error("Error generating suggestions:", err);
+                      setError(err.message || t("errors.suggestionGenerationFailed"));
+                    } finally {
+                      setGeneratingSuggestions(false);
+                    }
+                  }}
+                  disabled={generatingSuggestions || !(suggestionSiteUrl || selectedSiteUrl)}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generatingSuggestions ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                      <span>{t("home.generatingSuggestions")}</span>
+                    </>
+                  ) : (
+                    <span>{t("home.generateSuggestions")}</span>
+                  )}
+              </button>
+            </div>
+
+            {/* 提案一覧 */}
+            {(suggestionSiteUrl || selectedSiteUrl) && (
+              <div className="mt-6">
+                {loadingSuggestions ? (
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                    <p className="mt-2 text-sm text-gray-600">{t("home.loadingSuggestions")}</p>
+                  </div>
+                ) : suggestions.length > 0 ? (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      {t("home.suggestionsList")} ({t("home.suggestionsCount", { count: suggestions.length })})
+                    </h3>
+                    {suggestions.map((suggestion) => (
+                      <div
+                        key={suggestion.id}
+                        className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                              {suggestion.title}
+                            </h4>
+                            {suggestion.keywords && suggestion.keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {suggestion.keywords.slice(0, 5).map((keyword: string, idx: number) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded"
+                                  >
+                                    {keyword}
+                                  </span>
+                                ))}
+                                {suggestion.keywords.length > 5 && (
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                    +{suggestion.keywords.length - 5}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {suggestion.reason && (
+                              <p className="text-sm text-gray-600 mb-2">{suggestion.reason}</p>
+                            )}
+                            {suggestion.estimated_impressions && (
+                              <p className="text-xs text-gray-500">
+                                {t("home.estimatedImpressions")}: {suggestion.estimated_impressions.toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          <div className="ml-4 flex flex-col gap-2">
+                            <span
+                              className={`px-3 py-1 text-xs font-semibold rounded ${
+                                suggestion.status === "completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : suggestion.status === "in_progress"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : suggestion.status === "skipped"
+                                  ? "bg-gray-100 text-gray-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }`}
+                            >
+                              {t(`home.status.${suggestion.status}`)}
+                            </span>
+                            <button
+                              onClick={async () => {
+                                const newStatus =
+                                  suggestion.status === "pending"
+                                    ? "in_progress"
+                                    : suggestion.status === "in_progress"
+                                    ? "completed"
+                                    : "pending";
+                                try {
+                                  const response = await fetch(
+                                    `/api/article-suggestions/${suggestion.id}/status`,
+                                    {
+                                      method: "PATCH",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({ status: newStatus }),
+                                    }
+                                  );
+                                  if (response.ok && selectedSiteId) {
+                                    loadSuggestions(selectedSiteId);
+                                  }
+                                } catch (err) {
+                                  console.error("Error updating status:", err);
+                                }
+                              }}
+                              className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                            >
+                              {suggestion.status === "pending"
+                                ? t("home.action.startCreating")
+                                : suggestion.status === "in_progress"
+                                ? t("home.action.complete")
+                                : t("home.action.reset")}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-6 text-center">
+                    <p className="text-gray-600">
+                      {t("home.noSuggestions")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           )}
         </div>

@@ -9,7 +9,7 @@ interface GSCQueryParams {
   startRow?: number;
 }
 
-interface GSCRow {
+export interface GSCRow {
   keys: string[];
   clicks: number;
   impressions: number;
@@ -180,6 +180,11 @@ export class GSCApiClient {
       dimensions: params.dimensions || [],
       rowLimit: params.rowLimit || 1000,
     };
+
+    // startRowが指定されている場合は追加
+    if (params.startRow !== undefined && params.startRow > 0) {
+      requestBody.startRow = params.startRow;
+    }
 
     if (pageUrl) {
       // ページURLが相対パスの場合、完全なURL形式に変換

@@ -88,7 +88,27 @@
     "suggestArticle": "Article Suggestion",
     "suggestArticleDescription": "Based on Search Console data and analysis of existing articles, we suggest new article titles and content that are effective for SEO.",
     "suggestArticleComingSoon": "Article suggestion feature is coming soon.",
-    "newArticleSuggestion": "New Article Suggestion"
+    "newArticleSuggestion": "New Article Suggestion",
+    "siteUrlOrDomain": "Site URL or Domain",
+    "siteUrlOrDomainHint": "Enter an article URL or domain. If you enter a domain, suggestions will be generated from keywords for the entire domain.",
+    "generateSuggestions": "Generate Article Suggestions",
+    "generatingSuggestions": "Generating suggestions...",
+    "suggestionsList": "Suggestions List",
+    "suggestionsCount": "{count} items",
+    "noSuggestions": "No suggestions yet. Click the \"Generate Article Suggestions\" button to generate suggestions.",
+    "loadingSuggestions": "Loading...",
+    "estimatedImpressions": "Estimated Impressions",
+    "status": {
+      "pending": "Pending",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "skipped": "Skipped"
+    },
+    "action": {
+      "startCreating": "Start Creating",
+      "complete": "Complete",
+      "reset": "Reset"
+    }
   },
   "chart": {
     "keywordRankingTrend": "Search Keyword Ranking Trends",
@@ -226,7 +246,10 @@
     "tokenExpired": "Authentication token has expired. Please sign in again.",
     "analysisFailed": "Analysis failed",
     "notificationFailed": "Failed to send notification",
-    "notificationSent": "Notification sent"
+    "notificationSent": "Notification sent",
+    "step3Skipped": "⚠ Step 3 skipped because competitor URLs could not be retrieved",
+    "step3Error": "⚠ Step 3 error: {error}",
+    "suggestionGenerationFailed": "Failed to generate suggestions"
   },
   "notification": {
     "rankDropDetected": "Rank drop detected",

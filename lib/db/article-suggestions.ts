@@ -120,3 +120,27 @@ export async function updateArticleSuggestionStatus(
   return data as ArticleSuggestionRecord;
 }
 
+/**
+ * 指定サイトの未着手（pending）の提案を削除
+ * 新しい提案を生成する前に、古い未着手の提案を削除するために使用
+ */
+export async function deletePendingSuggestionsBySiteId(
+  userId: string,
+  siteId: string
+): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const { error } = await supabase
+    .from("article_suggestions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("site_id", siteId)
+    .eq("status", "pending");
+
+  if (error) {
+    throw new Error(
+      `Failed to delete pending suggestions: ${error.message}`
+    );
+  }
+}
+

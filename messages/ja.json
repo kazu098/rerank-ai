@@ -88,7 +88,27 @@
     "suggestArticle": "記事提案",
     "suggestArticleDescription": "Search Consoleのデータと既存記事の分析から、SEO対策として効果的な新規記事のタイトルや内容を提案します。",
     "suggestArticleComingSoon": "記事提案機能は準備中です。",
-    "newArticleSuggestion": "新規記事提案"
+    "newArticleSuggestion": "新規記事提案",
+    "siteUrlOrDomain": "サイトURLまたはドメイン",
+    "siteUrlOrDomainHint": "記事URLまたはドメインを入力してください。ドメインを入力した場合、そのドメイン全体のキーワードから提案を生成します。",
+    "generateSuggestions": "記事提案を生成",
+    "generatingSuggestions": "提案を生成中...",
+    "suggestionsList": "提案一覧",
+    "suggestionsCount": "{count}件",
+    "noSuggestions": "まだ提案がありません。「記事提案を生成」ボタンをクリックして提案を生成してください。",
+    "loadingSuggestions": "読み込み中...",
+    "estimatedImpressions": "推定インプレッション数",
+    "status": {
+      "pending": "未着手",
+      "in_progress": "作成中",
+      "completed": "完了",
+      "skipped": "スキップ"
+    },
+    "action": {
+      "startCreating": "作成開始",
+      "complete": "完了",
+      "reset": "リセット"
+    }
   },
   "chart": {
     "keywordRankingTrend": "検索キーワードの順位推移",
@@ -229,7 +249,8 @@
     "notificationFailed": "通知の送信に失敗しました",
     "notificationSent": "通知を送信しました",
     "step3Skipped": "⚠ 競合URLが取得できなかったため、Step 3をスキップしました",
-    "step3Error": "⚠ Step 3でエラー: {error}"
+    "step3Error": "⚠ Step 3でエラー: {error}",
+    "suggestionGenerationFailed": "提案の生成に失敗しました"
   },
   "notification": {
     "rankDropDetected": "順位下落を検知しました",

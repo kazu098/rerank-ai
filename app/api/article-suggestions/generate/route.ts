@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { ArticleSuggestionGenerator } from "@/lib/article-suggestion";
 import { getArticlesBySiteId } from "@/lib/db/articles";
-import { saveArticleSuggestions } from "@/lib/db/article-suggestions";
+import { saveArticleSuggestions, deletePendingSuggestionsBySiteId } from "@/lib/db/article-suggestions";
 import { getSitesByUserId } from "@/lib/db/sites";
 
 /**
@@ -13,13 +13,14 @@ import { getSitesByUserId } from "@/lib/db/sites";
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.userId) {
       return NextResponse.json(
         { error: "認証が必要です" },
         { status: 401 }
       );
     }
 
+    const userId = session.userId as string;
     const body = await request.json();
     const { siteId } = body;
 
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // サイト情報を取得
-    const sites = await getSitesByUserId(session.user.id);
+    const sites = await getSitesByUserId(userId);
     const site = sites.find((s) => s.id === siteId);
 
     if (!site) {
@@ -51,18 +52,21 @@ export async function POST(request: NextRequest) {
     // 既存記事を取得
     const existingArticles = await getArticlesBySiteId(siteId);
 
+    // 既存の未着手（pending）の提案を削除（重複を防ぐため）
+    await deletePendingSuggestionsBySiteId(userId, siteId);
+
     // 記事提案を生成
     const generator = new ArticleSuggestionGenerator();
     const suggestions = await generator.generateSuggestions(
       site.site_url,
-      session.user.id,
+      userId,
       siteId,
       existingArticles
     );
 
     // DBに保存
     const savedSuggestions = await saveArticleSuggestions(
-      session.user.id,
+      userId,
       siteId,
       suggestions
     );
