@@ -45,6 +45,24 @@ export class ArticleSuggestionGenerator {
   constructor() {
     this.keywordPrioritizer = new KeywordPrioritizer();
   }
+  
+  /**
+   * 文字列からアルファベットの単語を抽出（汎用的）
+   * 例：「犬型ロボットAIBO（アイボ）」→「aibo」
+   */
+  private extractAlphabeticWords(text: string): string[] {
+    // アルファベット（大文字小文字）の連続を抽出
+    const matches = text.match(/[A-Za-z]+/g);
+    return matches ? matches.map(m => m.toLowerCase()) : [];
+  }
+  
+  /**
+   * 文字列がカタカナのみかどうかを判定
+   */
+  private isKatakanaOnly(text: string): boolean {
+    // カタカナ（ひらがな、漢字、記号を除く）のみかチェック
+    return /^[ァ-ヶー]+$/.test(text);
+  }
 
   /**
    * URLからドメインを抽出してGSC形式に変換
@@ -175,6 +193,35 @@ export class ArticleSuggestionGenerator {
           const normalized = this.keywordPrioritizer.normalizeKeyword(beforeBracket);
           if (normalized.length > 1) {
             coveredKeywords.add(normalized);
+            
+            // 括弧前の部分からアルファベットの単語を抽出（汎用的）
+            // 例：「犬型ロボットAIBO（アイボ）」→「aibo」を抽出
+            const alphabeticWords = this.extractAlphabeticWords(beforeBracket);
+            for (const word of alphabeticWords) {
+              if (word.length > 1) {
+                const wordNormalized = this.keywordPrioritizer.normalizeKeyword(word);
+                coveredKeywords.add(wordNormalized);
+              }
+            }
+          }
+        }
+        
+        // 括弧内がカタカナの場合、括弧前のアルファベット部分と対応させる
+        // 例：「AIBO（アイボ）」→「aibo」と「アイボ」の両方を追加
+        if (bracketMatches) {
+          for (const match of bracketMatches) {
+            const bracketContent = match.replace(/[（()）]/g, "");
+            if (this.isKatakanaOnly(bracketContent)) {
+              // 括弧前の部分からアルファベットの単語を抽出
+              const beforeBracketForMatch = article.title.split(/[（(]/)[0];
+              const alphabeticWords = this.extractAlphabeticWords(beforeBracketForMatch);
+              for (const word of alphabeticWords) {
+                if (word.length > 1) {
+                  const wordNormalized = this.keywordPrioritizer.normalizeKeyword(word);
+                  coveredKeywords.add(wordNormalized);
+                }
+              }
+            }
           }
         }
 
@@ -192,6 +239,15 @@ export class ArticleSuggestionGenerator {
           const normalized = this.keywordPrioritizer.normalizeKeyword(word);
           if (normalized.length > 1) {
             coveredKeywords.add(normalized);
+            
+            // アルファベットの単語も抽出（汎用的）
+            const alphabeticWords = this.extractAlphabeticWords(word);
+            for (const alphabeticWord of alphabeticWords) {
+              if (alphabeticWord.length > 1) {
+                const alphabeticNormalized = this.keywordPrioritizer.normalizeKeyword(alphabeticWord);
+                coveredKeywords.add(alphabeticNormalized);
+              }
+            }
           }
         }
 
@@ -237,7 +293,8 @@ export class ArticleSuggestionGenerator {
       // DBに保存されているキーワードも追加
       if (article.keywords && Array.isArray(article.keywords)) {
         for (const keyword of article.keywords) {
-          coveredKeywords.add(this.keywordPrioritizer.normalizeKeyword(keyword));
+          const normalized = this.keywordPrioritizer.normalizeKeyword(keyword);
+          coveredKeywords.add(normalized);
         }
       }
     }
@@ -260,9 +317,17 @@ export class ArticleSuggestionGenerator {
         keyword.keyword
       );
 
+      const coverageCheck = {
+        exactMatch: false,
+        partMatch: false,
+        partialMatch: false,
+        matchedCoveredKeyword: undefined as string | undefined,
+      };
+
       // 既存記事でカバーされているかチェック
       // 1. 完全一致
       let isCovered = coveredKeywords.has(normalizedKeyword);
+      coverageCheck.exactMatch = isCovered;
       
       if (!isCovered) {
         // 2. キーワードの各部分がカバーされているかチェック
@@ -271,6 +336,8 @@ export class ArticleSuggestionGenerator {
         for (const part of keywordParts) {
           if (coveredKeywords.has(part)) {
             isCovered = true;
+            coverageCheck.partMatch = true;
+            coverageCheck.matchedCoveredKeyword = part;
             break;
           }
         }
@@ -284,6 +351,8 @@ export class ArticleSuggestionGenerator {
             // ただし、短すぎる単語（2文字以下）の部分一致は無視
             if (normalizedKeyword.length > 2 && covered.length > 2) {
               isCovered = true;
+              coverageCheck.partialMatch = true;
+              coverageCheck.matchedCoveredKeyword = covered;
               break;
             }
           }
@@ -299,7 +368,9 @@ export class ArticleSuggestionGenerator {
       // 順位が低い（20位以下）または未表示（position > 100）
       const isLowRanking = keyword.position > 20;
 
-      if (isNotCovered && hasEnoughImpressions && isLowRanking) {
+      const includedInGaps = isNotCovered && hasEnoughImpressions && isLowRanking;
+
+      if (includedInGaps) {
         gaps.push(keyword);
       }
     }
@@ -603,11 +674,21 @@ ${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "（既�
       endDate
     );
 
+    // キーワードが取得できない場合（インプレッションやクリックがない場合）
+    if (allKeywords.length === 0) {
+      throw new Error("NO_KEYWORDS_FOUND");
+    }
+
     // 5. 既存記事のキーワードカバレッジを分析
     const coveredKeywords = this.analyzeCoverage(existingArticles);
 
     // 6. ギャップキーワードを特定
     const gaps = this.identifyGaps(allKeywords, coveredKeywords);
+
+    // ギャップキーワードがない場合
+    if (gaps.length === 0) {
+      throw new Error("NO_GAP_KEYWORDS_FOUND");
+    }
 
     // 7. キーワードクラスタリング
     const clusters = this.clusterKeywords(gaps);

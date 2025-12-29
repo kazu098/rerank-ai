@@ -78,6 +78,29 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error generating article suggestions:", error);
+    
+    // キーワードが取得できない場合の特別なエラーハンドリング
+    if (error.message === "NO_KEYWORDS_FOUND") {
+      return NextResponse.json(
+        { 
+          error: "NO_KEYWORDS_FOUND",
+          message: "Search Consoleからキーワードデータを取得できませんでした。このサイトにはまだインプレッションやクリックがない可能性があります。"
+        },
+        { status: 400 }
+      );
+    }
+    
+    // ギャップキーワードがない場合の特別なエラーハンドリング
+    if (error.message === "NO_GAP_KEYWORDS_FOUND") {
+      return NextResponse.json(
+        { 
+          error: "NO_GAP_KEYWORDS_FOUND",
+          message: "新規記事として提案できるキーワードが見つかりませんでした。既存の記事で十分にカバーされているか、インプレッション数が少ない可能性があります。"
+        },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: error.message || "Failed to generate article suggestions" },
       { status: 500 }

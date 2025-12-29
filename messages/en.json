@@ -87,6 +87,7 @@
     "selectAnotherProperty": "Select another property",
     "suggestArticle": "Article Suggestion",
     "suggestArticleDescription": "Based on Search Console data and analysis of existing articles, we suggest new article titles and content that are effective for SEO.",
+    "suggestArticleNote": "Note: If keyword data cannot be retrieved from Search Console (no impressions or clicks), new article suggestions may not be available.",
     "suggestArticleComingSoon": "Article suggestion feature is coming soon.",
     "newArticleSuggestion": "New Article Suggestion",
     "siteUrlOrDomain": "Site URL or Domain",
@@ -249,7 +250,9 @@
     "notificationSent": "Notification sent",
     "step3Skipped": "⚠ Step 3 skipped because competitor URLs could not be retrieved",
     "step3Error": "⚠ Step 3 error: {error}",
-    "suggestionGenerationFailed": "Failed to generate suggestions"
+    "suggestionGenerationFailed": "Failed to generate suggestions",
+    "noKeywordsFound": "Could not retrieve keyword data from Search Console. This site may not have any impressions or clicks yet.",
+    "noGapKeywordsFound": "No keywords were found that could be suggested as new articles. Existing articles may already cover them sufficiently, or the impression count may be low."
   },
   "notification": {
     "rankDropDetected": "Rank drop detected",
@@ -331,10 +334,21 @@
     },
     "sidebar": {
       "overview": "Overview",
-      "articles": "Articles",
+      "articleAnalysis": "Article Analysis",
+      "articleSuggestions": "Article Suggestions",
       "notifications": "Notifications",
       "settings": "Settings",
       "billing": "Billing"
+    },
+    "articleSuggestions": {
+      "title": "Article Suggestions",
+      "generateNew": "Generate New Suggestions",
+      "filterBySite": "Filter by Site",
+      "filterByStatus": "Filter by Status",
+      "all": "All",
+      "noSuggestions": "No suggestions. Please generate new suggestions.",
+      "priority": "Priority",
+      "createdAt": "Created At"
     }
   },
   "notification": {
