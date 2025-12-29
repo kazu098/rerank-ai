@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { saveOrUpdateNotificationSettings, getNotificationSettings } from "@/lib/db/notification-settings";
+import { saveOrUpdateNotificationSettings, getNotificationSettings, NotificationSettings } from "@/lib/db/notification-settings";
 import { getUserById } from "@/lib/db/users";
 import { sendSlackNotificationWithBot } from "@/lib/slack-notification";
 import jaMessages from "@/messages/ja.json";
@@ -29,16 +29,101 @@ export async function GET(request: NextRequest) {
 
     const settings = await getNotificationSettings(session.userId, articleId);
 
+    // Slack連携状態を確認（is_enabledに関わらずslack_bot_tokenの存在を確認）
+    let slackConnectionInfo = null;
+    if (!settings?.slack_bot_token) {
+      const { createSupabaseClient } = await import("@/lib/supabase");
+      const supabase = createSupabaseClient();
+      const { data: slackSettingsData } = await supabase
+        .from('notification_settings')
+        .select('slack_bot_token, slack_user_id, slack_team_id, slack_channel_id, slack_notification_type')
+        .eq('user_id', session.userId)
+        .is('article_id', null)
+        .eq('channel', 'slack')
+        .not('slack_bot_token', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (slackSettingsData) {
+        slackConnectionInfo = {
+          slack_bot_token: slackSettingsData.slack_bot_token,
+          slack_user_id: slackSettingsData.slack_user_id,
+          slack_team_id: slackSettingsData.slack_team_id,
+          slack_channel_id: slackSettingsData.slack_channel_id,
+          slack_notification_type: slackSettingsData.slack_notification_type,
+        };
+      }
+    }
+
+    const responseData: Partial<NotificationSettings> = settings || {};
+    if (slackConnectionInfo) {
+      // Slack連携情報を追加（is_enabled=falseでもslack_bot_tokenが存在する場合）
+      Object.assign(responseData, slackConnectionInfo);
+    }
+
+    // Slack連携済みの場合、workspace名とチャネル名を取得
+    let slackWorkspaceName: string | null = null;
+    let slackChannelName: string | null = null;
+    if (responseData.slack_bot_token && responseData.slack_team_id) {
+      try {
+        // Workspace情報を取得
+        const teamInfoResponse = await fetch('https://slack.com/api/team.info', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${responseData.slack_bot_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            team: responseData.slack_team_id,
+          }),
+        });
+
+        if (teamInfoResponse.ok) {
+          const teamInfoData = await teamInfoResponse.json();
+          if (teamInfoData.ok && teamInfoData.team) {
+            slackWorkspaceName = teamInfoData.team.name;
+          }
+        }
+
+        // チャネル名を取得（チャネルIDが指定されている場合）
+        if (responseData.slack_channel_id && responseData.slack_notification_type === 'channel') {
+          const { getSlackChannels } = await import("@/lib/slack-channels");
+          try {
+            const channels = await getSlackChannels(responseData.slack_bot_token);
+            const channel = channels.find((ch) => ch.id === responseData.slack_channel_id);
+            if (channel) {
+              slackChannelName = channel.name;
+            }
+          } catch (channelError: any) {
+            console.error("[Notification Settings API] Error fetching channel name:", channelError);
+            // チャネル名の取得に失敗しても続行
+          }
+        }
+      } catch (error: any) {
+        console.error("[Notification Settings API] Error fetching Slack workspace info:", error);
+        // workspace情報の取得に失敗しても続行
+      }
+    }
+
+    const finalResponseData = {
+      ...responseData,
+      slack_workspace_name: slackWorkspaceName,
+      slack_channel_name: slackChannelName,
+    };
+
     console.log("[Notification Settings API] Settings retrieved:", {
       hasSettings: !!settings,
       is_enabled: settings?.is_enabled,
-      hasSlackBotToken: !!settings?.slack_bot_token,
-      slackBotTokenIsNull: settings?.slack_bot_token === null,
-      slackChannelId: settings?.slack_channel_id,
-      slackNotificationType: settings?.slack_notification_type,
+      hasSlackBotToken: !!responseData.slack_bot_token,
+      slackBotTokenIsNull: responseData.slack_bot_token === null,
+      slackChannelId: responseData.slack_channel_id,
+      slackNotificationType: responseData.slack_notification_type,
+      slackWorkspaceName,
+      slackChannelName,
     });
 
-    return NextResponse.json(settings);
+    return NextResponse.json(finalResponseData);
   } catch (error: any) {
     console.error("[Notification Settings API] Error fetching settings:", {
       error: error.message,

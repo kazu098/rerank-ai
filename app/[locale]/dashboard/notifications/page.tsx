@@ -38,6 +38,8 @@ export default function NotificationsPage() {
   const [slackNotificationType, setSlackNotificationType] = useState<'channel' | 'dm' | null>(null);
   const [slackChannelId, setSlackChannelId] = useState<string | null>(null);
   const [slackChannels, setSlackChannels] = useState<Array<{id: string, name: string, is_private?: boolean}>>([]);
+  const [slackWorkspaceName, setSlackWorkspaceName] = useState<string | null>(null);
+  const [slackChannelName, setSlackChannelName] = useState<string | null>(null);
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [notificationTime, setNotificationTime] = useState<string>("09:00");
@@ -79,6 +81,8 @@ export default function NotificationsPage() {
           setSlackConnected(true);
           setSlackNotificationType((notificationData.slack_notification_type as 'channel' | 'dm') || null);
           setSlackChannelId(notificationData.slack_channel_id || null);
+          setSlackWorkspaceName(notificationData.slack_workspace_name || null);
+          setSlackChannelName(notificationData.slack_channel_name || null);
           // チャネル一覧を取得（連携直後に自動取得）
           await fetchSlackChannels();
         } else {
@@ -86,6 +90,8 @@ export default function NotificationsPage() {
           setSlackNotificationType(null);
           setSlackChannelId(null);
           setSlackChannels([]);
+          setSlackWorkspaceName(null);
+          setSlackChannelName(null);
         }
       }
       // 通知時刻をuser_alert_settingsから取得
@@ -331,11 +337,16 @@ export default function NotificationsPage() {
                   {t("notification.settings.slackConnected")}
                 </p>
                 <p className="text-xs text-green-600 mt-1">
+                  {slackWorkspaceName && (
+                    <span className="font-semibold">{slackWorkspaceName}</span>
+                  )}
                   {slackNotificationType === null 
-                    ? "通知先を選択してください"
+                    ? slackWorkspaceName ? " - 通知先を選択してください" : "通知先を選択してください"
                     : slackNotificationType === 'dm' 
-                    ? t("notification.settings.sendingToDM")
-                    : t("notification.settings.sendingToChannel")}
+                    ? slackWorkspaceName ? ` - ${t("notification.settings.sendingToDM")}` : t("notification.settings.sendingToDM")
+                    : slackChannelName 
+                    ? slackWorkspaceName ? ` - #${slackChannelName}` : `#${slackChannelName}`
+                    : slackWorkspaceName ? ` - ${t("notification.settings.sendingToChannel")}` : t("notification.settings.sendingToChannel")}
                 </p>
               </div>
               <button
@@ -358,6 +369,8 @@ export default function NotificationsPage() {
                     setSlackNotificationType(null);
                     setSlackChannelId(null);
                     setSlackChannels([]);
+                    setSlackWorkspaceName(null);
+                    setSlackChannelName(null);
                     setSuccess(t("notification.settings.slackDisconnected"));
                     // 設定を再取得して状態を確実に更新
                     await fetchSlackSettings();
