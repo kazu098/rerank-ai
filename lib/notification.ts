@@ -601,12 +601,12 @@ export class NotificationService {
           ${item.articleId ? `
             <div style="margin-top: 16px; text-align: center;">
               ${isRise ? `
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/dashboard/articles/${item.articleId}" 
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/${locale}/dashboard/articles/${item.articleId}" 
                    style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
                   ${t('notification.email.viewRankChangeDetails')}
                 </a>
               ` : `
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/dashboard/articles/${item.articleId}?analyze=true" 
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/${locale}/dashboard/articles/${item.articleId}?analyze=true" 
                    style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
                   ${t('notification.email.viewCompetitorsAndRecommendations')}
                 </a>
@@ -618,14 +618,6 @@ export class NotificationService {
     });
 
     html += `
-          </div>
-          <div class="footer">
-            <p>${t('notification.email.footer')}</p>
-            <p style="margin-top: 8px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/dashboard" style="color: #3b82f6; text-decoration: none;">
-                ${t('notification.email.viewDashboard')}
-              </a>
-            </p>
           </div>
         </div>
       </body>

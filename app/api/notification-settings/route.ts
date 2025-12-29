@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
     const { slackBotToken, slackUserId, slackTeamId, slackChannelId, slackNotificationType } = body;
     // slackBotTokenまたはslackUserIdが明示的に指定されている場合（null含む）に更新
     if (slackBotToken !== undefined || slackUserId !== undefined || slackTeamId !== undefined || slackChannelId !== undefined || slackNotificationType !== undefined) {
-      // 連携解除の場合（slackBotTokenがnull）はis_enabledをfalseに設定
+      // 連携解除の場合（slackBotTokenがnull）はslack_bot_tokenをnullにする
       const isDisconnecting = slackBotToken === null;
       console.log("[Notification Settings API] Updating Slack OAuth settings:", {
         isDisconnecting,
@@ -223,7 +223,9 @@ export async function POST(request: NextRequest) {
         notification_type: 'rank_drop',
         channel: 'slack',
         recipient: slackUserId || slackChannelId || '',
-        is_enabled: isDisconnecting ? false : (slackBotToken !== null && !!slackBotToken), // 連携解除時はfalse
+        // is_enabledは連携ステータスとは無関係（記事ごとの通知の有効/無効を管理）
+        // 連携ステータスはslack_bot_tokenの有無で判定する
+        is_enabled: true, // デフォルト値（記事ごとの通知設定で個別に管理）
         slack_bot_token: slackBotToken !== undefined ? (slackBotToken || null) : undefined,
         slack_user_id: slackUserId !== undefined ? (slackUserId || null) : undefined,
         slack_team_id: slackTeamId !== undefined ? (slackTeamId || null) : undefined,
