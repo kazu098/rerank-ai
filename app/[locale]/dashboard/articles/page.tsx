@@ -693,7 +693,7 @@ export default function ArticlesPage() {
                             // Slack未連携の場合は通知設定ページへ遷移
                             if (!slackConnected) {
                               if (confirm(t("dashboard.articles.slackConnectionRequiredTooltip") + "\n通知設定ページに移動しますか？")) {
-                                router.push(`/dashboard/notifications`);
+                                router.push(`/dashboard/settings`);
                               }
                               return;
                             }
@@ -747,7 +747,7 @@ export default function ArticlesPage() {
                                 const errorMessage = errorData.error || t("dashboard.articles.updateSlackNotificationFailed");
                                 if (errorMessage.includes("notification destination") || errorMessage.includes("通知先")) {
                                   if (confirm(errorMessage + "\n通知設定ページに移動しますか？")) {
-                                    router.push(`/dashboard/notifications`);
+                                    router.push(`/dashboard/settings`);
                                   }
                                 } else {
                                   alert(errorMessage);
