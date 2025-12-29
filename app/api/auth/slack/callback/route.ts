@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
     // リダイレクト先URLを生成（新しいタブで開いた場合の処理を含む）
     const getRedirectHtml = (success: boolean, message?: string, error?: string) => {
       const redirectUrl = success
-        ? new URL(`/${locale}/dashboard/notifications?slack_connected=true`, request.url)
-        : new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error || message || "Unknown error")}`, request.url);
+        ? new URL(`/${locale}/dashboard/settings?slack_connected=true`, request.url)
+        : new URL(`/${locale}/dashboard/settings?error=slack_oauth_error&message=${encodeURIComponent(error || message || "Unknown error")}`, request.url);
       
       return `<!DOCTYPE html>
 <html>
@@ -265,7 +265,7 @@ export async function GET(request: NextRequest) {
     const session = await auth().catch(() => null);
     const locale = await getLocale(request, session?.userId as string | undefined).catch(() => routing.defaultLocale);
     const errorMessage = error.message || "Unknown error";
-    const errorRedirectUrl = new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(errorMessage)}`, request.url);
+    const errorRedirectUrl = new URL(`/${locale}/dashboard/settings?error=slack_oauth_error&message=${encodeURIComponent(errorMessage)}`, request.url);
     console.error("[Slack OAuth] Redirecting to error URL:", errorRedirectUrl.toString());
     return new NextResponse(
       `<!DOCTYPE html>

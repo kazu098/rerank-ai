@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     console.error("[Slack OAuth] Authorization error:", error);
     const locale = getLocaleFromReferer(request);
     return NextResponse.redirect(
-      new URL(`/${locale}/dashboard/notifications?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url)
+      new URL(`/${locale}/dashboard/settings?error=slack_oauth_error&message=${encodeURIComponent(error.message)}`, request.url)
     );
   }
 }

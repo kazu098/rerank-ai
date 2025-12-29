@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/src/i18n/routing";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface SidebarItem {
   href: string;
@@ -23,6 +23,8 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const t = useTranslations();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const sidebarItems: SidebarItem[] = [
     {
@@ -40,15 +42,6 @@ export default function DashboardLayout({
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-    },
-    {
-      href: `/dashboard/notifications`,
-      label: t("dashboard.sidebar.notifications"),
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
       ),
     },
@@ -71,6 +64,23 @@ export default function DashboardLayout({
     return pathname?.startsWith(href);
   };
 
+  // ユーザーメニューの外側をクリックしたら閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    if (userMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [userMenuOpen]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ヘッダー */}
@@ -92,9 +102,41 @@ export default function DashboardLayout({
               </h1>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600 hidden sm:inline">
-                {session?.user?.email}
-              </span>
+              {/* ユーザーメニュー */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
+                >
+                  <span className="hidden sm:inline">{session?.user?.email}</span>
+                  <svg
+                    className={`w-4 h-4 transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* ドロップダウンメニュー */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        signOut({ callbackUrl: `/${locale}/auth/signin` });
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      {t("common.logout")}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -140,23 +182,6 @@ export default function DashboardLayout({
                 );
               })}
             </nav>
-            {/* ログアウトボタン（固定位置） */}
-            <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 bg-white">
-              <button
-                onClick={() => {
-                  setSidebarOpen(false);
-                  signOut({ callbackUrl: `/${locale}/auth/signin` });
-                }}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
-              >
-                <span className="mr-3 text-gray-400">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                </span>
-                {t("common.logout")}
-              </button>
-            </div>
           </div>
         </aside>
 
