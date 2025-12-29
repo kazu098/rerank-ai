@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "@/src/i18n/routing";
+import { useRouter, Link } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
-import Link from "next/link";
 
 interface DashboardData {
   articles: Array<{
@@ -203,7 +202,7 @@ export default function DashboardPage() {
                             </span>
                           )}
                           <Link
-                            href={`/${locale}/dashboard/articles/${article.id}`}
+                            href={`/dashboard/articles/${article.id}`}
                             className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                           >
                             {t("dashboard.articles.viewDetails")}
@@ -232,7 +231,7 @@ export default function DashboardPage() {
                   data.unreadNotifications.map((notification) => (
                     <Link
                       key={notification.id}
-                      href={`/${locale}/dashboard/articles/${notification.article_id}`}
+                      href={`/dashboard/articles/${notification.article_id}`}
                       className="block px-6 py-4 hover:bg-gray-50 cursor-pointer"
                     >
                       <h4 className="font-medium text-gray-900 mb-1 text-sm">

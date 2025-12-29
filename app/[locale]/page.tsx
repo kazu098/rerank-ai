@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
-import { useRouter, usePathname } from "@/src/i18n/routing";
-import Link from "next/link";
+import { useRouter, usePathname, Link } from "@/src/i18n/routing";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // 分析モードは統一（タブを削除）
@@ -283,13 +282,7 @@ export default function Home() {
   const articlesPerPage = 50;
 
   // 通知設定関連
-  const [showMonitoringDialog, setShowMonitoringDialog] = useState(false);
-  const [monitoringEmail, setMonitoringEmail] = useState("");
-  const [monitoringTime, setMonitoringTime] = useState("09:00");
-  const [savingMonitoring, setSavingMonitoring] = useState(false);
-  const [slackConnected, setSlackConnected] = useState(false);
-  const [enableEmailNotification, setEnableEmailNotification] = useState(true);
-  const [enableSlackNotification, setEnableSlackNotification] = useState(false);
+  const [analyzedArticleId, setAnalyzedArticleId] = useState<string | null>(null);
 
 
   const loadGSCProperties = async () => {
@@ -440,24 +433,10 @@ export default function Home() {
     setShowArticleSelection(false);
   };
 
-  // Slack連携状態を取得
-  const fetchSlackConnectionStatus = async () => {
-    try {
-      const response = await fetch("/api/notification-settings");
-      if (response.ok) {
-        const data = await response.json();
-        setSlackConnected(!!data?.slack_bot_token);
-      }
-    } catch (err) {
-      console.error("[Monitoring] Error fetching Slack status:", err);
-    }
-  };
-
   // GSCプロパティ一覧を取得
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
       loadGSCProperties();
-      fetchSlackConnectionStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session?.accessToken, selectedSiteUrl]);
@@ -505,6 +484,59 @@ export default function Home() {
   }, [status, session?.accessToken, session?.userId]);
 
   const startAnalysis = async () => {
+    if (!selectedSiteUrl) {
+      setError(t("errors.propertyNotSelected"));
+      return;
+    }
+
+    // 今日既に分析されているかチェックし、分析結果を取得
+    try {
+      const checkResponse = await fetch("/api/articles/check-recent-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: articleUrl,
+        }),
+      });
+
+      if (checkResponse.ok) {
+        const checkResult = await checkResponse.json();
+        if (checkResult.analyzedToday) {
+          // 今日既に分析されている場合は、DBから分析結果を取得して表示
+          const latestAnalysisResponse = await fetch("/api/analysis/get-latest-by-url", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              url: articleUrl,
+            }),
+          });
+
+          if (latestAnalysisResponse.ok) {
+            const latestAnalysisData = await latestAnalysisResponse.json();
+            if (latestAnalysisData.hasAnalysis && latestAnalysisData.analysisResult) {
+              // 分析結果を表示
+              setData(latestAnalysisData.analysisResult);
+              setCompletedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
+              setCurrentStep(0);
+              setLoading(false);
+              // 記事IDを保存（通知設定ボタン表示用）
+              if (latestAnalysisData.articleId) {
+                setAnalyzedArticleId(latestAnalysisData.articleId);
+              }
+              return; // 新しい分析を実行せずに終了
+            }
+          }
+        }
+      }
+    } catch (checkError: any) {
+      console.error("[Analysis] Error checking recent analysis:", checkError);
+      // チェックエラーは無視して続行
+    }
+
     setLoading(true);
     setError(null);
     setData(null);
@@ -512,12 +544,6 @@ export default function Home() {
     setCompletedSteps(new Set());
     
     const analysisStartTime = Date.now();
-
-    if (!selectedSiteUrl) {
-      setError(t("errors.propertyNotSelected"));
-      setLoading(false);
-      return;
-    }
 
     try {
       const urlObj = new URL(articleUrl);
@@ -685,6 +711,10 @@ export default function Home() {
           if (saveResponse.ok) {
             const saveResult = await saveResponse.json();
             console.log("[Analysis] Saved to database:", saveResult);
+            // 記事IDを保存（通知設定ボタン表示用）
+            if (saveResult.articleId) {
+              setAnalyzedArticleId(saveResult.articleId);
+            }
           } else {
             const errorData = await saveResponse.json();
             console.error("[Analysis] Failed to save to database:", errorData);
@@ -756,7 +786,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <Link href={`/${locale}`} className="text-2xl font-bold text-gray-900">
+                <Link href={`/`} className="text-2xl font-bold text-gray-900">
                   ReRank AI
                 </Link>
             </div>
@@ -1090,7 +1120,7 @@ export default function Home() {
             </h1>
             <div className="flex items-center gap-4">
               <Link
-                href={`/${locale}/dashboard`}
+                href={`/dashboard`}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
               >
                 {t("dashboard.title")}
@@ -1812,22 +1842,20 @@ export default function Home() {
                 )}
 
                 {/* アクションボタン（改善提案セクション内） */}
-                {data.semanticDiffAnalysis && (
+                {data.semanticDiffAnalysis && analyzedArticleId && (
                   <div className="mt-6 pt-6 border-t border-gray-200">
                     <div className="space-y-3">
                     <button
-                      onClick={async () => {
-                        setMonitoringEmail(session?.user?.email || "");
-                        setEnableEmailNotification(true);
-                        setEnableSlackNotification(false);
-                        // ダイアログを開く前にSlack連携状態を取得
-                        await fetchSlackConnectionStatus();
-                        setShowMonitoringDialog(true);
+                      onClick={() => {
+                        router.push(`/dashboard/articles?highlight=${analyzedArticleId}`);
                       }}
                       className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-all shadow-md"
                     >
-                      {t("notification.settings.startMonitoring")}
+                      {t("notification.settings.goToDashboardToSetup")}
                     </button>
+                    <p className="text-xs text-gray-600 text-center">
+                      {t("notification.settings.goToDashboardToSetupDescription")}
+                    </p>
                       <button
                         className="w-full bg-white border-2 border-purple-600 text-purple-600 font-bold py-3 rounded-lg hover:bg-purple-50 transition-all"
                         onClick={() => {
@@ -1925,141 +1953,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* 監視開始ダイアログ */}
-                {showMonitoringDialog && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
-                      <h3 className="text-xl font-bold mb-4">{t("notification.settings.startMonitoring")}</h3>
-                      <p className="text-sm text-gray-600 mb-6">{t("notification.settings.startMonitoringDescription")}</p>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="flex items-center space-x-2 mb-2">
-                            <input
-                              type="checkbox"
-                              checked={enableEmailNotification}
-                              onChange={(e) => setEnableEmailNotification(e.target.checked)}
-                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                            />
-                            <span className="text-sm font-semibold">{t("notification.settings.emailNotification")}</span>
-                          </label>
-                          {enableEmailNotification && (
-                          <input
-                            type="email"
-                            value={monitoringEmail}
-                            onChange={(e) => setMonitoringEmail(e.target.value)}
-                            placeholder={session?.user?.email || "your-email@example.com"}
-                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none mt-2"
-                          />
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="flex items-center space-x-2 mb-2">
-                            <input
-                              type="checkbox"
-                              checked={enableSlackNotification}
-                              onChange={(e) => setEnableSlackNotification(e.target.checked)}
-                              disabled={!slackConnected}
-                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                            <span className="text-sm font-semibold">{t("notification.settings.slackNotification")}</span>
-                          </label>
-                          {!slackConnected && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              <a 
-                                href={`/${locale}/dashboard/notifications`} 
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-purple-600 hover:underline"
-                              >
-                                {t("notification.settings.connectSlack")}
-                              </a>
-                              {" "}{t("notification.settings.slackConnectionRequired")}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold mb-2">
-                            {t("notification.settings.notificationTime")}
-                          </label>
-                          <input
-                            type="time"
-                            value={monitoringTime}
-                            onChange={(e) => setMonitoringTime(e.target.value)}
-                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">{t("notification.settings.notificationTimeDescription")}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex space-x-3 mt-6">
-                        <button
-                          onClick={async () => {
-                            if (enableEmailNotification && !monitoringEmail && !session?.user?.email) {
-                              alert(t("notification.settings.emailAddressRequired"));
-                              return;
-                            }
-
-                            if (!enableEmailNotification && !enableSlackNotification) {
-                              alert(t("notification.settings.notificationRequired"));
-                              return;
-                            }
-
-                            // Slack通知が選択されているが、Slack連携がされていない場合は連携画面に遷移
-                            if (enableSlackNotification && !slackConnected) {
-                              if (confirm(t("notification.settings.slackConnectionRequiredForNotification"))) {
-                                router.push(`/${locale}/dashboard/notifications`);
-                              }
-                              return;
-                            }
-
-                            setSavingMonitoring(true);
-                            try {
-                              const response = await fetch('/api/articles/start-monitoring', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  url: articleUrl,
-                                  siteUrl: selectedSiteUrl,
-                                  email: enableEmailNotification ? (monitoringEmail || session?.user?.email) : null,
-                                  enableSlack: enableSlackNotification && slackConnected,
-                                  notificationTime: `${monitoringTime}:00`,
-                                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                                }),
-                              });
-
-                              if (response.ok) {
-                                alert(t("notification.settings.saved"));
-                                setShowMonitoringDialog(false);
-                              } else {
-                                const error = await response.json();
-                                alert(error.error || t("notification.settings.error"));
-                              }
-                            } catch (error: any) {
-                              console.error("[Monitoring] Error:", error);
-                              alert(t("notification.settings.error"));
-                            } finally {
-                              setSavingMonitoring(false);
-                            }
-                          }}
-                          disabled={savingMonitoring}
-                          className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
-                        >
-                          {savingMonitoring ? t("notification.settings.saving") : t("notification.settings.startMonitoringButton")}
-                        </button>
-                        <button
-                          onClick={() => setShowMonitoringDialog(false)}
-                          disabled={savingMonitoring}
-                          className="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-all disabled:opacity-50"
-                        >
-                          {t("notification.settings.skipButton")}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
               </div>
             </div>

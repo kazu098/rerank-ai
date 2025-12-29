@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "@/src/i18n/routing";
+import { useRouter, Link } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
-import Link from "next/link";
 
 interface Notification {
   id: string;
@@ -46,7 +45,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push(`/${locale}`);
+      router.push(`/`);
       return;
     }
 
@@ -189,7 +188,7 @@ export default function NotificationsPage() {
 
     // 記事詳細ページに遷移
     if (notification.article_id) {
-      router.push(`/${locale}/dashboard/articles/${notification.article_id}`);
+      router.push(`/dashboard/articles/${notification.article_id}`);
     }
   };
 

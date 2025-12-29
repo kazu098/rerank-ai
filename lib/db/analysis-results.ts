@@ -160,15 +160,16 @@ export async function saveAnalysisResult(
     let storageKey: string | null = null;
     let expiresAt: string | null = null;
 
-    if (analysisResult.semanticDiffAnalysis) {
+    if (analysisResult.semanticDiffAnalysis || analysisResult.aiSEOAnalysis) {
       try {
         // 30日間の有効期限を設定
         const expiresInSeconds = 30 * 24 * 60 * 60; // 30日
         const expiresAtDate = new Date(Date.now() + expiresInSeconds * 1000);
 
-        // 保存する詳細データ（LLM分析の詳細のみ）
+        // 保存する詳細データ（LLM分析の詳細とAI SEO分析）
         const detailedData = {
           semanticDiffAnalysis: analysisResult.semanticDiffAnalysis,
+          aiSEOAnalysis: analysisResult.aiSEOAnalysis,
         };
 
         // Vercel Blob Storageに保存
@@ -351,7 +352,8 @@ export async function getDetailedAnalysisData(
   analysisResultId: string,
   storageKey: string
 ): Promise<{
-  semanticDiffAnalysis: CompetitorAnalysisSummary["semanticDiffAnalysis"];
+  semanticDiffAnalysis?: CompetitorAnalysisSummary["semanticDiffAnalysis"];
+  aiSEOAnalysis?: CompetitorAnalysisSummary["aiSEOAnalysis"];
 } | null> {
   try {
     // 有効期限をチェック

@@ -47,6 +47,7 @@ export default function ArticleDetailPage({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const locale = useLocale();
   const t = useTranslations();
   const [loading, setLoading] = useState(true);
@@ -94,7 +95,7 @@ export default function ArticleDetailPage({
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push(`/${locale}`);
+      router.push(`/`);
       return;
     }
 
@@ -118,8 +119,8 @@ export default function ArticleDetailPage({
       
       if (hoursSinceLastAnalysis < 24) {
         // 24時間以内の場合はスキップしてURLからパラメータを削除
-        const newUrl = window.location.pathname;
-        router.replace(newUrl);
+        const currentPath = pathname.split('?')[0]; // クエリパラメータを除去
+        router.replace(currentPath);
         return;
       }
     }
@@ -130,6 +131,31 @@ export default function ArticleDetailPage({
 
   const handleStartAnalysis = useCallback(async () => {
     if (!data?.article || !data.article.site_id || analyzing) return;
+
+    // 今日既に分析されているかチェック
+    try {
+      const checkResponse = await fetch("/api/articles/check-recent-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: data.article.url,
+        }),
+      });
+
+      if (checkResponse.ok) {
+        const checkResult = await checkResponse.json();
+        if (checkResult.analyzedToday) {
+          // 今日既に分析されている場合は、分析結果を再取得して表示
+          await fetchArticleDetail();
+          return; // 新しい分析を実行せずに終了
+        }
+      }
+    } catch (checkError: any) {
+      console.error("[Article Detail] Error checking recent analysis:", checkError);
+      // チェックエラーは無視して続行
+    }
 
     setAnalyzing(true);
     setError(null);
@@ -265,8 +291,8 @@ export default function ArticleDetailPage({
       }
 
       // URLからanalyzeパラメータを削除
-      const newUrl = window.location.pathname;
-      router.replace(newUrl);
+      const currentPath = pathname.split('?')[0]; // クエリパラメータを除去
+      router.replace(currentPath);
     } catch (err: any) {
       console.error("[Analysis] Error:", err);
       setError(err.message || "分析の実行に失敗しました");
@@ -320,7 +346,7 @@ export default function ArticleDetailPage({
         throw new Error(errorData.error || "記事の削除に失敗しました");
       }
 
-      router.push(`/${locale}/dashboard`);
+      router.push(`/dashboard`);
     } catch (err: any) {
       alert(err.message || "記事の削除に失敗しました");
     }
@@ -454,7 +480,7 @@ export default function ArticleDetailPage({
         <div className="text-center">
           <p className="text-red-600">{error || "データが見つかりません"}</p>
           <button
-            onClick={() => router.push(`/${locale}/dashboard`)}
+            onClick={() => router.push(`/dashboard`)}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             ダッシュボードに戻る
@@ -490,19 +516,34 @@ export default function ArticleDetailPage({
               )}
               {article.is_fixed && (
                 <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                  修正済み
+                  対応完了
                 </span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleStartAnalysis}
+              disabled={analyzing || !article.site_id}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {analyzing ? t("analysis.analyzing") : t("analysis.startAnalysis")}
+            </button>
             {!article.is_fixed && (
+              <div className="group relative inline-block">
               <button
                 onClick={handleMarkAsFixed}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
               >
-                修正済みにする
+                  対応完了にする
               </button>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 whitespace-normal">
+                  {t("dashboard.articles.markAsFixedTooltip")}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                    <div className="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                </div>
+              </div>
             )}
             <button
               onClick={handleDeleteArticle}

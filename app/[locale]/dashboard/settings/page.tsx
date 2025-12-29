@@ -26,7 +26,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push(`/${locale}`);
+      router.push(`/`);
       return;
     }
 
