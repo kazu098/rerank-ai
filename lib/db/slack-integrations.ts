@@ -52,10 +52,10 @@ export async function saveOrUpdateSlackIntegration(
   const integrationData = {
     user_id: userId,
     slack_bot_token: integration.slack_bot_token,
-    slack_user_id: integration.slack_user_id || null,
+    slack_user_id: integration.slack_user_id ?? null,
     slack_team_id: integration.slack_team_id,
-    slack_channel_id: integration.slack_channel_id || null,
-    slack_notification_type: integration.slack_notification_type || 'channel',
+    slack_channel_id: integration.slack_channel_id ?? null,
+    slack_notification_type: integration.slack_notification_type ?? null,
     updated_at: new Date().toISOString(),
   };
 
