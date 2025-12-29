@@ -266,12 +266,12 @@ export async function GET(request: NextRequest) {
             dropAmount: checkResult.rankDropResult.dropAmount,
             baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
             currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
-            droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords.length,
-            droppedKeywords: checkResult.rankDropResult.droppedKeywords.slice(0, 5).map(kw => ({
+            droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords?.length ?? 0,
+            droppedKeywords: checkResult.rankDropResult.droppedKeywords?.slice(0, 5).map(kw => ({
               keyword: kw.keyword,
               position: kw.position,
               impressions: kw.impressions,
-            })),
+            })) ?? [],
           } : null,
           rankRiseResult: checkResult.rankRiseResult ? {
             riseAmount: checkResult.rankRiseResult.riseAmount,
@@ -294,13 +294,13 @@ export async function GET(request: NextRequest) {
               dropAmount: checkResult.rankDropResult.dropAmount,
               baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
-              droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords.length,
+              droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords?.length ?? 0,
             } : null,
             rankRiseResult: checkResult.rankRiseResult ? {
               riseAmount: checkResult.rankRiseResult.riseAmount,
               baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
-              risenKeywordsCount: checkResult.rankRiseResult.risenKeywords.length,
+              risenKeywordsCount: checkResult.rankRiseResult.risenKeywords?.length ?? 0,
             } : null,
             settings: checkResult.settings,
           },
