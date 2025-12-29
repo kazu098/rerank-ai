@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
       {
         articleUrl: "https://example.com/test-article",
         articleTitle: "【テスト】順位下落通知のテスト記事",
+        notificationType: 'rank_drop',
         analysisResult: {
           prioritizedKeywords: [
             {
@@ -145,15 +146,33 @@ export async function GET(request: NextRequest) {
             console.log("[Test Notification] Attempting to send Slack notification...");
             try {
               const slackPayload = formatSlackBulkNotification(
-                dummyItems.map((item) => ({
-                  url: item.articleUrl,
-                  title: item.articleTitle ?? null,
-                  averagePositionChange: {
-                    from: item.rankDropInfo.baseAveragePosition,
-                    to: item.rankDropInfo.currentAveragePosition,
-                    change: item.rankDropInfo.dropAmount,
-                  },
-                })),
+                dummyItems
+                  .filter((item) => item.rankDropInfo || item.rankRiseInfo)
+                  .map((item) => {
+                    const rankInfo = item.rankRiseInfo
+                      ? {
+                          from: item.rankRiseInfo.baseAveragePosition,
+                          to: item.rankRiseInfo.currentAveragePosition,
+                          change: item.rankRiseInfo.riseAmount,
+                        }
+                      : item.rankDropInfo
+                      ? {
+                          from: item.rankDropInfo.baseAveragePosition,
+                          to: item.rankDropInfo.currentAveragePosition,
+                          change: item.rankDropInfo.dropAmount,
+                        }
+                      : null;
+
+                    if (!rankInfo) {
+                      throw new Error(`Missing rank info for article ${item.articleUrl}`);
+                    }
+
+                    return {
+                      url: item.articleUrl,
+                      title: item.articleTitle ?? null,
+                      averagePositionChange: rankInfo,
+                    };
+                  }),
                 locale
               );
 
