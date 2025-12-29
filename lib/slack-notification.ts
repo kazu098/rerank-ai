@@ -217,6 +217,8 @@ export function formatSlackBulkNotification(
   articles: Array<{
     url: string;
     title: string | null;
+    articleId?: string;
+    notificationType?: 'rank_drop' | 'rank_rise';
     averagePositionChange: {
       from: number;
       to: number;
@@ -227,18 +229,18 @@ export function formatSlackBulkNotification(
 ): SlackNotificationPayload {
   const messages = {
     ja: {
-      title: '🔔 順位下落を検知しました（{count}件の記事）',
+      title: '🔔 順位変動を検知しました（{count}件の記事）',
       article: '📄 記事',
       averagePosition: '平均順位',
       positionChange: '順位変化',
-      viewDetails: '詳細はダッシュボードで確認',
+      viewRecommendations: '改善案を確認',
     },
     en: {
-      title: '🔔 Rank drop detected ({count} articles)',
+      title: '🔔 Rank change detected ({count} articles)',
       article: '📄 Article',
       averagePosition: 'Average Position',
       positionChange: 'Position Change',
-      viewDetails: 'View details in dashboard',
+      viewRecommendations: 'View recommendations',
     },
   };
 
@@ -255,7 +257,15 @@ export function formatSlackBulkNotification(
   ];
 
   // 各記事の情報を表示（最大10件）
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rerank-ai.com';
   articles.slice(0, 10).forEach((article) => {
+    const isRise = article.notificationType === 'rank_rise';
+    const articleUrl = article.articleId 
+      ? (isRise 
+          ? `${appUrl}/${locale}/dashboard/articles/${article.articleId}`
+          : `${appUrl}/${locale}/dashboard/articles/${article.articleId}?analyze=true`)
+      : article.url;
+    
     blocks.push({
       type: 'section',
       fields: [
@@ -269,6 +279,17 @@ export function formatSlackBulkNotification(
         },
       ],
     } as any);
+    
+    // 記事ごとに「改善案を確認」リンクを追加
+    if (article.articleId) {
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `<${articleUrl}|${t.viewRecommendations}>`,
+        },
+      } as any);
+    }
   });
 
   if (articles.length > 10) {
@@ -276,20 +297,10 @@ export function formatSlackBulkNotification(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*他 ${articles.length - 10}件の記事で順位下落を検知しました*`,
+        text: `*他 ${articles.length - 10}件の記事で順位変動を検知しました*`,
       },
     });
   }
-
-  // ダッシュボードへのリンク
-  const dashboardUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rerank-ai.com';
-  blocks.push({
-    type: 'section',
-    text: {
-      type: 'mrkdwn',
-      text: `<${dashboardUrl}/dashboard|${t.viewDetails}>`,
-    },
-  });
 
   return {
     text: t.title.replace('{count}', articles.length.toString()),

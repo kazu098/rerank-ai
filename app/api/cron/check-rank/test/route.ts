@@ -546,6 +546,8 @@ async function handleRequest(request: NextRequest) {
                     return {
                       url: item.articleUrl,
                       title: item.articleTitle ?? null,
+                      articleId: item.articleId,
+                      notificationType: item.notificationType,
                       averagePositionChange: rankInfo,
                     };
                   }),
