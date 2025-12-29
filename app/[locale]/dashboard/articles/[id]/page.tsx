@@ -47,6 +47,7 @@ export default function ArticleDetailPage({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const locale = useLocale();
   const t = useTranslations();
   const [loading, setLoading] = useState(true);
