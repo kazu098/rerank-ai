@@ -292,6 +292,7 @@
       "previousPosition": "Previous Position",
       "positionChange": "Position Change",
       "lastAnalyzed": "Last Analyzed",
+      "analyzed": "Analyzed",
       "emailNotification": "Email Notification",
       "slackNotification": "Slack Notification",
       "emailNotificationOn": "Email Notification: ON",
