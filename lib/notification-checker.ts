@@ -202,7 +202,7 @@ export class NotificationChecker {
       siteUrl,
       pageUrl,
       consecutiveDropDays,
-      effectiveSettings.drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.drop_threshold
+      effectiveSettings.drop_threshold || DEFAULT_ALERT_SETTINGS.position_drop_threshold
     );
 
     if (!hasConsecutiveDrop) {
