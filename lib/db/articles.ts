@@ -1,5 +1,20 @@
 import { createSupabaseClient } from '@/lib/supabase';
 
+/**
+ * URLからハッシュフラグメント（#以降）を除去して正規化
+ */
+function normalizeUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    urlObj.hash = ''; // ハッシュフラグメントを除去
+    return urlObj.toString();
+  } catch (error) {
+    // URL解析に失敗した場合は、単純に#以降を除去
+    const hashIndex = url.indexOf('#');
+    return hashIndex >= 0 ? url.substring(0, hashIndex) : url;
+  }
+}
+
 export interface Article {
   id: string;
   user_id: string;
@@ -35,12 +50,15 @@ export async function saveOrUpdateArticle(
 ): Promise<Article> {
   const supabase = createSupabaseClient();
 
-  // 既存の記事を検索
+  // URLを正規化（ハッシュフラグメントを除去）
+  const normalizedUrl = normalizeUrl(url);
+
+  // 既存の記事を検索（正規化されたURLで検索）
   const { data: existingArticle } = await supabase
     .from('articles')
     .select('*')
     .eq('user_id', userId)
-    .eq('url', url)
+    .eq('url', normalizedUrl)
     .is('deleted_at', null)
     .single();
 
@@ -65,13 +83,13 @@ export async function saveOrUpdateArticle(
     return updatedArticle as Article;
   }
 
-  // 新規作成
+  // 新規作成（正規化されたURLで保存）
   const { data: newArticle, error } = await supabase
     .from('articles')
     .insert({
       user_id: userId,
       site_id: siteId || null,
-      url,
+      url: normalizedUrl,
       title: title || null,
       keywords: keywords || null,
       is_monitoring: true,
@@ -197,11 +215,14 @@ export async function updateArticleNotificationSent(
 ): Promise<void> {
   const supabase = createSupabaseClient();
 
+  // URLを正規化（ハッシュフラグメントを除去）
+  const normalizedUrl = normalizeUrl(articleUrl);
+
   // まず現在の値を取得
   const { data: article } = await supabase
     .from('articles')
     .select('notification_count_last_7_days')
-    .eq('url', articleUrl)
+    .eq('url', normalizedUrl)
     .eq('user_id', userId)
     .is('deleted_at', null)
     .single();
@@ -215,7 +236,7 @@ export async function updateArticleNotificationSent(
       notification_count_last_7_days: currentCount + 1,
       updated_at: new Date().toISOString(),
     })
-    .eq('url', articleUrl)
+    .eq('url', normalizedUrl)
     .eq('user_id', userId)
     .is('deleted_at', null);
 
@@ -300,11 +321,14 @@ export async function getArticleByUrl(
 ): Promise<Article | null> {
   const supabase = createSupabaseClient();
 
+  // URLを正規化（ハッシュフラグメントを除去）
+  const normalizedUrl = normalizeUrl(url);
+
   const { data, error } = await supabase
     .from('articles')
     .select('*')
     .eq('user_id', userId)
-    .eq('url', url)
+    .eq('url', normalizedUrl)
     .is('deleted_at', null)
     .single();
 
