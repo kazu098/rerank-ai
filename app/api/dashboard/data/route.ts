@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getArticlesByUserId } from "@/lib/db/articles";
-import { getLatestAnalysisResult, getAnalysisResultsByArticleId } from "@/lib/db/analysis-results";
+import { getLatestAnalysisResult, getPreviousAnalysisResult, getAnalysisResultsByArticleId } from "@/lib/db/analysis-results";
 import { createSupabaseClient } from "@/lib/supabase";
 import { getNotificationSettingsForArticles } from "@/lib/db/notification-settings";
 
@@ -25,13 +25,15 @@ export async function GET(request: NextRequest) {
     // 1. 記事一覧を取得
     const articles = await getArticlesByUserId(userId);
 
-    // 2. 各記事の最新の分析結果を取得
+    // 2. 各記事の最新の分析結果と前回の分析結果を取得
     const articlesWithAnalysis = await Promise.all(
       articles.map(async (article) => {
         const latestAnalysis = await getLatestAnalysisResult(article.id);
+        const previousAnalysis = await getPreviousAnalysisResult(article.id);
         return {
           ...article,
           latestAnalysis,
+          previousAnalysis,
         };
       })
     );

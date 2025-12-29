@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       {
         articleUrl: articleUrl || "https://rerank-ai.com/test-article",
         articleTitle: articleTitle || "テスト記事タイトル",
+        notificationType: 'rank_drop',
         rankDropInfo: mockRankDropInfo,
         analysisResult: {
           prioritizedKeywords: [

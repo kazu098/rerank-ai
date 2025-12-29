@@ -164,33 +164,55 @@ export async function GET(request: NextRequest) {
 
         const userNotifications = notificationsByUser.get(article.user_id)!;
 
-        // 分析結果を取得（簡易版：通知判定で取得した情報を使用）
-        // 実際の分析結果は必要に応じて取得
-        userNotifications.items.push({
-          articleUrl: article.url,
-          articleTitle: article.title,
-          analysisResult: {
-            prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
-              keyword: kw.keyword,
-              priority: kw.impressions,
-              impressions: kw.impressions,
-              clicks: kw.clicks,
-              position: kw.position,
-            })),
-            competitorResults: [],
-            uniqueCompetitorUrls: [],
-          },
-          rankDropInfo: {
-            baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
-            currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
-            dropAmount: checkResult.rankDropResult.dropAmount,
-            droppedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
-              keyword: kw.keyword,
-              position: kw.position,
-              impressions: kw.impressions,
-            })),
-          },
-        });
+        // 通知タイプに応じて情報を設定
+        if (checkResult.notificationType === 'rank_rise' && checkResult.rankRiseResult) {
+          // 順位上昇の通知
+          userNotifications.items.push({
+            articleUrl: article.url,
+            articleTitle: article.title,
+            articleId: article.id,
+            notificationType: 'rank_rise',
+            rankRiseInfo: {
+              baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
+              currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
+              riseAmount: checkResult.rankRiseResult.riseAmount,
+              risenKeywords: checkResult.rankRiseResult.risenKeywords.map((kw) => ({
+                keyword: kw.keyword,
+                position: kw.position,
+                impressions: kw.impressions,
+              })),
+            },
+          });
+        } else {
+          // 順位下落の通知
+          userNotifications.items.push({
+            articleUrl: article.url,
+            articleTitle: article.title,
+            articleId: article.id,
+            notificationType: 'rank_drop',
+            analysisResult: {
+              prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+                keyword: kw.keyword,
+                priority: kw.impressions,
+                impressions: kw.impressions,
+                clicks: kw.clicks,
+                position: kw.position,
+              })),
+              competitorResults: [],
+              uniqueCompetitorUrls: [],
+            },
+            rankDropInfo: {
+              baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
+              currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
+              dropAmount: checkResult.rankDropResult.dropAmount,
+              droppedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+                keyword: kw.keyword,
+                position: kw.position,
+                impressions: kw.impressions,
+              })),
+            },
+          });
+        }
       } catch (error: any) {
         console.error(`[Cron] Error processing article ${article.id}:`, error);
         // エラーが発生しても他の記事の処理を続行
@@ -261,15 +283,34 @@ export async function GET(request: NextRequest) {
         if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
           try {
             const slackPayload = formatSlackBulkNotification(
-              items.map((item) => ({
-                url: item.articleUrl,
-                title: item.articleTitle ?? null,
-                averagePositionChange: {
-                  from: item.rankDropInfo.baseAveragePosition,
-                  to: item.rankDropInfo.currentAveragePosition,
-                  change: item.rankDropInfo.dropAmount,
-                },
-              })),
+              items
+                .filter((item) => item.rankDropInfo || item.rankRiseInfo) // rankDropInfoまたはrankRiseInfoが存在するもののみ
+                .map((item) => {
+                  // 順位上昇の場合はrankRiseInfoを使用、順位下落の場合はrankDropInfoを使用
+                  const rankInfo = item.rankRiseInfo
+                    ? {
+                        from: item.rankRiseInfo.baseAveragePosition,
+                        to: item.rankRiseInfo.currentAveragePosition,
+                        change: item.rankRiseInfo.riseAmount,
+                      }
+                    : item.rankDropInfo
+                    ? {
+                        from: item.rankDropInfo.baseAveragePosition,
+                        to: item.rankDropInfo.currentAveragePosition,
+                        change: item.rankDropInfo.dropAmount,
+                      }
+                    : null;
+
+                  if (!rankInfo) {
+                    throw new Error(`Missing rank info for article ${item.articleUrl}`);
+                  }
+
+                  return {
+                    url: item.articleUrl,
+                    title: item.articleTitle ?? null,
+                    averagePositionChange: rankInfo,
+                  };
+                }),
               locale
             );
 
@@ -304,16 +345,23 @@ export async function GET(request: NextRequest) {
           }
 
           // notificationsテーブルにレコードを作成（メール通知）
+          const notificationType = item.notificationType || 'rank_drop';
+          const isRise = notificationType === 'rank_rise';
+          const subject = items.length === 1
+            ? (isRise ? "【ReRank AI】順位上昇を検知しました" : "【ReRank AI】順位下落を検知しました")
+            : (isRise ? `【ReRank AI】順位上昇を検知しました（${items.length}件の記事）` : `【ReRank AI】順位下落を検知しました（${items.length}件の記事）`);
+          const summary = isRise
+            ? `順位上昇が検知されました（${items.length}件の記事）`
+            : `順位下落が検知されました（${items.length}件の記事）`;
+
           const { error: emailNotificationError } = await supabase.from("notifications").insert({
             user_id: user.id,
             article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
-            notification_type: "rank_drop",
+            notification_type: notificationType,
             channel: "email",
             recipient: user.email,
-            subject: items.length === 1
-              ? "【ReRank AI】順位下落を検知しました"
-              : `【ReRank AI】順位下落を検知しました（${items.length}件の記事）`,
-            summary: `順位下落が検知されました（${items.length}件の記事）`,
+            subject,
+            summary,
             sent_at: new Date().toISOString(),
           });
 
@@ -326,16 +374,23 @@ export async function GET(request: NextRequest) {
 
           // Slack通知も送信された場合、Slack通知のレコードも作成
           if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
+            const slackNotificationType = item.notificationType || 'rank_drop';
+            const isSlackRise = slackNotificationType === 'rank_rise';
+            const slackSubject = items.length === 1
+              ? (isSlackRise ? "【ReRank AI】順位上昇を検知しました" : "【ReRank AI】順位下落を検知しました")
+              : (isSlackRise ? `【ReRank AI】順位上昇を検知しました（${items.length}件の記事）` : `【ReRank AI】順位下落を検知しました（${items.length}件の記事）`);
+            const slackSummary = isSlackRise
+              ? `順位上昇が検知されました（${items.length}件の記事）`
+              : `順位下落が検知されました（${items.length}件の記事）`;
+
             const { error: slackNotificationError } = await supabase.from("notifications").insert({
               user_id: user.id,
               article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
-              notification_type: "rank_drop",
+              notification_type: slackNotificationType,
               channel: "slack",
               recipient: notificationSettings.slack_channel_id, // チャンネルIDまたはUser IDを保存
-              subject: items.length === 1
-                ? "【ReRank AI】順位下落を検知しました"
-                : `【ReRank AI】順位下落を検知しました（${items.length}件の記事）`,
-              summary: `順位下落が検知されました（${items.length}件の記事）`,
+              subject: slackSubject,
+              summary: slackSummary,
               sent_at: new Date().toISOString(),
             });
 

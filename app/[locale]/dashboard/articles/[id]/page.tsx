@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getDetailedAnalysisData } from "@/lib/db/analysis-results";
 
@@ -12,6 +13,7 @@ interface ArticleDetail {
     id: string;
     url: string;
     title: string | null;
+    site_id: string | null;
     current_average_position: number | null;
     previous_average_position: number | null;
     last_analyzed_at: string | null;
@@ -52,20 +54,14 @@ export default function ArticleDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [detailedData, setDetailedData] = useState<Record<string, any>>({});
   const [loadingDetailed, setLoadingDetailed] = useState<Set<string>>(new Set());
+  const [analyzing, setAnalyzing] = useState(false);
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | null>(null);
+  const searchParams = useSearchParams();
   const articleId = params.id;
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push(`/${locale}`);
-      return;
-    }
-
-    if (status === "authenticated" && articleId) {
-      fetchArticleDetail();
-    }
-  }, [status, articleId, router, locale]);
-
-  const fetchArticleDetail = async () => {
+  const fetchArticleDetail = useCallback(async () => {
     if (!articleId) return;
 
     try {
@@ -94,7 +90,193 @@ export default function ArticleDetailPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [articleId]);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push(`/${locale}`);
+      return;
+    }
+
+    if (status === "authenticated" && articleId) {
+      fetchArticleDetail();
+    }
+  }, [status, articleId, router, locale, fetchArticleDetail]);
+
+  // ?analyze=trueパラメータをチェックして自動分析を実行
+  useEffect(() => {
+    if (!data?.article || analyzing || loading) return;
+
+    const shouldAnalyze = searchParams?.get("analyze") === "true";
+    if (!shouldAnalyze) return;
+
+    // 最後の分析から24時間以上経過しているかチェック
+    if (data.article.last_analyzed_at) {
+      const lastAnalyzed = new Date(data.article.last_analyzed_at);
+      const now = new Date();
+      const hoursSinceLastAnalysis = (now.getTime() - lastAnalyzed.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastAnalysis < 24) {
+        // 24時間以内の場合はスキップしてURLからパラメータを削除
+        const newUrl = window.location.pathname;
+        router.replace(newUrl);
+        return;
+      }
+    }
+
+    // 自動分析を実行
+    handleStartAnalysis();
+  }, [data, analyzing, loading, searchParams, router]);
+
+  const handleStartAnalysis = useCallback(async () => {
+    if (!data?.article || !data.article.site_id || analyzing) return;
+
+    setAnalyzing(true);
+    setError(null);
+    setCurrentStep(0);
+    setCompletedSteps(new Set());
+    setEstimatedTimeRemaining(60); // 初期推定時間: 60秒
+
+    const analysisStartTime = Date.now();
+
+    try {
+      // サイト情報を取得
+      const siteResponse = await fetch(`/api/sites/${data.article.site_id}`);
+      if (!siteResponse.ok) {
+        throw new Error("サイト情報の取得に失敗しました");
+      }
+      const site = await siteResponse.json();
+      const siteUrl = site.site_url.replace(/\/$/, "");
+
+      // 記事URLからpageUrlを抽出
+      const urlObj = new URL(data.article.url);
+      const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
+
+      // Step 1: 記事の検索順位データを取得中
+      setCurrentStep(1);
+      setEstimatedTimeRemaining(50);
+      const step1Response = await fetch("/api/competitors/analyze-step1", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          siteUrl,
+          pageUrl,
+          maxKeywords: 3,
+        }),
+      });
+
+      if (!step1Response.ok) {
+        const errorData = await step1Response.json();
+        throw new Error(errorData.error || "Step 1に失敗しました");
+      }
+
+      const step1Result = await step1Response.json();
+      setCompletedSteps(prev => new Set([1, 2, 3]));
+      setCurrentStep(4);
+      setEstimatedTimeRemaining(40);
+
+      // Step 2: 競合URL抽出
+      const step2Response = await fetch("/api/competitors/analyze-step2", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          siteUrl,
+          pageUrl,
+          prioritizedKeywords: step1Result.prioritizedKeywords,
+          maxCompetitorsPerKeyword: 3,
+        }),
+      });
+
+      if (!step2Response.ok) {
+        const errorData = await step2Response.json();
+        throw new Error(errorData.error || "Step 2に失敗しました");
+      }
+
+      const step2Result = await step2Response.json();
+      setCompletedSteps(prev => new Set([...prev, 4]));
+      setCurrentStep(5);
+      setEstimatedTimeRemaining(30);
+
+      // Step 3: 記事スクレイピング + LLM分析
+      let step3Result: any = null;
+      if (step2Result.uniqueCompetitorUrls.length > 0) {
+        setCompletedSteps(prev => new Set([...prev, 5]));
+        setCurrentStep(6);
+        setEstimatedTimeRemaining(20);
+
+        const step3Response = await fetch("/api/competitors/analyze-step3", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            siteUrl,
+            pageUrl,
+            prioritizedKeywords: step1Result.prioritizedKeywords,
+            competitorResults: step2Result.competitorResults,
+            uniqueCompetitorUrls: step2Result.uniqueCompetitorUrls,
+            skipLLMAnalysis: false,
+          }),
+        });
+
+        if (!step3Response.ok) {
+          const errorData = await step3Response.json();
+          console.error("Step 3 failed:", errorData);
+          setCompletedSteps(prev => new Set([...prev, 6, 7]));
+          setCurrentStep(0);
+        } else {
+          step3Result = await step3Response.json();
+          setCompletedSteps(prev => new Set([...prev, 6, 7]));
+          setCurrentStep(0);
+          setEstimatedTimeRemaining(null);
+        }
+      } else {
+        setCompletedSteps(prev => new Set([...prev, 5, 6, 7]));
+        setCurrentStep(0);
+        setEstimatedTimeRemaining(null);
+      }
+
+      // 分析結果をDBに保存
+      const analysisDurationSeconds = Math.floor((Date.now() - analysisStartTime) / 1000);
+      const saveResponse = await fetch("/api/analysis/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          articleUrl: data.article.url,
+          siteUrl,
+          analysisResult: {
+            ...step1Result,
+            ...step2Result,
+            ...(step3Result || {}),
+          },
+          analysisDurationSeconds,
+        }),
+      });
+
+      if (saveResponse.ok) {
+        // データを再取得
+        await fetchArticleDetail();
+      }
+
+      // URLからanalyzeパラメータを削除
+      const newUrl = window.location.pathname;
+      router.replace(newUrl);
+    } catch (err: any) {
+      console.error("[Analysis] Error:", err);
+      setError(err.message || "分析の実行に失敗しました");
+      setCurrentStep(0);
+      setCompletedSteps(new Set());
+    } finally {
+      setAnalyzing(false);
+      setEstimatedTimeRemaining(null);
+    }
+  }, [data, analyzing, router, fetchArticleDetail]);
 
   const fetchDetailedAnalysis = async (analysisId: string, storageKey: string) => {
     if (detailedData[analysisId] || loadingDetailed.has(analysisId)) {
@@ -163,6 +345,97 @@ export default function ArticleDetailPage({
       alert(err.message || "修正済みフラグの更新に失敗しました");
     }
   };
+
+  // 分析中の表示
+  if (analyzing) {
+    const steps = [
+      t("analysis.step1"),
+      t("analysis.step2"),
+      t("analysis.step3"),
+      t("analysis.step4"),
+      t("analysis.step5"),
+      t("analysis.step6"),
+      t("analysis.step7"),
+    ];
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-8">
+          <h2 className="text-2xl font-bold mb-6 text-center">{t("analysis.progress")}</h2>
+          
+          {/* プログレスバー */}
+          <div className="mb-6">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{
+                  width: `${(completedSteps.size / 7) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* ステップ表示 */}
+          <div className="space-y-3 mb-6">
+            {steps.map((step, index) => {
+              const stepNumber = index + 1;
+              const isCompleted = completedSteps.has(stepNumber);
+              const isCurrent = currentStep === stepNumber;
+
+              return (
+                <div
+                  key={stepNumber}
+                  className={`flex items-center p-3 rounded ${
+                    isCompleted
+                      ? "bg-green-50 border border-green-200"
+                      : isCurrent
+                      ? "bg-blue-50 border border-blue-200"
+                      : "bg-gray-50 border border-gray-200"
+                  }`}
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                      isCompleted
+                        ? "bg-green-500 text-white"
+                        : isCurrent
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {isCompleted ? "✓" : stepNumber}
+                  </div>
+                  <span
+                    className={
+                      isCompleted
+                        ? "text-green-700 font-medium"
+                        : isCurrent
+                        ? "text-blue-700 font-medium"
+                        : "text-gray-500"
+                    }
+                  >
+                    {step}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 推定残り時間 */}
+          {estimatedTimeRemaining !== null && (
+            <div className="text-center text-gray-600">
+              <p>あと約{Math.ceil(estimatedTimeRemaining / 60)}分かかります</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+              <p className="text-red-700">{error}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (status === "loading" || loading) {
     return (

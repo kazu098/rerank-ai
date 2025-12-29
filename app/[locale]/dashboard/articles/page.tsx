@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "@/src/i18n/routing";
+import { useRouter, usePathname } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 
@@ -22,6 +22,11 @@ interface Article {
     position_change: number | null;
     created_at: string;
   } | null;
+  previousAnalysis: {
+    id: string;
+    average_position: number | null;
+    created_at: string;
+  } | null;
   notificationStatus?: {
     email: boolean | null; // true: 有効, false: 無効, null: デフォルト設定を使用
     slack: boolean | null; // true: 有効, false: 無効, null: デフォルト設定を使用
@@ -31,6 +36,7 @@ interface Article {
 export default function ArticlesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const locale = useLocale();
   const t = useTranslations();
   const [loading, setLoading] = useState(true);
@@ -44,9 +50,15 @@ export default function ArticlesPage() {
     position_drop_threshold: 2.0,
     keyword_drop_threshold: 10,
     comparison_days: 7,
+    consecutive_drop_days: 3,
+    min_impressions: 100,
+    notification_cooldown_days: 7,
     notification_frequency: 'daily' as 'daily' | 'weekly' | 'none',
   });
   const [savingAlertSettings, setSavingAlertSettings] = useState(false);
+  const prevPathnameRef = useRef<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -98,6 +110,11 @@ export default function ArticlesPage() {
       });
 
       setArticles(filteredArticles);
+      // ページが変更された場合、現在のページが存在しない場合は1ページ目に戻す
+      const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(1);
+      }
     } catch (err: any) {
       console.error("[Articles] Error:", err);
       setError(err.message || t("dashboard.articles.errorOccurred"));
@@ -153,12 +170,58 @@ export default function ArticlesPage() {
     }
   }, [filter, sortBy]);
 
+  // フィルタやソートが変更されたら1ページ目に戻す
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, sortBy]);
+
+  // ページがフォーカスされたとき、または記事詳細ページから戻ってきたときに自動再取得
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchArticles();
+      }
+    };
+
+    const handleFocus = () => {
+      fetchArticles();
+    };
+
+    // 記事詳細ページから戻ってきたときの検出
+    const currentPathname = pathname;
+    if (prevPathnameRef.current && prevPathnameRef.current !== currentPathname) {
+      // パスが変更された（記事詳細ページから戻ってきた）
+      if (currentPathname.includes("/dashboard/articles") && !currentPathname.match(/\/articles\/[^/]+$/)) {
+        fetchArticles();
+      }
+    }
+    prevPathnameRef.current = currentPathname;
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [status, pathname]);
+
   const fetchAlertSettings = async () => {
     try {
       const response = await fetch("/api/alert-settings");
       if (response.ok) {
         const data = await response.json();
-        setAlertSettings(data);
+        setAlertSettings({
+          position_drop_threshold: data.position_drop_threshold ?? 2.0,
+          keyword_drop_threshold: data.keyword_drop_threshold ?? 10,
+          comparison_days: data.comparison_days ?? 7,
+          consecutive_drop_days: data.consecutive_drop_days ?? 3,
+          min_impressions: data.min_impressions ?? 100,
+          notification_cooldown_days: data.notification_cooldown_days ?? 7,
+          notification_frequency: data.notification_frequency ?? 'daily',
+        });
       }
     } catch (err) {
       console.error("[Articles] Error fetching alert settings:", err);
@@ -171,7 +234,15 @@ export default function ArticlesPage() {
       const response = await fetch("/api/alert-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(alertSettings),
+        body: JSON.stringify({
+          position_drop_threshold: alertSettings.position_drop_threshold,
+          keyword_drop_threshold: alertSettings.keyword_drop_threshold,
+          comparison_days: alertSettings.comparison_days,
+          consecutive_drop_days: alertSettings.consecutive_drop_days,
+          min_impressions: alertSettings.min_impressions,
+          notification_cooldown_days: alertSettings.notification_cooldown_days,
+          notification_frequency: alertSettings.notification_frequency,
+        }),
       });
 
       if (!response.ok) {
@@ -193,6 +264,9 @@ export default function ArticlesPage() {
       position_drop_threshold: 2.0,
       keyword_drop_threshold: 10,
       comparison_days: 7,
+      consecutive_drop_days: 3,
+      min_impressions: 100,
+      notification_cooldown_days: 7,
       notification_frequency: 'daily',
     });
   };
@@ -391,7 +465,7 @@ export default function ArticlesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {articles.map((article) => (
+                {articles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((article) => (
                   <tr
                     key={article.id}
                     onClick={() => router.push(`/${locale}/dashboard/articles/${article.id}`)}
@@ -439,6 +513,11 @@ export default function ArticlesPage() {
                           ? `${article.latestAnalysis.previous_average_position.toFixed(1)}${t("dashboard.articles.rankUnit")}`
                           : t("dashboard.articles.noDataDash")}
                       </div>
+                      {article.previousAnalysis && article.previousAnalysis.created_at && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {new Date(article.previousAnalysis.created_at).toLocaleDateString()}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {article.latestAnalysis &&
@@ -633,11 +712,11 @@ export default function ArticlesPage() {
                             alert(`${t("dashboard.articles.updateSlackNotificationFailed")}: ${error.message}`);
                           }
                         }}
-                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         style={{
                           backgroundColor:
                             article.notificationStatus?.slack === true
-                              ? "#9333ea"
+                              ? "#3b82f6"
                               : article.notificationStatus?.slack === false
                               ? "#d1d5db"
                               : "#e5e7eb",
@@ -738,8 +817,63 @@ export default function ArticlesPage() {
                 ))}
               </tbody>
             </table>
-                      </div>
-                    )}
+          </div>
+          )}
+          {/* ページネーション */}
+          {articles.length > itemsPerPage && (
+            <div className="bg-white px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                {((currentPage - 1) * itemsPerPage + 1)} - {Math.min(currentPage * itemsPerPage, articles.length)} / {articles.length}件
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                  前へ
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.ceil(articles.length / itemsPerPage) }, (_, i) => i + 1)
+                    .filter(page => {
+                      // 現在のページ周辺と最初・最後のページを表示
+                      const totalPages = Math.ceil(articles.length / itemsPerPage);
+                      return page === 1 || 
+                             page === totalPages || 
+                             (page >= currentPage - 2 && page <= currentPage + 2);
+                    })
+                    .map((page, index, array) => {
+                      // 前のページ番号との間に「...」を挿入
+                      const prevPage = array[index - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+                      
+                      return (
+                        <div key={page} className="flex items-center gap-1">
+                          {showEllipsis && <span className="px-2 text-gray-400">...</span>}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-2 text-sm border rounded ${
+                              currentPage === page
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(Math.ceil(articles.length / itemsPerPage), prev + 1))}
+                  disabled={currentPage >= Math.ceil(articles.length / itemsPerPage)}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                  次へ
+                </button>
+              </div>
+            </div>
+          )}
       </div>
 
       {/* アラート設定モーダル */}
@@ -777,7 +911,7 @@ export default function ArticlesPage() {
                         type="number"
                         id="position_drop_threshold"
                         min="0"
-                        step="0.5"
+                        step="0.1"
                         value={alertSettings.position_drop_threshold}
                         onChange={(e) =>
                           setAlertSettings({
@@ -850,6 +984,102 @@ export default function ArticlesPage() {
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
                       {t("alertSettings.comparisonPeriod.description")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 連続下落日数 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.consecutiveDropDays.title")}
+                  </h3>
+                  <div>
+                    <label htmlFor="consecutive_drop_days" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.consecutiveDropDays.days")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="consecutive_drop_days"
+                        min="1"
+                        step="1"
+                        value={alertSettings.consecutive_drop_days}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            consecutive_drop_days: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.comparisonPeriod.daysSuffix")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.consecutiveDropDays.description")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 最小インプレッション数 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.minImpressions.title")}
+                  </h3>
+                  <div>
+                    <label htmlFor="min_impressions" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.minImpressions.count")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="min_impressions"
+                        min="1"
+                        step="1"
+                        value={alertSettings.min_impressions}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            min_impressions: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.minImpressions.impressions")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.minImpressions.description")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 通知クールダウン */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    {t("alertSettings.notificationCooldownDays.title")}
+                  </h3>
+                  <div>
+                    <label htmlFor="notification_cooldown_days" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("alertSettings.notificationCooldownDays.days")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        id="notification_cooldown_days"
+                        min="0"
+                        step="1"
+                        value={alertSettings.notification_cooldown_days}
+                        onChange={(e) =>
+                          setAlertSettings({
+                            ...alertSettings,
+                            notification_cooldown_days: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <span className="text-sm text-gray-600">{t("alertSettings.comparisonPeriod.daysSuffix")}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t("alertSettings.notificationCooldownDays.description")}
                     </p>
                   </div>
                 </div>

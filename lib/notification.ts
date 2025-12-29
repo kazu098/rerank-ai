@@ -22,10 +22,15 @@ const messages: Record<string, Record<string, any>> = {
         referenceCompetitorSites: "参考: この内容が記載されている競合サイト",
         footer: "ReRank AI - 順位下落の防止から上位への引き上げまで",
         rankChange: "{from}位 → {to}位（{change}位下落）",
+        rankRise: "{from}位 → {to}位（{change}位上昇）",
         keyword: "キーワード",
         rank: "順位",
         itemsToAdd: "追加すべき項目",
         viewDetails: "詳細はダッシュボードで確認",
+        viewDashboard: "ダッシュボードを表示",
+        viewCompetitorsAndRecommendations: "競合サイトと改善案を確認",
+        viewRankChangeDetails: "順位変動の詳細を確認",
+        rankRiseCongratulations: "順位上昇しています！おめでとうございます。",
       },
     },
   },
@@ -34,7 +39,7 @@ const messages: Record<string, Record<string, any>> = {
       email: {
         subject: "[ReRank AI] Rank drop detected",
         subjectMultiple: "[ReRank AI] Rank drop detected ({count} articles)",
-        header: "ReRank AI - Rank Drop Detection Report",
+        header: "ReRank AI - Rank Change Detection Report",
         targetArticle: "📄 Target Article",
         targetKeywords: "🔍 Target Keywords",
         competitorArticles: "🏆 Competitor Articles ({count})",
@@ -46,10 +51,15 @@ const messages: Record<string, Record<string, any>> = {
         referenceCompetitorSites: "Reference: Competitor sites with this content",
         footer: "ReRank AI - From preventing ranking drops to boosting rankings",
         rankChange: "{from} → {to} ({change} drop)",
+        rankRise: "{from} → {to} ({change} rise)",
         keyword: "Keyword",
         rank: "Rank",
         itemsToAdd: "Items to Add",
         viewDetails: "View details in dashboard",
+        viewDashboard: "View Dashboard",
+        viewCompetitorsAndRecommendations: "View Competitors & Recommendations",
+        viewRankChangeDetails: "View Rank Change Details",
+        rankRiseCongratulations: "Your rank has improved! Congratulations!",
       },
     },
   },
@@ -83,8 +93,9 @@ export interface NotificationOptions {
 export interface BulkNotificationItem {
   articleUrl: string;
   articleTitle?: string | null;
-  analysisResult: CompetitorAnalysisSummary;
-  rankDropInfo: {
+  articleId?: string; // 記事詳細ページへのリンク用
+  analysisResult?: CompetitorAnalysisSummary;
+  rankDropInfo?: {
     baseAveragePosition: number;
     currentAveragePosition: number;
     dropAmount: number;
@@ -94,6 +105,17 @@ export interface BulkNotificationItem {
       impressions: number;
     }>;
   };
+  rankRiseInfo?: {
+    baseAveragePosition: number;
+    currentAveragePosition: number;
+    riseAmount: number;
+    risenKeywords: Array<{
+      keyword: string;
+      position: number;
+      impressions: number;
+    }>;
+  };
+  notificationType: 'rank_drop' | 'rank_rise';
 }
 
 export interface BulkNotificationOptions {
@@ -397,10 +419,28 @@ export class NotificationService {
     // Resendインスタンスを遅延初期化
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // 件名を生成
-    const emailSubject = items.length === 1
-      ? getMessage(locale, 'notification.email.subject')
-      : getMessage(locale, 'notification.email.subjectMultiple', { count: items.length });
+    // 通知タイプに応じて件名を決定
+    const hasRise = items.some(item => item.notificationType === 'rank_rise');
+    const hasDrop = items.some(item => item.notificationType === 'rank_drop');
+    
+    let emailSubject: string;
+    if (items.length === 1) {
+      emailSubject = hasRise 
+        ? (locale === 'ja' ? '【ReRank AI】順位上昇を検知しました' : '[ReRank AI] Rank rise detected')
+        : getMessage(locale, 'notification.email.subject');
+    } else {
+      if (hasRise && hasDrop) {
+        emailSubject = locale === 'ja' 
+          ? `【ReRank AI】順位変動を検知しました（${items.length}件の記事）`
+          : `[ReRank AI] Rank changes detected (${items.length} articles)`;
+      } else if (hasRise) {
+        emailSubject = locale === 'ja'
+          ? `【ReRank AI】順位上昇を検知しました（${items.length}件の記事）`
+          : `[ReRank AI] Rank rises detected (${items.length} articles)`;
+      } else {
+        emailSubject = getMessage(locale, 'notification.email.subjectMultiple', { count: items.length });
+      }
+    }
 
     console.log("[Notification] Email subject generated:", emailSubject);
 
@@ -463,11 +503,13 @@ export class NotificationService {
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #4F46E5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .header { background: #374151; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .rank-rise-info { background: #D1FAE5; padding: 12px; margin-bottom: 12px; border-left: 4px solid #10B981; border-radius: 4px; }
+          .rank-rise-change { font-size: 16px; font-weight: bold; color: #065F46; }
           .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
           .article-section { background: white; padding: 16px; margin-bottom: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
-          .article-title { font-size: 18px; font-weight: bold; margin-bottom: 12px; color: #111827; border-bottom: 2px solid #4F46E5; padding-bottom: 8px; }
-          .article-number { display: inline-block; background: #4F46E5; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 8px; font-size: 14px; }
+          .article-title { font-size: 18px; font-weight: bold; margin-bottom: 12px; color: #111827; border-bottom: 2px solid #6b7280; padding-bottom: 8px; }
+          .article-number { display: inline-block; background: #6b7280; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 8px; font-size: 14px; }
           .rank-info { background: #FEF3C7; padding: 12px; margin-bottom: 12px; border-left: 4px solid #F59E0B; border-radius: 4px; }
           .rank-change { font-size: 16px; font-weight: bold; color: #92400E; }
           .keyword-list { margin-top: 12px; }
@@ -475,6 +517,7 @@ export class NotificationService {
           .recommendation { padding: 12px; margin-bottom: 8px; background: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 4px; }
           .recommendation-title { font-weight: bold; color: #92400E; margin-bottom: 4px; }
           .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
+          .view-details-button { display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; }
         </style>
       </head>
       <body>
@@ -487,8 +530,10 @@ export class NotificationService {
 
     // 各記事の情報を追加
     items.forEach((item, index) => {
-      const { articleUrl, articleTitle, analysisResult, rankDropInfo } = item;
+      const { articleUrl, articleTitle, articleId, rankDropInfo, rankRiseInfo, notificationType } = item;
       const displayTitle = articleTitle || articleUrl;
+      const isRise = notificationType === 'rank_rise' && rankRiseInfo;
+      const rankInfo = isRise ? rankRiseInfo : rankDropInfo;
 
       html += `
         <div class="article-section">
@@ -497,25 +542,44 @@ export class NotificationService {
             ${displayTitle}
           </div>
           <p style="margin-bottom: 12px;">
-            <a href="${articleUrl}" style="color: #4F46E5; text-decoration: none; word-break: break-all;">${articleUrl}</a>
+            <a href="${articleUrl}" style="color: #3b82f6; text-decoration: none; word-break: break-all;">${articleUrl}</a>
           </p>
           
           <!-- 順位情報 -->
-          <div class="rank-info">
-            <div class="rank-change">
-              ${t('notification.email.rankChange', {
+          <div class="rank-info" style="background: ${isRise ? '#D1FAE5' : '#FEF3C7'}; border-left-color: ${isRise ? '#10B981' : '#F59E0B'};">
+            <div class="rank-change" style="color: ${isRise ? '#065F46' : '#92400E'};">
+              ${isRise && rankRiseInfo ? t('notification.email.rankRise', {
+                from: rankRiseInfo.baseAveragePosition.toFixed(1),
+                to: rankRiseInfo.currentAveragePosition.toFixed(1),
+                change: rankRiseInfo.riseAmount.toFixed(1),
+              }) : rankDropInfo ? t('notification.email.rankChange', {
                 from: rankDropInfo.baseAveragePosition.toFixed(1),
                 to: rankDropInfo.currentAveragePosition.toFixed(1),
                 change: rankDropInfo.dropAmount.toFixed(1),
-              })}
+              }) : ''}
             </div>
+            ${isRise ? `
+              <div style="margin-top: 8px; font-size: 14px; color: #065F46; font-weight: 500;">
+                ${t('notification.email.rankRiseCongratulations')}
+              </div>
+            ` : ''}
           </div>
 
-          <!-- 転落したキーワード -->
-          ${rankDropInfo.droppedKeywords.length > 0 ? `
+          <!-- キーワード情報 -->
+          ${isRise && rankRiseInfo && rankRiseInfo.risenKeywords.length > 0 ? `
             <div class="keyword-list">
               <strong>${t('notification.email.keyword')}:</strong>
-              ${rankDropInfo.droppedKeywords.slice(0, 5).map((kw) => `
+              ${rankRiseInfo.risenKeywords.slice(0, 3).map((kw) => `
+                <div class="keyword-item">
+                  <strong>${kw.keyword}</strong><br>
+                  <small>${t('notification.email.rank')}: ${kw.position.toFixed(1)} | Impressions: ${kw.impressions.toLocaleString()}</small>
+                </div>
+              `).join('')}
+            </div>
+          ` : rankDropInfo && rankDropInfo.droppedKeywords.length > 0 ? `
+            <div class="keyword-list">
+              <strong>${t('notification.email.keyword')}:</strong>
+              ${rankDropInfo.droppedKeywords.slice(0, 3).map((kw) => `
                 <div class="keyword-item">
                   <strong>${kw.keyword}</strong><br>
                   <small>${t('notification.email.rank')}: ${kw.position.toFixed(1)} | Impressions: ${kw.impressions.toLocaleString()}</small>
@@ -524,16 +588,20 @@ export class NotificationService {
             </div>
           ` : ''}
 
-          <!-- 追加すべき項目（簡潔版） -->
-          ${analysisResult.semanticDiffAnalysis?.semanticAnalysis?.recommendedAdditions && analysisResult.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0 ? `
-            <div style="margin-top: 12px;">
-              <strong>${t('notification.email.recommendedAdditions')}:</strong>
-              ${(analysisResult.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions || []).slice(0, 3).map((rec) => `
-                <div class="recommendation">
-                  <div class="recommendation-title">${t('notification.email.section', { section: rec.section })}</div>
-                  <p style="font-size: 14px; margin-top: 4px; color: #6B7280;">${rec.reason}</p>
-                </div>
-              `).join('')}
+          <!-- ボタン -->
+          ${item.articleId ? `
+            <div style="margin-top: 16px; text-align: center;">
+              ${isRise ? `
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/dashboard/articles/${item.articleId}" 
+                   style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
+                  ${t('notification.email.viewRankChangeDetails')}
+                </a>
+              ` : `
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/dashboard/articles/${item.articleId}?analyze=true" 
+                   style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
+                  ${t('notification.email.viewCompetitorsAndRecommendations')}
+                </a>
+              `}
             </div>
           ` : ''}
         </div>
@@ -545,8 +613,8 @@ export class NotificationService {
           <div class="footer">
             <p>${t('notification.email.footer')}</p>
             <p style="margin-top: 8px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}" style="color: #4F46E5; text-decoration: none;">
-                ${t('notification.email.viewDetails')}
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rerank.ai'}/dashboard" style="color: #3b82f6; text-decoration: none;">
+                ${t('notification.email.viewDashboard')}
               </a>
             </p>
           </div>

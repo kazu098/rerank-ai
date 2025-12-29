@@ -1,5 +1,5 @@
 import { GSCApiClient } from "./gsc-api";
-import { RankDropDetector, RankDropResult } from "./rank-drop-detection";
+import { RankDropDetector, RankDropResult, RankRiseResult } from "./rank-drop-detection";
 import { getNotificationSettings, DEFAULT_NOTIFICATION_SETTINGS } from "./db/notification-settings";
 import { getUserAlertSettings } from "./db/alert-settings";
 import { getArticleById } from "./db/articles";
@@ -8,11 +8,13 @@ import { createSupabaseClient } from "./supabase";
 
 export interface NotificationCheckResult {
   shouldNotify: boolean;
+  notificationType: 'rank_drop' | 'rank_rise' | null;
   reason: {
     key: string;
     params?: Record<string, string | number>;
   };
   rankDropResult: RankDropResult;
+  rankRiseResult?: RankRiseResult;
   settings: {
     drop_threshold: number;
     keyword_drop_threshold: number;
@@ -20,6 +22,8 @@ export interface NotificationCheckResult {
     consecutive_drop_days: number;
     min_impressions: number;
     notification_cooldown_days: number;
+    rise_threshold?: number;
+    notify_on_rise?: boolean;
   };
 }
 
@@ -80,7 +84,7 @@ export class NotificationChecker {
       effectiveSettings.comparison_days = userAlertSettings.comparison_days;
     }
 
-    // 修正済みフラグが立っている場合は通知しない
+    // 修正済みフラグが立っている場合は、順位上昇を優先的にチェック
     if (article.is_fixed) {
       const fixedAt = article.fixed_at ? new Date(article.fixed_at) : null;
       const cooldownDays = effectiveSettings.notification_cooldown_days || DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days;
@@ -90,11 +94,47 @@ export class NotificationChecker {
           (Date.now() - fixedAt.getTime()) / (1000 * 60 * 60 * 24)
         );
         
+        // クールダウン期間内の場合は、順位上昇をチェック（順位下落はチェックしない）
         if (daysSinceFixed < cooldownDays) {
+          const riseThreshold = effectiveSettings.drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.drop_threshold;
+          const rankRiseResult = await this.detector.detectRankRise(
+            siteUrl,
+            pageUrl,
+            effectiveSettings.comparison_days || DEFAULT_NOTIFICATION_SETTINGS.comparison_days,
+            riseThreshold
+          );
+
+          if (rankRiseResult.hasRise) {
+            return {
+              shouldNotify: true,
+              notificationType: 'rank_rise',
+              reason: {
+                key: 'notification.checker.rankRiseDetected',
+                params: {
+                  from: rankRiseResult.baseAveragePosition.toFixed(1),
+                  to: rankRiseResult.currentAveragePosition.toFixed(1),
+                  rise: rankRiseResult.riseAmount.toFixed(1),
+                },
+              },
+              rankDropResult: {} as RankDropResult,
+              rankRiseResult,
+              settings: {
+                drop_threshold: effectiveSettings.drop_threshold,
+                keyword_drop_threshold: effectiveSettings.keyword_drop_threshold,
+                comparison_days: effectiveSettings.comparison_days,
+                consecutive_drop_days: effectiveSettings.consecutive_drop_days,
+                min_impressions: effectiveSettings.min_impressions,
+                notification_cooldown_days: effectiveSettings.notification_cooldown_days,
+              },
+            };
+          }
+
+          // 順位上昇がない場合は通知しない
           return {
             shouldNotify: false,
+            notificationType: null,
             reason: {
-              key: 'notification.checker.fixedArticle',
+              key: 'notification.checker.fixedArticleNoRise',
               params: { days: cooldownDays },
             },
             rankDropResult: {} as RankDropResult,
@@ -119,9 +159,10 @@ export class NotificationChecker {
         (Date.now() - lastSent.getTime()) / (1000 * 60 * 60 * 24)
       );
       
-      if (daysSinceLastNotification < cooldownDays) {
+        if (daysSinceLastNotification < cooldownDays) {
         return {
           shouldNotify: false,
+          notificationType: null,
           reason: {
             key: 'notification.checker.recentNotification',
             params: { days: cooldownDays, daysAgo: daysSinceLastNotification },
@@ -160,6 +201,7 @@ export class NotificationChecker {
     if (!hasConsecutiveDrop) {
       return {
         shouldNotify: false,
+        notificationType: null,
         reason: {
           key: 'notification.checker.noConsecutiveDrop',
           params: { days: consecutiveDropDays },
@@ -185,6 +227,7 @@ export class NotificationChecker {
     if (!hasValidKeywords && rankDropResult.droppedKeywords.length > 0) {
       return {
         shouldNotify: false,
+        notificationType: null,
         reason: {
           key: 'notification.checker.noValidKeywords',
           params: { min: minImpressions },
@@ -201,9 +244,46 @@ export class NotificationChecker {
       };
     }
 
-    // 通知が必要な条件を満たしている
+    // 順位下落の条件を満たしている場合、順位上昇もチェック
+    // 順位上昇の閾値は順位下落と同じ設定を使用
+    const riseThreshold = effectiveSettings.drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.drop_threshold;
+    const rankRiseResult = await this.detector.detectRankRise(
+      siteUrl,
+      pageUrl,
+      effectiveSettings.comparison_days || DEFAULT_NOTIFICATION_SETTINGS.comparison_days,
+      riseThreshold
+    );
+
+    // 順位上昇が検知された場合は、順位上昇を優先（順位下落より良いニュース）
+    if (rankRiseResult.hasRise) {
+      return {
+        shouldNotify: true,
+        notificationType: 'rank_rise',
+        reason: {
+          key: 'notification.checker.rankRiseDetected',
+          params: {
+            from: rankRiseResult.baseAveragePosition.toFixed(1),
+            to: rankRiseResult.currentAveragePosition.toFixed(1),
+            rise: rankRiseResult.riseAmount.toFixed(1),
+          },
+        },
+        rankDropResult: {} as RankDropResult,
+        rankRiseResult,
+        settings: {
+          drop_threshold: effectiveSettings.drop_threshold,
+          keyword_drop_threshold: effectiveSettings.keyword_drop_threshold,
+          comparison_days: effectiveSettings.comparison_days,
+          consecutive_drop_days: effectiveSettings.consecutive_drop_days,
+          min_impressions: effectiveSettings.min_impressions,
+          notification_cooldown_days: effectiveSettings.notification_cooldown_days,
+        },
+      };
+    }
+
+    // 順位下落の通知
     return {
       shouldNotify: true,
+      notificationType: 'rank_drop',
       reason: {
         key: 'notification.checker.rankDropDetected',
         params: {
