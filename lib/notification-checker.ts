@@ -159,7 +159,7 @@ export class NotificationChecker {
     }
 
     // 通知頻度制限のチェック（過去7日間で1回まで）
-    const cooldownDays = effectiveSettings.notification_cooldown_days || DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days;
+    const cooldownDays = effectiveSettings.notification_cooldown_days || DEFAULT_ALERT_SETTINGS.notification_cooldown_days;
     if (article.last_notification_sent_at) {
       const lastSent = new Date(article.last_notification_sent_at);
       const daysSinceLastNotification = Math.floor(
