@@ -181,8 +181,22 @@ export default function ArticlesPage() {
     if (status === "authenticated") {
       fetchArticles();
       fetchAlertSettings();
+      fetchSlackConnectionStatus();
     }
   }, [filter, sortBy]);
+
+  const fetchSlackConnectionStatus = async () => {
+    try {
+      const response = await fetch("/api/notification-settings");
+      if (response.ok) {
+        const data = await response.json();
+        setSlackConnected(!!data?.slack_bot_token);
+      }
+    } catch (err) {
+      console.error("[Articles] Error fetching Slack connection status:", err);
+      setSlackConnected(false);
+    }
+  };
 
   // フィルタやソートが変更されたら1ページ目に戻す
   useEffect(() => {
@@ -326,12 +340,14 @@ export default function ArticlesPage() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
               {t("alertSettings.title")}
             </button>
-          <Link
+          <a
             href={`/`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
               {t("dashboard.articles.startNewAnalysis")}
-          </Link>
+          </a>
           </div>
         </div>
 
@@ -401,12 +417,14 @@ export default function ArticlesPage() {
           {articles.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-500">
             <p>{t("dashboard.articles.noArticlesInList")}</p>
-              <Link
+              <a
                 href={`/`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="mt-4 inline-block text-blue-600 hover:text-blue-700"
               >
               {t("dashboard.articles.startNewAnalysis")}
-              </Link>
+              </a>
             </div>
           ) : (
           <div className="overflow-x-auto">
@@ -726,7 +744,14 @@ export default function ArticlesPage() {
                                   )
                                 );
                                 const errorData = await response.json();
-                                alert(errorData.error || t("dashboard.articles.updateSlackNotificationFailed"));
+                                const errorMessage = errorData.error || t("dashboard.articles.updateSlackNotificationFailed");
+                                if (errorMessage.includes("notification destination") || errorMessage.includes("通知先")) {
+                                  if (confirm(errorMessage + "\n通知設定ページに移動しますか？")) {
+                                    router.push(`/dashboard/notifications`);
+                                  }
+                                } else {
+                                  alert(errorMessage);
+                                }
                               }
                             } catch (error: any) {
                               // エラーの場合、元の状態に戻す

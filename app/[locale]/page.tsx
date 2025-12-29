@@ -1151,7 +1151,7 @@ export default function Home() {
         <header className="text-center mb-8">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-4xl font-extrabold text-gray-900">
-              ReRank AI <span className="text-sm font-normal text-white bg-purple-600 px-2 py-1 rounded">MVP</span>
+              ReRank AI
             </h1>
             <div className="flex items-center gap-4">
               <Link

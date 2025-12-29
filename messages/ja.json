@@ -315,6 +315,7 @@
       "fetchTitleFailed": "タイトルの取得に失敗しました",
       "updateEmailNotificationFailed": "メール通知の設定に失敗しました",
       "updateSlackNotificationFailed": "Slack通知の設定に失敗しました",
+      "slackNotificationDestinationRequired": "Slack通知を有効にするには、通知設定ページで通知先（DMまたはチャネル）を選択してください",
       "errorOccurred": "エラーが発生しました",
       "retry": "再試行",
       "rankUnit": "位",

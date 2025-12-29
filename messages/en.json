@@ -314,6 +314,7 @@
       "fetchTitleFailed": "Failed to fetch title",
       "updateEmailNotificationFailed": "Failed to update email notification setting",
       "updateSlackNotificationFailed": "Failed to update Slack notification setting",
+      "slackNotificationDestinationRequired": "Please select a notification destination (DM or Channel) in notification settings to enable Slack notifications",
       "errorOccurred": "An error occurred",
       "retry": "Retry",
       "rankUnit": "",

@@ -92,13 +92,6 @@ export default function DashboardLayout({
               </h1>
             </div>
             <div className="flex items-center gap-4">
-              <Link
-                href={`/`}
-                className="text-gray-600 hover:text-gray-900 text-sm"
-              >
-                {t("dashboard.startAnalysis")}
-              </Link>
-              <span className="text-gray-400 hidden sm:inline">|</span>
               <span className="text-sm text-gray-600 hidden sm:inline">
                 {session?.user?.email}
               </span>
