@@ -205,15 +205,50 @@ export async function POST(request: NextRequest) {
           // 連携解除
           await deleteSlackIntegration(session.userId);
           console.log("[Notification Settings API] Slack integration deleted");
-        } else if (slackBotToken && slackTeamId) {
-          // 連携作成または更新
-          const savedIntegration = await saveOrUpdateSlackIntegration(session.userId, {
-            slack_bot_token: slackBotToken,
-            slack_user_id: slackUserId,
-            slack_team_id: slackTeamId,
-            slack_channel_id: slackChannelId,
-            slack_notification_type: slackNotificationType as 'channel' | 'dm' | undefined,
-          });
+        } else {
+          // 既存のSlack連携情報を取得
+          const existingIntegration = await getSlackIntegrationByUserId(session.userId);
+          
+          if (!existingIntegration && (!slackBotToken || !slackTeamId)) {
+            // 新規連携の場合、slackBotTokenとslackTeamIdが必須
+            return NextResponse.json(
+              { error: "Slack bot token and team ID are required for new integration" },
+              { status: 400 }
+            );
+          }
+
+          // 連携作成または更新（既存の情報を保持しつつ、提供された値で更新）
+          const integrationData: {
+            slack_bot_token: string;
+            slack_user_id?: string | null;
+            slack_team_id: string;
+            slack_channel_id?: string | null;
+            slack_notification_type?: 'channel' | 'dm' | null;
+          } = {
+            slack_bot_token: slackBotToken || existingIntegration!.slack_bot_token,
+            slack_team_id: slackTeamId || existingIntegration!.slack_team_id,
+          };
+
+          // 提供された値があれば使用、なければ既存の値を使用
+          if (slackUserId !== undefined) {
+            integrationData.slack_user_id = slackUserId;
+          } else if (existingIntegration) {
+            integrationData.slack_user_id = existingIntegration.slack_user_id;
+          }
+
+          if (slackChannelId !== undefined) {
+            integrationData.slack_channel_id = slackChannelId;
+          } else if (existingIntegration) {
+            integrationData.slack_channel_id = existingIntegration.slack_channel_id;
+          }
+
+          if (slackNotificationType !== undefined) {
+            integrationData.slack_notification_type = slackNotificationType as 'channel' | 'dm' | null;
+          } else if (existingIntegration) {
+            integrationData.slack_notification_type = existingIntegration.slack_notification_type;
+          }
+
+          const savedIntegration = await saveOrUpdateSlackIntegration(session.userId, integrationData);
 
           console.log("[Notification Settings API] Slack integration saved:", {
             id: savedIntegration.id,
