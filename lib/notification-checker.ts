@@ -1,7 +1,7 @@
 import { GSCApiClient } from "./gsc-api";
 import { RankDropDetector, RankDropResult, RankRiseResult } from "./rank-drop-detection";
 import { getNotificationSettings, DEFAULT_NOTIFICATION_SETTINGS } from "./db/notification-settings";
-import { getUserAlertSettings } from "./db/alert-settings";
+import { getUserAlertSettings, DEFAULT_ALERT_SETTINGS } from "./db/alert-settings";
 import { getArticleById } from "./db/articles";
 import { getUserById } from "./db/users";
 import { createSupabaseClient } from "./supabase";
@@ -63,31 +63,38 @@ export class NotificationChecker {
     const user = await getUserById(userId);
     const userTimezone = user?.timezone || 'UTC';
 
-    // 通知設定を取得（記事固有の設定があればそれを使用、なければデフォルト）
+    // 通知設定を取得（通知チャネル関連の設定のみ：メール/Slackの有効/無効、通知時刻など）
     const settings = await getNotificationSettings(userId, articleId);
     
-    // ユーザーのアラート設定を取得（カスタマイズされた閾値や比較期間）
+    // ユーザーのアラート設定を取得（全ての記事に適用される閾値や比較期間）
     const userAlertSettings = await getUserAlertSettings(userId);
     
-    const effectiveSettings = settings || {
+    // 通知設定から通知チャネル関連の設定を取得（なければデフォルト）
+    const notificationChannelSettings = settings || {
       ...DEFAULT_NOTIFICATION_SETTINGS,
       user_id: userId,
       article_id: articleId,
-      timezone: userTimezone,
-      notification_time: '09:00:00',
     } as any;
 
-    // ユーザーのアラート設定を適用（カスタマイズされた値で上書き）
-    if (userAlertSettings) {
-      effectiveSettings.drop_threshold = userAlertSettings.position_drop_threshold;
-      effectiveSettings.keyword_drop_threshold = userAlertSettings.keyword_drop_threshold;
-      effectiveSettings.comparison_days = userAlertSettings.comparison_days;
-    }
+    // アラート設定は全てuser_alert_settingsから取得（記事固有の設定は不要）
+    const effectiveSettings = {
+      ...notificationChannelSettings,
+      // アラート設定はuser_alert_settingsから取得
+      drop_threshold: userAlertSettings.position_drop_threshold,
+      keyword_drop_threshold: userAlertSettings.keyword_drop_threshold,
+      comparison_days: userAlertSettings.comparison_days,
+      consecutive_drop_days: userAlertSettings.consecutive_drop_days,
+      min_impressions: userAlertSettings.min_impressions,
+      notification_cooldown_days: userAlertSettings.notification_cooldown_days,
+      // 通知時刻とタイムゾーンもuser_alert_settingsから取得
+      notification_time: userAlertSettings.notification_time,
+      timezone: userAlertSettings.timezone || userTimezone,
+    };
 
     // 修正済みフラグが立っている場合は、順位上昇を優先的にチェック
     if (article.is_fixed) {
       const fixedAt = article.fixed_at ? new Date(article.fixed_at) : null;
-      const cooldownDays = effectiveSettings.notification_cooldown_days || DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days;
+      const cooldownDays = effectiveSettings.notification_cooldown_days || DEFAULT_ALERT_SETTINGS.notification_cooldown_days;
       
       if (fixedAt) {
         const daysSinceFixed = Math.floor(
@@ -96,11 +103,11 @@ export class NotificationChecker {
         
         // クールダウン期間内の場合は、順位上昇をチェック（順位下落はチェックしない）
         if (daysSinceFixed < cooldownDays) {
-          const riseThreshold = effectiveSettings.drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.drop_threshold;
+          const riseThreshold = effectiveSettings.drop_threshold || DEFAULT_ALERT_SETTINGS.position_drop_threshold;
           const rankRiseResult = await this.detector.detectRankRise(
             siteUrl,
             pageUrl,
-            effectiveSettings.comparison_days || DEFAULT_NOTIFICATION_SETTINGS.comparison_days,
+            effectiveSettings.comparison_days || DEFAULT_ALERT_SETTINGS.comparison_days,
             riseThreshold
           );
 
@@ -152,7 +159,7 @@ export class NotificationChecker {
     }
 
     // 通知頻度制限のチェック（過去7日間で1回まで）
-    const cooldownDays = effectiveSettings.notification_cooldown_days || DEFAULT_NOTIFICATION_SETTINGS.notification_cooldown_days;
+    const cooldownDays = effectiveSettings.notification_cooldown_days || DEFAULT_ALERT_SETTINGS.notification_cooldown_days;
     if (article.last_notification_sent_at) {
       const lastSent = new Date(article.last_notification_sent_at);
       const daysSinceLastNotification = Math.floor(
@@ -184,18 +191,18 @@ export class NotificationChecker {
     const rankDropResult = await this.detector.detectRankDrop(
       siteUrl,
       pageUrl,
-      effectiveSettings.comparison_days || DEFAULT_NOTIFICATION_SETTINGS.comparison_days,
-      effectiveSettings.drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.drop_threshold,
-      effectiveSettings.keyword_drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.keyword_drop_threshold
+      effectiveSettings.comparison_days || DEFAULT_ALERT_SETTINGS.comparison_days,
+      effectiveSettings.drop_threshold || DEFAULT_ALERT_SETTINGS.position_drop_threshold,
+      effectiveSettings.keyword_drop_threshold || DEFAULT_ALERT_SETTINGS.keyword_drop_threshold
     );
 
     // 連続下落日数のチェック
-    const consecutiveDropDays = effectiveSettings.consecutive_drop_days || DEFAULT_NOTIFICATION_SETTINGS.consecutive_drop_days;
+    const consecutiveDropDays = effectiveSettings.consecutive_drop_days || DEFAULT_ALERT_SETTINGS.consecutive_drop_days;
     const hasConsecutiveDrop = await this.checkConsecutiveDrop(
       siteUrl,
       pageUrl,
       consecutiveDropDays,
-      effectiveSettings.drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.drop_threshold
+      effectiveSettings.drop_threshold || DEFAULT_ALERT_SETTINGS.position_drop_threshold
     );
 
     if (!hasConsecutiveDrop) {
@@ -219,7 +226,7 @@ export class NotificationChecker {
     }
 
     // インプレッション数の閾値チェック
-    const minImpressions = effectiveSettings.min_impressions || DEFAULT_NOTIFICATION_SETTINGS.min_impressions;
+    const minImpressions = effectiveSettings.min_impressions || DEFAULT_ALERT_SETTINGS.min_impressions;
     const hasValidKeywords = rankDropResult.droppedKeywords.some(
       (kw) => kw.impressions >= minImpressions
     );
@@ -246,11 +253,11 @@ export class NotificationChecker {
 
     // 順位下落の条件を満たしている場合、順位上昇もチェック
     // 順位上昇の閾値は順位下落と同じ設定を使用
-    const riseThreshold = effectiveSettings.drop_threshold || DEFAULT_NOTIFICATION_SETTINGS.drop_threshold;
+    const riseThreshold = effectiveSettings.drop_threshold || DEFAULT_ALERT_SETTINGS.position_drop_threshold;
     const rankRiseResult = await this.detector.detectRankRise(
       siteUrl,
       pageUrl,
-      effectiveSettings.comparison_days || DEFAULT_NOTIFICATION_SETTINGS.comparison_days,
+      effectiveSettings.comparison_days || DEFAULT_ALERT_SETTINGS.comparison_days,
       riseThreshold
     );
 

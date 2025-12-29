@@ -62,10 +62,7 @@ export async function POST(request: NextRequest) {
       undefined // keywordsは後で取得可能
     );
 
-    // 通知設定を保存
-    const notificationTimeValue = notificationTime || '09:00:00';
-    const effectiveTimezone = timezone || 'UTC';
-
+    // 通知設定を保存（通知チャネル関連のみ）
     await saveOrUpdateNotificationSettings(
       session.userId,
       {
@@ -73,11 +70,21 @@ export async function POST(request: NextRequest) {
         channel: 'email',
         recipient: email,
         is_enabled: true,
-        notification_time: notificationTimeValue,
-        timezone: effectiveTimezone,
       },
       article.id
     );
+
+    // 通知時刻とタイムゾーンはuser_alert_settingsに保存（提供されている場合）
+    if (notificationTime || timezone) {
+      const { saveOrUpdateUserAlertSettings } = await import("@/lib/db/alert-settings");
+      const notificationTimeValue = notificationTime ? (notificationTime.includes(':') && notificationTime.split(':').length === 2 ? notificationTime + ':00' : notificationTime) : undefined;
+      const effectiveTimezone = timezone || undefined;
+      
+      await saveOrUpdateUserAlertSettings(session.userId, {
+        notification_time: notificationTimeValue,
+        timezone: effectiveTimezone,
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 

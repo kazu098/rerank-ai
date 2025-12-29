@@ -9,6 +9,8 @@ export interface UserAlertSettings {
   min_impressions: number;          // 最小インプレッション数（デフォルト: 100）
   notification_cooldown_days: number; // 通知クールダウン日数（デフォルト: 7）
   notification_frequency: 'daily' | 'weekly' | 'none'; // 通知頻度（デフォルト: 'daily'）
+  notification_time: string;        // 通知時刻（TIME型、例: '09:00:00'）
+  timezone: string | null;          // タイムゾーン（例: 'Asia/Tokyo'、NULLの場合はusersテーブルのタイムゾーンを使用）
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +26,8 @@ export const DEFAULT_ALERT_SETTINGS: Omit<UserAlertSettings, 'user_id' | 'create
   min_impressions: 100,
   notification_cooldown_days: 7,
   notification_frequency: 'daily',
+  notification_time: '09:00:00',
+  timezone: null,
 };
 
 /**
@@ -52,6 +56,8 @@ export async function getUserAlertSettings(userId: string): Promise<Omit<UserAle
     min_impressions: data.min_impressions ?? DEFAULT_ALERT_SETTINGS.min_impressions,
     notification_cooldown_days: data.notification_cooldown_days ?? DEFAULT_ALERT_SETTINGS.notification_cooldown_days,
     notification_frequency: (data.notification_frequency as 'daily' | 'weekly' | 'none') ?? DEFAULT_ALERT_SETTINGS.notification_frequency,
+    notification_time: data.notification_time ?? DEFAULT_ALERT_SETTINGS.notification_time,
+    timezone: data.timezone ?? DEFAULT_ALERT_SETTINGS.timezone,
   };
 }
 
@@ -73,6 +79,8 @@ export async function saveOrUpdateUserAlertSettings(
     min_impressions: settings.min_impressions ?? DEFAULT_ALERT_SETTINGS.min_impressions,
     notification_cooldown_days: settings.notification_cooldown_days ?? DEFAULT_ALERT_SETTINGS.notification_cooldown_days,
     notification_frequency: settings.notification_frequency ?? DEFAULT_ALERT_SETTINGS.notification_frequency,
+    notification_time: settings.notification_time ?? DEFAULT_ALERT_SETTINGS.notification_time,
+    timezone: settings.timezone !== undefined ? settings.timezone : DEFAULT_ALERT_SETTINGS.timezone,
     updated_at: new Date().toISOString(),
   };
 
