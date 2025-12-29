@@ -468,7 +468,7 @@ export default function ArticlesPage() {
                 {articles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((article) => (
                   <tr
                     key={article.id}
-                    onClick={() => router.push(`/${locale}/dashboard/articles/${article.id}`)}
+                    onClick={() => router.push(`/dashboard/articles/${article.id}`)}
                     className="hover:bg-gray-50 cursor-pointer"
                   >
                     <td className="px-6 py-4 w-80">
