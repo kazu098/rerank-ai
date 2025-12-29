@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
@@ -9,6 +9,9 @@ interface AlertSettings {
   position_drop_threshold: number;
   keyword_drop_threshold: number;
   comparison_days: number;
+  consecutive_drop_days: number;
+  min_impressions: number;
+  notification_cooldown_days: number;
   notification_frequency: 'daily' | 'weekly' | 'none';
 }
 
@@ -23,10 +26,40 @@ export default function AlertSettingsPage() {
     position_drop_threshold: 2.0,
     keyword_drop_threshold: 10,
     comparison_days: 7,
+    consecutive_drop_days: 3,
+    min_impressions: 100,
+    notification_cooldown_days: 7,
     notification_frequency: 'daily',
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/alert-settings");
+      if (!response.ok) {
+        throw new Error(t("alertSettings.fetchFailed"));
+      }
+      const data = await response.json();
+      console.log("[Alert Settings] Fetched data:", data);
+      // APIから取得したデータを設定に反映（不足しているフィールドはデフォルト値を使用）
+      setSettings({
+        position_drop_threshold: data.position_drop_threshold ?? 2.0,
+        keyword_drop_threshold: data.keyword_drop_threshold ?? 10,
+        comparison_days: data.comparison_days ?? 7,
+        consecutive_drop_days: data.consecutive_drop_days ?? 3,
+        min_impressions: data.min_impressions ?? 100,
+        notification_cooldown_days: data.notification_cooldown_days ?? 7,
+        notification_frequency: data.notification_frequency ?? 'daily',
+      });
+    } catch (err: any) {
+      console.error("[Alert Settings] Error:", err);
+      setError(err.message || t("alertSettings.errorOccurred"));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -37,24 +70,7 @@ export default function AlertSettingsPage() {
     if (status === "authenticated") {
       fetchSettings();
     }
-  }, [status, router, locale]);
-
-  const fetchSettings = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/alert-settings");
-      if (!response.ok) {
-        throw new Error(t("alertSettings.fetchFailed"));
-      }
-      const data = await response.json();
-      setSettings(data);
-    } catch (err: any) {
-      console.error("[Alert Settings] Error:", err);
-      setError(err.message || t("alertSettings.errorOccurred"));
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [status, router, locale, fetchSettings]);
 
   const handleSave = async () => {
     try {
@@ -74,6 +90,8 @@ export default function AlertSettingsPage() {
       }
 
       setSuccess(t("alertSettings.saveSuccess"));
+      // 保存後に最新の設定を再取得
+      await fetchSettings();
     } catch (err: any) {
       console.error("[Alert Settings] Error saving:", err);
       setError(err.message || t("alertSettings.saveFailed"));
@@ -87,6 +105,9 @@ export default function AlertSettingsPage() {
       position_drop_threshold: 2.0,
       keyword_drop_threshold: 10,
       comparison_days: 7,
+      consecutive_drop_days: 3,
+      min_impressions: 100,
+      notification_cooldown_days: 7,
       notification_frequency: 'daily',
     });
     setError(null);
