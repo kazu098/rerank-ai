@@ -43,15 +43,16 @@ export async function getNotificationSettings(
 
   const supabase = createSupabaseClient();
 
-  // 記事固有の設定を取得
+  // 記事固有の設定を取得（is_enabledに関係なく取得 - slack_bot_tokenを取得するため）
   if (articleId) {
     const { data, error } = await supabase
       .from('notification_settings')
       .select('*')
       .eq('user_id', userId)
       .eq('article_id', articleId)
-      .eq('is_enabled', true)
-      .single();
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (!error && data) {
       console.log('[Notification Settings DB] Found article-specific settings:', {
@@ -64,14 +65,15 @@ export async function getNotificationSettings(
     }
   }
 
-  // 記事固有の設定がない場合、ユーザー全体のデフォルト設定を取得（article_idがnull）
+  // 記事固有の設定がない場合、ユーザー全体のデフォルト設定を取得（article_idがnull、is_enabledに関係なく取得）
   const { data, error } = await supabase
     .from('notification_settings')
     .select('*')
     .eq('user_id', userId)
     .is('article_id', null)
-    .eq('is_enabled', true)
-    .single();
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (!error && data) {
     console.log('[Notification Settings DB] Found default settings:', {
