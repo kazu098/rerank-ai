@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getNotificationSettings, saveOrUpdateNotificationSettings } from "@/lib/db/notification-settings";
+import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 import { getArticleById } from "@/lib/db/articles";
 import { getUserById } from "@/lib/db/users";
 
@@ -68,36 +69,16 @@ export async function POST(
     // 現在の設定を取得
     const currentSettings = await getNotificationSettings(session.userId, articleId);
 
-    // Slack設定を取得（通知設定ページで設定された値をそのまま使用）
-    // channel='slack'かつarticle_id IS NULLの設定を直接DBから取得
-    const { createSupabaseClient } = await import("@/lib/supabase");
-    const supabase = createSupabaseClient();
-    const { data: slackSettingsData, error: slackSettingsError } = await supabase
-      .from('notification_settings')
-      .select('*')
-      .eq('user_id', session.userId)
-      .is('article_id', null)
-      .eq('channel', 'slack')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Slack設定を取得（slack_integrationsテーブルから取得）
+    const slackIntegration = await getSlackIntegrationByUserId(session.userId);
     
-    let slackSettings = null;
-    if (!slackSettingsError && slackSettingsData && slackSettingsData.slack_bot_token) {
-      slackSettings = slackSettingsData as any;
-      console.log("[Article Notification API] Found Slack settings:", {
-        hasBotToken: !!slackSettings.slack_bot_token,
-        notificationType: slackSettings.slack_notification_type,
-        channelId: slackSettings.slack_channel_id,
-        userId: slackSettings.slack_user_id,
-      });
-    } else {
-      console.log("[Article Notification API] No Slack settings found:", {
-        error: slackSettingsError?.message,
-        hasData: !!slackSettingsData,
-        hasBotToken: slackSettingsData?.slack_bot_token ? true : false,
-      });
-    }
+    console.log("[Article Notification API] Slack integration status:", {
+      hasIntegration: !!slackIntegration,
+      hasBotToken: !!slackIntegration?.slack_bot_token,
+      notificationType: slackIntegration?.slack_notification_type,
+      channelId: slackIntegration?.slack_channel_id,
+      userId: slackIntegration?.slack_user_id,
+    });
 
     // 通知設定を保存または更新
     if (channel === 'email') {
@@ -112,9 +93,8 @@ export async function POST(
         articleId
       );
     } else if (channel === 'slack') {
-      // Slack設定の場合は、デフォルト設定からSlack情報を継承
-      // slackSettingsを使用（is_enabledに関わらずSlack連携の有無を確認）
-      if (!slackSettings?.slack_bot_token) {
+      // Slack設定の場合は、slack_integrationsテーブルから取得した情報を使用
+      if (!slackIntegration) {
         return NextResponse.json(
           { error: "Slack is not connected. Please connect Slack in notification settings first." },
           { status: 400 }
@@ -122,7 +102,7 @@ export async function POST(
       }
 
       // 通知先が選択されていない場合はエラー
-      if (!slackSettings.slack_notification_type) {
+      if (!slackIntegration.slack_notification_type) {
         return NextResponse.json(
           { error: "Please select a notification destination (DM or Channel) in notification settings first." },
           { status: 400 }
@@ -132,24 +112,24 @@ export async function POST(
       // DMの場合はslack_user_idをrecipientとして使用
       // チャネルの場合はslack_channel_idをrecipientとして使用
       let recipient = '';
-      if (slackSettings.slack_notification_type === 'dm') {
+      if (slackIntegration.slack_notification_type === 'dm') {
         // DMの場合はslack_user_idを使用（slack_channel_idはnullでもOK）
-        if (!slackSettings.slack_user_id) {
+        if (!slackIntegration.slack_user_id) {
           return NextResponse.json(
             { error: "Slack user ID is missing. Please reconnect Slack in notification settings." },
             { status: 400 }
           );
         }
-        recipient = slackSettings.slack_user_id;
-      } else if (slackSettings.slack_notification_type === 'channel') {
+        recipient = slackIntegration.slack_user_id;
+      } else if (slackIntegration.slack_notification_type === 'channel') {
         // チャネルの場合はslack_channel_idが必須
-        if (!slackSettings.slack_channel_id) {
+        if (!slackIntegration.slack_channel_id) {
           return NextResponse.json(
             { error: "Please select a Slack channel in notification settings first." },
             { status: 400 }
           );
         }
-        recipient = slackSettings.slack_channel_id;
+        recipient = slackIntegration.slack_channel_id;
       }
 
       await saveOrUpdateNotificationSettings(
@@ -159,12 +139,7 @@ export async function POST(
           channel: 'slack',
           recipient: recipient,
           is_enabled: enabled,
-          // Slack設定はslackSettingsから継承（通知設定ページで設定された値をそのまま使用）
-          slack_bot_token: slackSettings.slack_bot_token,
-          slack_user_id: slackSettings.slack_user_id,
-          slack_team_id: slackSettings.slack_team_id,
-          slack_channel_id: slackSettings.slack_channel_id, // DMの場合はnullでもOK
-          slack_notification_type: slackSettings.slack_notification_type,
+          slack_integration_id: slackIntegration.id,
         },
         articleId
       );

@@ -216,8 +216,8 @@ export async function GET(request: NextRequest) {
       // ユーザーID取得の失敗は通知設定保存を妨げない
     }
 
-    // 通知設定を保存（デフォルトはDM送信）
-    console.log("[Slack OAuth] Saving notification settings...", {
+    // Slack連携情報を保存（slack_integrationsテーブルに保存）
+    console.log("[Slack OAuth] Saving Slack integration...", {
       userId: session.userId,
       slackUserId: tokens.userId || slackUserId,
       teamId: tokens.teamId,
@@ -225,24 +225,20 @@ export async function GET(request: NextRequest) {
     });
 
     try {
-      await saveOrUpdateNotificationSettings(
+      const { saveOrUpdateSlackIntegration } = await import("@/lib/db/slack-integrations");
+      await saveOrUpdateSlackIntegration(
         session.userId,
         {
-          notification_type: 'rank_drop',
-          channel: 'slack',
-          recipient: tokens.userId || slackUserId || tokens.teamId,
-          is_enabled: true,
           slack_bot_token: tokens.botToken,
           slack_user_id: tokens.userId || slackUserId,
           slack_team_id: tokens.teamId,
           slack_channel_id: null, // 連携後は未選択状態にして、ユーザーに選択を促す
           slack_notification_type: null, // 連携後は未選択状態にして、ユーザーに選択を促す
-        },
-        null // 記事固有の設定ではないためnull
+        }
       );
-      console.log("[Slack OAuth] Notification settings saved successfully");
+      console.log("[Slack OAuth] Slack integration saved successfully");
     } catch (saveError: any) {
-      console.error("[Slack OAuth] Failed to save notification settings:", {
+      console.error("[Slack OAuth] Failed to save Slack integration:", {
         error: saveError.message,
         stack: saveError.stack,
         userId: session.userId,
