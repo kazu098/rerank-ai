@@ -980,7 +980,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
                 {t("home.features.title")}
               </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {/* 機能1 */}
               <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6 mx-auto">
@@ -1023,6 +1023,21 @@ export default function Home() {
                 </h3>
                 <p className="text-gray-600 text-center">
                   {t("home.features.feature3.description")}
+                </p>
+              </div>
+
+              {/* 機能4: 新規記事提案 */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+                  {t("home.features.feature4.title")}
+                </h3>
+                <p className="text-gray-600 text-center">
+                  {t("home.features.feature4.description")}
                 </p>
               </div>
             </div>
