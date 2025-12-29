@@ -77,12 +77,10 @@ export default function NotificationsPage() {
         const notificationData = await notificationResponse.json();
         if (notificationData?.slack_bot_token) {
           setSlackConnected(true);
-          setSlackNotificationType((notificationData.slack_notification_type as 'channel' | 'dm') || 'dm');
+          setSlackNotificationType((notificationData.slack_notification_type as 'channel' | 'dm') || null);
           setSlackChannelId(notificationData.slack_channel_id || null);
-          // チャネル一覧を取得（slackConnectedが設定された後に実行）
-          setTimeout(() => {
-            fetchSlackChannels();
-          }, 100);
+          // チャネル一覧を取得（連携直後に自動取得）
+          await fetchSlackChannels();
         } else {
           setSlackConnected(false);
           setSlackNotificationType(null);
