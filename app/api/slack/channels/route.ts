@@ -21,13 +21,34 @@ export async function GET(request: NextRequest) {
     // ユーザーのSlack設定を取得
     const notificationSettings = await getNotificationSettings(session.userId, null);
     
+    // Slack連携状態を確認（is_enabledに関わらずslack_bot_tokenの存在を確認）
+    let slackBotToken = notificationSettings?.slack_bot_token;
+    if (!slackBotToken) {
+      const { createSupabaseClient } = await import("@/lib/supabase");
+      const supabase = createSupabaseClient();
+      const { data: slackSettingsData } = await supabase
+        .from('notification_settings')
+        .select('slack_bot_token')
+        .eq('user_id', session.userId)
+        .is('article_id', null)
+        .eq('channel', 'slack')
+        .not('slack_bot_token', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (slackSettingsData) {
+        slackBotToken = slackSettingsData.slack_bot_token;
+      }
+    }
+    
     console.log("[Slack Channels API] Notification settings:", {
       hasSettings: !!notificationSettings,
-      hasBotToken: !!notificationSettings?.slack_bot_token,
-      botTokenPrefix: notificationSettings?.slack_bot_token?.substring(0, 10) + '...',
+      hasBotToken: !!slackBotToken,
+      botTokenPrefix: slackBotToken?.substring(0, 10) + '...',
     });
     
-    if (!notificationSettings?.slack_bot_token) {
+    if (!slackBotToken) {
       console.error("[Slack Channels API] Slack is not connected");
       return NextResponse.json(
         { error: "Slack is not connected" },
@@ -37,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     // チャネル一覧を取得
     console.log("[Slack Channels API] Fetching channels...");
-    const channels = await getSlackChannels(notificationSettings.slack_bot_token);
+    const channels = await getSlackChannels(slackBotToken);
     console.log("[Slack Channels API] Channels fetched successfully:", channels.length, "channels");
 
     return NextResponse.json({ channels });
