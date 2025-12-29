@@ -169,6 +169,7 @@ export async function GET(request: NextRequest) {
         userNotifications.items.push({
           articleUrl: article.url,
           articleTitle: article.title,
+          articleId: article.id, // 記事詳細ページへのリンク用
           analysisResult: {
             prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
               keyword: kw.keyword,

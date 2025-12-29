@@ -293,6 +293,35 @@ export async function getLatestAnalysisResult(
 }
 
 /**
+ * 記事IDに紐づく前回（2番目に新しい）の分析結果を取得
+ */
+export async function getPreviousAnalysisResult(
+  articleId: string
+): Promise<AnalysisResult | null> {
+  const supabase = createSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("analysis_results")
+    .select("*")
+    .eq("article_id", articleId)
+    .order("created_at", { ascending: false })
+    .limit(2);
+
+  if (error) {
+    throw new Error(
+      `Failed to get previous analysis result: ${error.message}`
+    );
+  }
+
+  // 2番目に新しい結果を返す（最新が1件目、前回が2件目）
+  if (data && data.length >= 2) {
+    return data[1];
+  }
+
+  return null;
+}
+
+/**
  * 分析実行履歴を取得
  */
 export async function getAnalysisRunsByArticleId(

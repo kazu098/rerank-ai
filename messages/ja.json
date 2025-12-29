@@ -233,7 +233,11 @@
     "rankChange": "{from}位 → {to}位（{change}位下落）",
     "dropReason": "原因",
     "dropReasonKeywords": "「{keywords}」などのキーワードが10位以下に転落",
-    "itemsToAdd": "追加すべき項目"
+    "itemsToAdd": "追加すべき項目",
+    "email": {
+      "viewDashboard": "ダッシュボードを表示",
+      "viewCompetitorsAndRecommendations": "競合サイトと改善案を確認"
+    }
   },
   "dashboard": {
     "title": "ダッシュボード",

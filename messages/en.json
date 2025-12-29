@@ -231,7 +231,11 @@
     "rankChange": "{from} → {to} ({change} drop)",
     "dropReason": "Reason",
     "dropReasonKeywords": "Keywords such as \"{keywords}\" have dropped below 10th place",
-    "itemsToAdd": "Items to Add"
+    "itemsToAdd": "Items to Add",
+    "email": {
+      "viewDashboard": "View Dashboard",
+      "viewCompetitorsAndRecommendations": "View Competitors & Recommendations"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
