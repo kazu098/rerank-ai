@@ -425,12 +425,18 @@ async function handleRequest(request: NextRequest) {
     let sentCount = 0;
     let errorCount = 0;
 
+    console.log(`[Test Cron] Total users with notifications: ${notificationsByUser.size}`);
+    for (const [userId, { user, items }] of notificationsByUser.entries()) {
+      console.log(`[Test Cron] User ${user.email}: ${items.length} notification items`);
+    }
+
     if (dryRun) {
       console.log("[Test Cron] DRY RUN MODE: Skipping actual notification sending");
     }
 
     for (const [userId, { user, items }] of notificationsByUser.entries()) {
       if (items.length === 0) {
+        console.log(`[Test Cron] Skipping user ${user.email}: no notification items`);
         continue;
       }
 
@@ -471,6 +477,9 @@ async function handleRequest(request: NextRequest) {
           hasEmail: true, // メールは常に有効
           hasSlack: !!(notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id),
           slackChannelId: notificationSettings?.slack_channel_id,
+          slackNotificationType: notificationSettings?.slack_notification_type,
+          slackTeamId: notificationSettings?.slack_team_id,
+          slackBotTokenPrefix: notificationSettings?.slack_bot_token?.substring(0, 10) + '...',
         });
 
         if (!dryRun) {
@@ -495,6 +504,20 @@ async function handleRequest(request: NextRequest) {
           }
 
           // Slack通知を送信（OAuth方式のみ）
+          console.log(`[Test Cron] Checking Slack notification conditions for user ${user.email}:`, {
+            hasSlackBotToken: !!notificationSettings?.slack_bot_token,
+            hasSlackChannelId: !!notificationSettings?.slack_channel_id,
+            slackChannelId: notificationSettings?.slack_channel_id,
+            itemsCount: items.length,
+            itemsWithRankInfo: items.filter((item) => item.rankDropInfo || item.rankRiseInfo).length,
+          });
+
+          if (!notificationSettings?.slack_bot_token) {
+            console.log(`[Test Cron] Slack notification skipped for user ${user.email}: slack_bot_token is missing`);
+          } else if (!notificationSettings?.slack_channel_id) {
+            console.log(`[Test Cron] Slack notification skipped for user ${user.email}: slack_channel_id is missing`);
+          }
+
           if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
             try {
               const slackPayload = formatSlackBulkNotification(
@@ -529,7 +552,12 @@ async function handleRequest(request: NextRequest) {
                 locale
               );
 
-              console.log(`[Test Cron] Sending Slack notification via OAuth to user ${user.email}...`);
+              console.log(`[Test Cron] Sending Slack notification via OAuth to user ${user.email}...`, {
+                hasBotToken: !!notificationSettings.slack_bot_token,
+                channelId: notificationSettings.slack_channel_id,
+                notificationType: notificationSettings.slack_notification_type,
+                payloadArticlesCount: slackPayload.blocks?.length || 0,
+              });
 
               await sendSlackNotificationWithBot(
                 notificationSettings.slack_bot_token,
