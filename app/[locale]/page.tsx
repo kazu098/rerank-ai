@@ -1385,17 +1385,33 @@ export default function Home() {
                               <div className="flex-1 min-w-0">
                                 {article.title ? (
                                   <div>
-                                    <p className="font-semibold text-sm text-gray-900 mb-1 line-clamp-1">
-                                      {article.title}
-                                    </p>
+                                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                                      <p className="font-semibold text-sm text-gray-900 line-clamp-1">
+                                        {article.title}
+                                      </p>
+                                      {article.last_analyzed_at && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                          {t("dashboard.articles.analyzed")}
+                                        </span>
+                                      )}
+                                    </div>
                                     <p className="text-xs text-gray-500 truncate">
                                       {article.url}
                                     </p>
                                   </div>
                                 ) : (
-                                  <p className="text-sm text-gray-700 truncate">
-                                    {article.url}
-                                  </p>
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                                      <p className="text-sm text-gray-700 truncate">
+                                        {article.url}
+                                      </p>
+                                      {article.last_analyzed_at && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                          {t("dashboard.articles.analyzed")}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 )}
                                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                                   <span>{t("article.impressions")}: {article.impressions.toLocaleString()}</span>

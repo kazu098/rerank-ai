@@ -293,6 +293,7 @@
       "previousPosition": "前回順位",
       "positionChange": "順位変動",
       "lastAnalyzed": "最終分析",
+      "analyzed": "分析済み",
       "emailNotification": "メール通知",
       "slackNotification": "Slack通知",
       "emailNotificationOn": "メール通知: ON",
