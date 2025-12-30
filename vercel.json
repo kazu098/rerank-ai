@@ -18,10 +18,6 @@
     {
       "path": "/api/cron/check-rank",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/send-notifications",
-      "schedule": "0 * * * *"
     }
   ]
 }

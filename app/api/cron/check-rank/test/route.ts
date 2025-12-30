@@ -14,26 +14,26 @@ import { isNotificationTime } from "@/lib/timezone-utils";
 /**
  * テスト用: 順位下落チェックを手動実行
  * 
- * 認証: 環境変数 TEST_SECRET、CRON_TEST_SECRET または CRON_SECRET で認証
+ * 認証: 環境変数 CRON_SECRET で認証
  * 使用方法:
  *   curl -X GET "http://localhost:3000/api/cron/check-rank/test?dryRun=true" \
- *        -H "Authorization: Bearer YOUR_TEST_SECRET"
+ *        -H "Authorization: Bearer YOUR_CRON_SECRET"
  *   または
  *   curl -X POST "http://localhost:3000/api/cron/check-rank/test?dryRun=true" \
- *        -H "Authorization: Bearer YOUR_TEST_SECRET"
+ *        -H "Authorization: Bearer YOUR_CRON_SECRET"
  * 
  * クエリパラメータ:
  *   - dryRun: true の場合、通知は送信せずログのみ出力
  *   - articleId: 特定の記事IDのみをチェック（オプション）
  */
 async function handleRequest(request: NextRequest) {
-  // テスト用の認証（環境変数 TEST_SECRET、CRON_TEST_SECRET または CRON_SECRET を使用）
+  // テスト用の認証（環境変数 CRON_SECRET を使用）
   const authHeader = request.headers.get("authorization");
-  const testSecret = process.env.TEST_SECRET || process.env.CRON_TEST_SECRET || process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_SECRET;
   
-  if (!testSecret || authHeader !== `Bearer ${testSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json(
-      { error: "Unauthorized. Set TEST_SECRET, CRON_TEST_SECRET or CRON_SECRET environment variable." },
+      { error: "Unauthorized. Set CRON_SECRET environment variable." },
       { status: 401 }
     );
   }
