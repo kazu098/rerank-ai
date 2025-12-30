@@ -113,7 +113,8 @@ export default function SettingsPage() {
           if (alertSettingsData?.notification_time) {
             const time = alertSettingsData.notification_time;
             const timeParts = time.split(':');
-            setNotificationTime(`${timeParts[0]}:${timeParts[1]}`);
+            // 時間単位のみ（分は00固定）
+            setNotificationTime(`${timeParts[0]}:00`);
           } else {
             setNotificationTime("09:00");
           }
@@ -303,12 +304,23 @@ export default function SettingsPage() {
             {t("notification.settings.notificationTimeDescription")}
           </p>
           <div className="flex items-center gap-3">
-            <input
-              type="time"
-              value={notificationTime}
-              onChange={(e) => setNotificationTime(e.target.value)}
+            <select
+              value={notificationTime.split(':')[0]}
+              onChange={(e) => {
+                const hour = e.target.value.padStart(2, '0');
+                setNotificationTime(`${hour}:00`);
+              }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
+            >
+              {Array.from({ length: 24 }, (_, i) => {
+                const hour = i.toString().padStart(2, '0');
+                return (
+                  <option key={hour} value={hour}>
+                    {hour}:00
+                  </option>
+                );
+              })}
+            </select>
             <button
               onClick={async () => {
                 try {

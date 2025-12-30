@@ -1,0 +1,34 @@
+name: Send Notifications
+
+on:
+  schedule:
+    # 1時間ごとに実行（UTC時刻）
+    - cron: '0 * * * *'
+  workflow_dispatch: # 手動実行も可能
+
+jobs:
+  send-notifications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Call Send Notifications API
+        run: |
+          # VERCEL_URLの末尾スラッシュを削除（念のため）
+          VERCEL_URL=$(echo "${{ vars.VERCEL_URL }}" | sed 's|/$||')
+          response=$(curl -s -w "\n%{http_code}" -X GET "${VERCEL_URL}/api/cron/send-notifications" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Notification send job completed successfully"
+            echo "$body"
+          else
+            echo "❌ Notification send job failed with HTTP $http_code"
+            echo "$body"
+            exit 1
+          fi
+

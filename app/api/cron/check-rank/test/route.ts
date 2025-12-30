@@ -9,30 +9,31 @@ import { createSupabaseClient } from "@/lib/supabase";
 import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
+import { isNotificationTime } from "@/lib/timezone-utils";
 
 /**
  * テスト用: 順位下落チェックを手動実行
  * 
- * 認証: 環境変数 TEST_SECRET、CRON_TEST_SECRET または CRON_SECRET で認証
+ * 認証: 環境変数 CRON_SECRET で認証
  * 使用方法:
  *   curl -X GET "http://localhost:3000/api/cron/check-rank/test?dryRun=true" \
- *        -H "Authorization: Bearer YOUR_TEST_SECRET"
+ *        -H "Authorization: Bearer YOUR_CRON_SECRET"
  *   または
  *   curl -X POST "http://localhost:3000/api/cron/check-rank/test?dryRun=true" \
- *        -H "Authorization: Bearer YOUR_TEST_SECRET"
+ *        -H "Authorization: Bearer YOUR_CRON_SECRET"
  * 
  * クエリパラメータ:
  *   - dryRun: true の場合、通知は送信せずログのみ出力
  *   - articleId: 特定の記事IDのみをチェック（オプション）
  */
 async function handleRequest(request: NextRequest) {
-  // テスト用の認証（環境変数 TEST_SECRET、CRON_TEST_SECRET または CRON_SECRET を使用）
+  // テスト用の認証（環境変数 CRON_SECRET を使用）
   const authHeader = request.headers.get("authorization");
-  const testSecret = process.env.TEST_SECRET || process.env.CRON_TEST_SECRET || process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_SECRET;
   
-  if (!testSecret || authHeader !== `Bearer ${testSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json(
-      { error: "Unauthorized. Set TEST_SECRET, CRON_TEST_SECRET or CRON_SECRET environment variable." },
+      { error: "Unauthorized. Set CRON_SECRET environment variable." },
       { status: 401 }
     );
   }
@@ -512,6 +513,29 @@ async function handleRequest(request: NextRequest) {
             console.log(`[Test Cron] Skipping notification for user ${user.email}: notification_frequency is 'weekly' but today is not Monday (dayOfWeek: ${dayOfWeek})`);
             continue;
           }
+        }
+
+        // 通知時刻をチェック（dryRunの場合はスキップ）
+        if (!dryRun) {
+          // user_alert_settingsのtimezoneがnullの場合は、usersテーブルから取得を試みる
+          let userTimezone = userAlertSettings.timezone;
+          if (!userTimezone) {
+            // usersテーブルからタイムゾーンを取得
+            const userWithTimezone = await getUserById(user.id);
+            userTimezone = userWithTimezone?.timezone || 'UTC';
+          }
+          const notificationTime = userAlertSettings.notification_time || '09:00:00';
+          // notification_timeは'HH:MM:SS'形式なので、'HH:MM'形式に変換
+          const notificationTimeHHMM = notificationTime.substring(0, 5);
+          
+          if (!isNotificationTime(userTimezone, notificationTimeHHMM, 5)) {
+            console.log(`[Test Cron] Skipping notification for user ${user.email}: current time (${userTimezone}) is not notification time (${notificationTimeHHMM})`);
+            continue;
+          }
+          
+          console.log(`[Test Cron] Notification time check passed for user ${user.email}: timezone=${userTimezone}, notification_time=${notificationTimeHHMM}`);
+        } else {
+          console.log(`[Test Cron] Dry run mode: skipping notification time check`);
         }
 
         // 通知設定を取得（Slack通知を取得するため）
