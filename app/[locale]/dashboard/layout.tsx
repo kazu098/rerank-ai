@@ -121,7 +121,7 @@ export default function DashboardLayout({
                   }}
                 />
                 <h1 className="text-xl font-bold text-gray-900">
-                  {t("dashboard.title")}
+                  ReRank AI
                 </h1>
               </div>
             </div>

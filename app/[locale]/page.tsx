@@ -1222,9 +1222,22 @@ export default function Home() {
         {/* ヘッダー */}
         <header className="text-center mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-4xl font-extrabold text-gray-900">
-              ReRank AI
-            </h1>
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/logo.svg" 
+                alt="ReRank AI" 
+                width={40} 
+                height={40}
+                className="w-10 h-10"
+                onError={(e) => {
+                  // ロゴファイルが存在しない場合は非表示にする
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <h1 className="text-4xl font-extrabold text-gray-900">
+                ReRank AI
+              </h1>
+            </div>
             {session && (
               <div className="flex items-center gap-4">
                 <Link
