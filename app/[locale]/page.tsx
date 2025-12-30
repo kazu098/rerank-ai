@@ -1225,20 +1225,16 @@ export default function Home() {
             <h1 className="text-4xl font-extrabold text-gray-900">
               ReRank AI
             </h1>
-            <div className="flex items-center gap-4">
-              <Link
-                href={`/dashboard`}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
-              >
-                {t("dashboard.title")}
-              </Link>
-              <button
-                onClick={() => signOut()}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm"
-              >
-                {t("common.logout")}
-              </button>
-            </div>
+            {session && (
+              <div className="flex items-center gap-4">
+                <Link
+                  href={`/dashboard`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+                >
+                  {t("dashboard.title")}
+                </Link>
+              </div>
+            )}
           </div>
           <p className="text-gray-600 italic">
             {t("home.subtitle")}
