@@ -5,6 +5,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/src/i18n/routing";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import Image from "next/image";
 
 // 分析モードは統一（タブを削除）
 
@@ -866,8 +867,19 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <Link href={`/`} className="text-2xl font-bold text-gray-900">
-                  ReRank AI
+                <Link href={`/`} className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+                  <Image 
+                    src="/logo.svg" 
+                    alt="ReRank AI" 
+                    width={32} 
+                    height={32}
+                    className="w-8 h-8"
+                    onError={(e) => {
+                      // ロゴファイルが存在しない場合は非表示にする
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <span>ReRank AI</span>
                 </Link>
             </div>
               <div className="hidden md:flex items-center space-x-8">

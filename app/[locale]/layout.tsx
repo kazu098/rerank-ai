@@ -9,6 +9,15 @@ import { Providers } from "../providers";
 export const metadata: Metadata = {
   title: "ReRank AI",
   description: "SEO自動化ツール - 順位下落を自動検知し、リライト案を提示",
+  icons: {
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export function generateStaticParams() {

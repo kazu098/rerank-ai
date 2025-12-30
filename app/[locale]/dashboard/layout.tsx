@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/src/i18n/routing";
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 
 interface SidebarItem {
   href: string;
@@ -106,9 +107,23 @@ export default function DashboardLayout({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-gray-900 ml-2 lg:ml-0">
-                {t("dashboard.title")}
-              </h1>
+              {/* ロゴが存在する場合のみ表示 */}
+              <div className="flex items-center gap-2 ml-2 lg:ml-0">
+                <Image 
+                  src="/logo.svg" 
+                  alt="ReRank AI" 
+                  width={24} 
+                  height={24}
+                  className="w-6 h-6"
+                  onError={(e) => {
+                    // ロゴファイルが存在しない場合は非表示にする
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <h1 className="text-xl font-bold text-gray-900">
+                  {t("dashboard.title")}
+                </h1>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               {/* ユーザーメニュー */}
