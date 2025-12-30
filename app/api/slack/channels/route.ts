@@ -23,25 +23,14 @@ export async function GET(request: NextRequest) {
     
     // Slack連携状態を確認（is_enabledに関わらずslack_bot_tokenの存在を確認）
     let slackBotToken = notificationSettings?.slack_bot_token;
+    
+    // notification_settingsから取得できない場合は、slack_integrationsテーブルから直接取得
     if (!slackBotToken) {
-      const { createSupabaseClient } = await import("@/lib/supabase");
-      const supabase = createSupabaseClient();
-      const { data: slackSettingsData, error: slackError } = await supabase
-        .from('notification_settings')
-        .select('slack_bot_token')
-        .eq('user_id', session.userId)
-        .is('article_id', null)
-        .eq('channel', 'slack')
-        .not('slack_bot_token', 'is', null)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (slackSettingsData && !slackError) {
-        slackBotToken = slackSettingsData.slack_bot_token;
-      } else if (slackError && slackError.code !== 'PGRST116') {
-        // PGRST116はレコードが見つからない場合のエラーコード（正常）
-        console.error("[Slack Channels API] Error fetching Slack settings:", slackError);
+      const { getSlackIntegrationByUserId } = await import("@/lib/db/slack-integrations");
+      const slackIntegration = await getSlackIntegrationByUserId(session.userId);
+      if (slackIntegration) {
+        slackBotToken = slackIntegration.slack_bot_token;
+        console.log("[Slack Channels API] Found Slack integration from slack_integrations table");
       }
     }
     
