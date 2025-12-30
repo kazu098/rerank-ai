@@ -79,6 +79,9 @@ export async function generateMetadata({
         "x-default": `${baseUrl}/ja`,
       },
     },
+    verification: {
+      google: "6dp62TnoLVsCaROUra-MuPO7xmaEzSiZUwax7hPIIMU",
+    },
     icons: {
       icon: [
         { url: "/logo.svg", type: "image/svg+xml" },
