@@ -5,6 +5,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/src/i18n/routing";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import Image from "next/image";
 
 // 分析モードは統一（タブを削除）
 
@@ -866,8 +867,19 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <Link href={`/`} className="text-2xl font-bold text-gray-900">
-                  ReRank AI
+                <Link href={`/`} className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+                  <Image 
+                    src="/logo.svg" 
+                    alt="ReRank AI" 
+                    width={32} 
+                    height={32}
+                    className="w-8 h-8"
+                    onError={(e) => {
+                      // ロゴファイルが存在しない場合は非表示にする
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <span>ReRank AI</span>
                 </Link>
             </div>
               <div className="hidden md:flex items-center space-x-8">
@@ -1213,20 +1225,16 @@ export default function Home() {
             <h1 className="text-4xl font-extrabold text-gray-900">
               ReRank AI
             </h1>
-            <div className="flex items-center gap-4">
-              <Link
-                href={`/dashboard`}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
-              >
-                {t("dashboard.title")}
-              </Link>
-              <button
-                onClick={() => signOut()}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm"
-              >
-                {t("common.logout")}
-              </button>
-            </div>
+            {session && (
+              <div className="flex items-center gap-4">
+                <Link
+                  href={`/dashboard`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+                >
+                  {t("dashboard.title")}
+                </Link>
+              </div>
+            )}
           </div>
           <p className="text-gray-600 italic">
             {t("home.subtitle")}
