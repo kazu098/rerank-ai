@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GSCApiClient } from "@/lib/gsc-api";
 import { NotificationChecker } from "@/lib/notification-checker";
-import { getMonitoringArticles, updateArticleNotificationSent } from "@/lib/db/articles";
+import { getMonitoringArticles } from "@/lib/db/articles";
 import { getSitesByUserId, updateSiteTokens } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
@@ -11,19 +11,16 @@ import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
 
 /**
- * Cronジョブ: 順位下落をチェックして通知を送信
+ * Cronジョブ: 順位下落をチェックして通知キューに保存
  * 実行頻度: 1日1回（UTC 0時、GSC APIのデータは1日単位で更新されるため）
  * 
  * 処理フロー:
  * 1. 監視対象の記事を取得
  * 2. 各記事に対して通知判定を実行
  * 3. 通知が必要な記事をユーザーごとにまとめる
- * 4. まとめ通知を送信
- * 5. 通知履歴をDBに保存
+ * 4. 通知履歴をDBに保存（sent_atはNULL、通知送信cronで送信）
  * 
- * 注意: タイムゾーンチェックは省略（GSC APIのデータ更新が1日単位のため、
- * 通知時刻のチェックは実質的に意味がない。ユーザーは設定した時刻に近い時間に
- * 通知を受信するが、データの更新タイミングに依存する）
+ * 注意: 通知送信は別のcronジョブ（/api/cron/send-notifications）で実行される。
  */
 export async function GET(request: NextRequest) {
   // Cronジョブの認証（Vercel Cronからのリクエストか確認）
@@ -270,7 +267,7 @@ export async function GET(request: NextRequest) {
         // ユーザーのロケール設定を取得（デフォルト: 'ja'）
         const locale = (user.locale || "ja") as "ja" | "en";
 
-        // ユーザーのアラート設定を取得（通知頻度を確認するため）
+        // ユーザーのアラート設定を取得（通知頻度と通知時刻を確認するため）
         const userAlertSettings = await getUserAlertSettings(user.id);
         const notificationFrequency = userAlertSettings.notification_frequency || 'daily';
 
@@ -290,8 +287,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-
-        // 通知設定を取得（Slack通知を取得するため）
+        // 通知設定を取得（Slack通知の設定を取得するため）
         const notificationSettings = await getNotificationSettings(user.id);
         console.log(`[Cron] Notification settings for user ${user.email}:`, {
           hasSlackBotToken: !!notificationSettings?.slack_bot_token,
@@ -301,107 +297,8 @@ export async function GET(request: NextRequest) {
           slackTeamId: notificationSettings?.slack_team_id,
         });
 
-        // メール通知を送信
-        console.log(`[Cron] Attempting to send email notification to user ${user.email}...`, {
-          itemsCount: items.length,
-          locale,
-        });
-        try {
-          await notificationService.sendBulkNotification({
-            to: user.email,
-            items,
-            locale,
-          });
-          console.log(`[Cron] Email notification sent successfully to user ${user.email}`);
-        } catch (emailError: any) {
-          console.error(`[Cron] Failed to send email notification to user ${user.email}:`, {
-            error: emailError.message,
-            stack: emailError.stack,
-          });
-          throw emailError; // メール送信エラーは通知処理全体を失敗させる
-        }
-
-        // Slack通知を送信（OAuth方式のみ）
-        console.log(`[Cron] Checking Slack notification conditions for user ${user.email}:`, {
-          hasSlackBotToken: !!notificationSettings?.slack_bot_token,
-          hasSlackChannelId: !!notificationSettings?.slack_channel_id,
-          slackChannelId: notificationSettings?.slack_channel_id,
-          itemsCount: items.length,
-          itemsWithRankInfo: items.filter((item) => item.rankDropInfo || item.rankRiseInfo).length,
-        });
-
-        if (!notificationSettings?.slack_bot_token) {
-          console.log(`[Cron] Slack notification skipped for user ${user.email}: slack_bot_token is missing`);
-        } else if (!notificationSettings?.slack_channel_id) {
-          console.log(`[Cron] Slack notification skipped for user ${user.email}: slack_channel_id is missing`);
-        }
-
-        if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
-          try {
-            const slackPayload = formatSlackBulkNotification(
-              items
-                .filter((item) => item.rankDropInfo || item.rankRiseInfo) // rankDropInfoまたはrankRiseInfoが存在するもののみ
-                .map((item) => {
-                  // 順位上昇の場合はrankRiseInfoを使用、順位下落の場合はrankDropInfoを使用
-                  const rankInfo = item.rankRiseInfo
-                    ? {
-                        from: item.rankRiseInfo.baseAveragePosition,
-                        to: item.rankRiseInfo.currentAveragePosition,
-                        change: item.rankRiseInfo.riseAmount,
-                      }
-                    : item.rankDropInfo
-                    ? {
-                        from: item.rankDropInfo.baseAveragePosition,
-                        to: item.rankDropInfo.currentAveragePosition,
-                        change: item.rankDropInfo.dropAmount,
-                      }
-                    : null;
-
-                  if (!rankInfo) {
-                    throw new Error(`Missing rank info for article ${item.articleUrl}`);
-                  }
-
-                  return {
-                    url: item.articleUrl,
-                    title: item.articleTitle ?? null,
-                    articleId: item.articleId,
-                    notificationType: item.notificationType,
-                    averagePositionChange: rankInfo,
-                  };
-                }),
-              locale
-            );
-
-            console.log(`[Cron] Sending Slack notification via OAuth to user ${user.email}...`, {
-              hasBotToken: !!notificationSettings.slack_bot_token,
-              channelId: notificationSettings.slack_channel_id,
-              notificationType: notificationSettings.slack_notification_type,
-            });
-
-            await sendSlackNotificationWithBot(
-              notificationSettings.slack_bot_token,
-              notificationSettings.slack_channel_id,
-              slackPayload
-            );
-            console.log(`[Cron] Slack notification sent via OAuth to user ${user.email}`);
-          } catch (slackError: any) {
-            console.error(`[Cron] Failed to send Slack notification to user ${user.email}:`, {
-              error: slackError.message,
-              stack: slackError.stack,
-              channelId: notificationSettings.slack_channel_id,
-            });
-            // Slack通知のエラーはメール通知の送信を妨げない
-          }
-        }
-
-        // 通知履歴をDBに保存
+        // 通知履歴をDBに保存（sent_atはNULL、通知送信cronで送信）
         for (const item of items) {
-          // 記事の通知送信日時を更新
-          const article = articles.find((a) => a.url === item.articleUrl);
-          if (article) {
-            await updateArticleNotificationSent(article.url, user.id);
-          }
-
           // notificationsテーブルにレコードを作成（メール通知）
           const notificationType = item.notificationType || 'rank_drop';
           const isRise = notificationType === 'rank_rise';
@@ -412,6 +309,17 @@ export async function GET(request: NextRequest) {
             ? `順位上昇が検知されました（${items.length}件の記事）`
             : `順位下落が検知されました（${items.length}件の記事）`;
 
+          // 通知内容の詳細データをJSONBで保存
+          const notificationData = {
+            articleUrl: item.articleUrl,
+            articleTitle: item.articleTitle,
+            articleId: item.articleId,
+            notificationType: item.notificationType,
+            rankDropInfo: item.rankDropInfo,
+            rankRiseInfo: item.rankRiseInfo,
+            analysisResult: item.analysisResult,
+          };
+
           const { error: emailNotificationError } = await supabase.from("notifications").insert({
             user_id: user.id,
             article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
@@ -420,7 +328,8 @@ export async function GET(request: NextRequest) {
             recipient: user.email,
             subject,
             summary,
-            sent_at: new Date().toISOString(),
+            notification_data: notificationData,
+            sent_at: null, // 通知送信cronで送信されるまでNULL
           });
 
           if (emailNotificationError) {
@@ -441,6 +350,7 @@ export async function GET(request: NextRequest) {
               ? `順位上昇が検知されました（${items.length}件の記事）`
               : `順位下落が検知されました（${items.length}件の記事）`;
 
+            // 通知内容の詳細データをJSONBで保存（メール通知と同じデータを使用）
             const { error: slackNotificationError } = await supabase.from("notifications").insert({
               user_id: user.id,
               article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
@@ -449,7 +359,8 @@ export async function GET(request: NextRequest) {
               recipient: notificationSettings.slack_channel_id, // チャンネルIDまたはUser IDを保存
               subject: slackSubject,
               summary: slackSummary,
-              sent_at: new Date().toISOString(),
+              notification_data: notificationData, // メール通知と同じデータを使用
+              sent_at: null, // 通知送信cronで送信されるまでNULL
             });
 
             if (slackNotificationError) {
@@ -462,7 +373,7 @@ export async function GET(request: NextRequest) {
         }
 
         sentCount++;
-        console.log(`[Cron] Notification sent to user ${user.email} (${items.length} articles)`);
+        console.log(`[Cron] Notifications queued for user ${user.email} (${items.length} articles)`);
       } catch (error: any) {
         errorCount++;
         console.error(`[Cron] Failed to send notification to user ${user.email}:`, error);
@@ -474,7 +385,7 @@ export async function GET(request: NextRequest) {
     const result = {
       message: "Rank check completed",
       articlesChecked: articles.length,
-      usersNotified: sentCount,
+      usersQueued: sentCount,
       errors: errorCount,
       totalNotifications: Array.from(notificationsByUser.values()).reduce(
         (sum, { items }) => sum + items.length,
