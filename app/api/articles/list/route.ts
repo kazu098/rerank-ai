@@ -94,9 +94,37 @@ export async function GET(request: NextRequest) {
 
     // サイト情報を取得
     const sites = await getSitesByUserId(session.userId as string);
-    const site = sites.find((s) => s.site_url === siteUrl);
+    
+    // URLを正規化して比較（https://形式に統一）
+    const normalizeSiteUrlForComparison = (url: string): string => {
+      // 既にhttps://形式の場合はそのまま返す
+      if (url.startsWith("https://")) {
+        return url.replace(/\/$/, ""); // 末尾のスラッシュを除去
+      }
+      // sc-domain:形式をhttps://形式に変換
+      if (url.startsWith("sc-domain:")) {
+        const domain = url.replace("sc-domain:", "");
+        return `https://${domain}`;
+      }
+      // http://形式をhttps://形式に変換
+      if (url.startsWith("http://")) {
+        return url.replace("http://", "https://").replace(/\/$/, "");
+      }
+      return url.replace(/\/$/, "");
+    };
+    
+    const normalizedSiteUrl = normalizeSiteUrlForComparison(siteUrl);
+    const site = sites.find((s) => {
+      const normalizedDbUrl = normalizeSiteUrlForComparison(s.site_url);
+      return normalizedDbUrl === normalizedSiteUrl;
+    });
 
     if (!site) {
+      console.error("[Articles List API] Site not found:", {
+        requestedUrl: siteUrl,
+        normalizedUrl: normalizedSiteUrl,
+        availableSites: sites.map(s => s.site_url),
+      });
       return NextResponse.json(
         { error: "サイトが見つかりません" },
         { status: 404 }
