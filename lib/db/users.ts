@@ -12,6 +12,8 @@ export interface User {
   plan_started_at: string | null;
   plan_ends_at: string | null;
   trial_ends_at: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   timezone: string | null;
   locale: string | null;
   password_hash: string | null;
@@ -360,4 +362,82 @@ export async function verifyEmailToken(token: string): Promise<User | null> {
   }
 
   return { ...user, email_verified: true } as User;
+}
+
+/**
+ * Stripe Customer IDを更新
+ */
+export async function updateStripeCustomerId(
+  userId: string,
+  customerId: string
+): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      stripe_customer_id: customerId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update Stripe customer ID: ${error.message}`);
+  }
+}
+
+/**
+ * Stripe Subscription IDを更新
+ */
+export async function updateStripeSubscriptionId(
+  userId: string,
+  subscriptionId: string | null
+): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      stripe_subscription_id: subscriptionId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update Stripe subscription ID: ${error.message}`);
+  }
+}
+
+/**
+ * ユーザーのプランを更新
+ */
+export async function updateUserPlan(
+  userId: string,
+  planId: string,
+  planStartedAt?: Date,
+  planEndsAt?: Date | null
+): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const updateData: any = {
+    plan_id: planId,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (planStartedAt) {
+    updateData.plan_started_at = planStartedAt.toISOString();
+  }
+
+  if (planEndsAt !== undefined) {
+    updateData.plan_ends_at = planEndsAt ? planEndsAt.toISOString() : null;
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update(updateData)
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update user plan: ${error.message}`);
+  }
 }
