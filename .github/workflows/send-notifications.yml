@@ -16,6 +16,8 @@ jobs:
         run: |
           # VERCEL_URLの末尾スラッシュを削除（念のため）
           VERCEL_URL=$(echo "${{ vars.VERCEL_URL }}" | sed 's|/$||')
+          # rerank-ai.comをwww.rerank-ai.comに置き換え（リダイレクトを避けるため）
+          VERCEL_URL=$(echo "${VERCEL_URL}" | sed 's|https://rerank-ai\.com|https://www.rerank-ai.com|g')
           response=$(curl -s -w "\n%{http_code}" -X GET "${VERCEL_URL}/api/cron/send-notifications" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json")
