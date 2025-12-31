@@ -479,7 +479,7 @@
       "webhookMethod": "Webhook Method",
       "notRecommended": "Not Recommended",
       "notificationTime": "Notification Time",
-      "notificationTimeDescription": "Notifications will be sent daily at this time (hourly only, default: 9:00 AM)",
+      "notificationTimeDescription": "Notifications will be sent daily at this time (hourly only, default: 9:00 AM). Delivery may vary by a few minutes depending on system load.",
       "startMonitoringButton": "Start Notifications",
       "skipButton": "Skip",
       "saving": "Saving...",
