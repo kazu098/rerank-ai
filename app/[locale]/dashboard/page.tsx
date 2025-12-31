@@ -41,6 +41,25 @@ interface DashboardData {
   };
 }
 
+interface UserPlan {
+  plan: {
+    name: string;
+    display_name: string;
+    price_monthly: number;
+    max_articles: number | null;
+    max_analyses_per_month: number | null;
+    max_sites: number | null;
+  } | null;
+  trial_ends_at: string | null;
+}
+
+interface Usage {
+  articles: number;
+  analyses_this_month: number;
+  sites: number;
+  article_suggestions_this_month: number;
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -49,6 +68,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userPlan, setUserPlan] = useState<UserPlan | null>(null);
+  const [usage, setUsage] = useState<Usage | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -64,14 +85,28 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/dashboard/data");
+      const [dashboardResponse, userResponse, usageResponse] = await Promise.all([
+        fetch("/api/dashboard/data"),
+        fetch("/api/users/me"),
+        fetch("/api/billing/usage"),
+      ]);
       
-      if (!response.ok) {
+      if (!dashboardResponse.ok) {
         throw new Error("ダッシュボードデータの取得に失敗しました");
       }
 
-      const dashboardData = await response.json();
+      const dashboardData = await dashboardResponse.json();
       setData(dashboardData);
+
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        setUserPlan(userData.user);
+      }
+
+      if (usageResponse.ok) {
+        const usageData = await usageResponse.json();
+        setUsage(usageData.usage);
+      }
     } catch (err: any) {
       console.error("[Dashboard] Error:", err);
       setError(err.message || "エラーが発生しました");
@@ -115,8 +150,126 @@ export default function DashboardPage() {
     return null;
   }
 
+  const getUsagePercentage = (current: number, limit: number | null): number => {
+    if (limit === null) return 0;
+    return Math.min((current / limit) * 100, 100);
+  };
+
+  const getProgressBarColor = (percentage: number): string => {
+    if (percentage >= 100) {
+      return "bg-red-400"; // 100%に達した場合：柔らかい赤
+    } else if (percentage >= 90) {
+      return "bg-orange-500"; // 90-99%：オレンジ（警告）
+    } else if (percentage >= 70) {
+      return "bg-yellow-500"; // 70-89%：黄色（注意）
+    } else {
+      return "bg-blue-500"; // 0-69%：青（正常）
+    }
+  };
+
+  const isTrialActive = (): boolean => {
+    if (!userPlan?.trial_ends_at) return false;
+    return new Date(userPlan.trial_ends_at) > new Date();
+  };
+
+  const formatLimit = (limit: number | null): string => {
+    if (limit === null) return t("billing.unlimited");
+    return limit.toString();
+  };
+
   return (
     <>
+        {/* プラン情報と使用状況 */}
+        {userPlan?.plan && usage && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">{t("dashboard.billing.currentPlan")}</h2>
+              <Link
+                href="/dashboard/billing"
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                {t("dashboard.billing.viewDetails")} →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* プラン情報 */}
+              <div>
+                <div className="text-2xl font-bold text-gray-900 mb-1">
+                  {userPlan.plan.display_name}
+                </div>
+                {isTrialActive() && userPlan.trial_ends_at && (
+                  <div className="text-sm text-yellow-600 mt-1">
+                    {t("dashboard.billing.trialUntil", {
+                      date: new Date(userPlan.trial_ends_at).toLocaleDateString(locale)
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 使用状況サマリー */}
+              <div className="space-y-3">
+                {/* 分析回数 */}
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">{t("dashboard.billing.analyses")}</span>
+                    <span className="font-semibold">
+                      {usage.analyses_this_month} / {formatLimit(userPlan.plan.max_analyses_per_month)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
+                      getUsagePercentage(usage.analyses_this_month, userPlan.plan.max_analyses_per_month)
+                    )}`}
+                    style={{
+                      width: `${getUsagePercentage(usage.analyses_this_month, userPlan.plan.max_analyses_per_month)}%`,
+                    }}
+                  />
+                  </div>
+                </div>
+
+                {/* 監視記事数 */}
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">{t("dashboard.billing.articles")}</span>
+                    <span className="font-semibold">
+                      {usage.articles} / {formatLimit(userPlan.plan.max_articles)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
+                      getUsagePercentage(usage.articles, userPlan.plan.max_articles)
+                    )}`}
+                    style={{
+                      width: `${getUsagePercentage(usage.articles, userPlan.plan.max_articles)}%`,
+                    }}
+                  />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 制限に近づいている場合の警告 */}
+            {(getUsagePercentage(usage.analyses_this_month, userPlan.plan.max_analyses_per_month) >= 90 ||
+              getUsagePercentage(usage.articles, userPlan.plan.max_articles) >= 90) && (
+              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-yellow-800">
+                    {t("dashboard.billing.limitWarning")}
+                  </p>
+                  <a
+                    href="/#pricing"
+                    className="text-sm font-semibold text-yellow-800 hover:text-yellow-900"
+                  >
+                    {t("billing.upgradePlan")} →
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 統計情報 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
