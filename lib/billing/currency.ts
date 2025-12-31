@@ -1,14 +1,8 @@
 /**
- * 多通貨対応と固定為替レートの管理
+ * 多通貨対応の管理
  */
 
 export type Currency = 'USD' | 'JPY' | 'EUR' | 'GBP';
-
-export interface ExchangeRates {
-  jpy: number; // 1 USD = 150 JPY
-  eur: number; // 1 USD = 0.85 EUR
-  gbp: number; // 1 USD = 0.80 GBP
-}
 
 export interface StripePriceIds {
   usd?: string;
@@ -16,15 +10,6 @@ export interface StripePriceIds {
   eur?: string;
   gbp?: string;
 }
-
-/**
- * デフォルトの固定為替レート
- */
-export const DEFAULT_EXCHANGE_RATES: ExchangeRates = {
-  jpy: 150.00,
-  eur: 0.85,
-  gbp: 0.80,
-};
 
 /**
  * 通貨コードからロケールを判定
@@ -47,39 +32,6 @@ export function getCurrencyFromLocale(locale: string): Currency {
   
   // デフォルトはUSD
   return 'USD';
-}
-
-/**
- * USD基準の価格を指定通貨に変換（固定為替レート）
- * @param priceUSD USD基準の価格（セント単位）
- * @param currency 変換先の通貨
- * @param exchangeRates 固定為替レート（オプション）
- * @returns 変換後の価格（最小単位、例：JPYは円、EURはセント）
- */
-export function convertPrice(
-  priceUSD: number,
-  currency: Currency,
-  exchangeRates: ExchangeRates = DEFAULT_EXCHANGE_RATES
-): number {
-  if (currency === 'USD') {
-    return priceUSD;
-  }
-
-  const rate = exchangeRates[currency.toLowerCase() as keyof ExchangeRates];
-  if (!rate) {
-    throw new Error(`Exchange rate not found for currency: ${currency}`);
-  }
-
-  // USDセントをUSDドルに変換してから為替レートを掛ける
-  // 例: 2000セント ($20.00) * 150 (JPY/USD) = 3000円
-  // ただし、EUR/GBPはセント単位なので、そのまま掛ける
-  if (currency === 'JPY') {
-    // JPYは円単位なので、USDドルに変換してから為替レートを掛ける
-    return Math.round((priceUSD / 100) * rate);
-  } else {
-    // EUR/GBPはセント単位なので、そのまま為替レートを掛ける
-    return Math.round(priceUSD * rate);
-  }
 }
 
 /**

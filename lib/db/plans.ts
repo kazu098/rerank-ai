@@ -1,14 +1,13 @@
 import { createSupabaseClient } from '@/lib/supabase';
 
-import { Currency, StripePriceIds, ExchangeRates, convertPrice, getStripePriceId } from '@/lib/billing/currency';
+import { Currency, StripePriceIds, getStripePriceId } from '@/lib/billing/currency';
 
 export interface Plan {
   id: string;
   name: string;
   display_name: string;
-  price_monthly: number; // 既存スキーマとの互換性のため残す（使用しない）
-  base_currency: string | null; // 基準通貨（デフォルト: USD）
-  base_price_usd: number | null; // USD基準の価格（セント単位）
+  price_monthly: number; // 既存スキーマとの互換性のため残す（ソート用途のみ）
+  prices: Record<string, number> | null; // 各通貨ごとの価格（JPYは円単位、USD/EUR/GBPはセント単位）
   max_articles: number | null; // NULLは無制限
   max_analyses_per_month: number | null; // NULLは無制限
   max_sites: number | null; // NULLは無制限
@@ -17,20 +16,24 @@ export interface Plan {
   analysis_history_days: number | null; // NULLは無制限
   features: Record<string, any> | null;
   stripe_price_ids: StripePriceIds | null; // 各通貨ごとのStripe Price ID
-  exchange_rates: ExchangeRates | null; // 固定為替レート
   created_at: string;
 }
 
 /**
  * プランの価格を指定通貨で取得
+ * 固定為替レートによる計算をやめ、各通貨ごとに直接設定された価格を使用
  */
 export function getPlanPrice(plan: Plan, currency: Currency): number {
-  if (plan.base_price_usd === null || plan.base_price_usd === undefined) {
-    throw new Error(`Plan ${plan.name} does not have base_price_usd set`);
+  if (!plan.prices) {
+    throw new Error(`Plan ${plan.name} does not have prices set`);
   }
 
-  const exchangeRates = plan.exchange_rates || undefined;
-  return convertPrice(plan.base_price_usd, currency, exchangeRates);
+  const price = plan.prices[currency];
+  if (price === undefined || price === null) {
+    throw new Error(`Plan ${plan.name} does not have price for currency ${currency}`);
+  }
+
+  return price;
 }
 
 /**
