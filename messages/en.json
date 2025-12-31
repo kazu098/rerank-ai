@@ -398,7 +398,10 @@
       "noData": "N/A",
       "noDataDash": "-",
       "slackConnectionRequiredTooltip": "Slack connection is required to enable Slack notifications. Please connect Slack in notification settings",
-      "highlightedArticleMessage": "You can configure notifications for this article"
+      "highlightedArticleMessage": "You can configure notifications for this article",
+      "delete": "Delete",
+      "confirmDelete": "Are you sure you want to delete this article?",
+      "deleteFailed": "Failed to delete article"
     },
     "notifications": {
       "title": "Unread Notifications",

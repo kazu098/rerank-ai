@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { saveAnalysisResult } from "@/lib/db/analysis-results";
 import { saveOrUpdateArticle, getArticleByUrl } from "@/lib/db/articles";
+import { getSitesByUserId } from "@/lib/db/sites";
 import { createSupabaseClient } from "@/lib/supabase";
 import { CompetitorAnalysisSummary } from "@/lib/competitor-analysis";
 
@@ -36,16 +37,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // siteUrlからsiteIdを取得
+    const sites = await getSitesByUserId(session.userId);
+    const normalizedSiteUrl = siteUrl.replace(/\/$/, ""); // 末尾のスラッシュを除去
+    const site = sites.find((s) => {
+      const normalizedDbUrl = s.site_url.replace(/\/$/, "");
+      return normalizedDbUrl === normalizedSiteUrl || 
+             normalizedDbUrl === `https://${normalizedSiteUrl}` ||
+             normalizedDbUrl === normalizedSiteUrl.replace(/^https?:\/\//, "");
+    });
+    
+    if (!site) {
+      return NextResponse.json(
+        { error: "サイトが見つかりません" },
+        { status: 404 }
+      );
+    }
+
     // 記事を取得または作成
     let article = await getArticleByUrl(session.userId, articleUrl);
     
     if (!article) {
-      // 記事が存在しない場合は作成
+      // 記事が存在しない場合は作成（siteIdを設定）
       article = await saveOrUpdateArticle(
         session.userId,
         articleUrl,
-        undefined, // siteIdは後で更新可能
-        undefined, // titleは後で更新可能
+        site.id, // siteIdを設定
+        undefined, // titleは後で取得可能
         analysisResult.prioritizedKeywords.map((kw: { keyword: string; priority: number; impressions: number; clicks: number; position: number }) => kw.keyword)
       );
     }
