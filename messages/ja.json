@@ -399,7 +399,10 @@
       "noData": "N/A",
       "noDataDash": "-",
       "slackConnectionRequiredTooltip": "Slack通知を有効にするには、通知設定でSlack連携が必要です",
-      "highlightedArticleMessage": "この記事の通知設定を行えます"
+      "highlightedArticleMessage": "この記事の通知設定を行えます",
+      "delete": "削除",
+      "confirmDelete": "この記事を削除しますか？",
+      "deleteFailed": "記事の削除に失敗しました"
     },
     "notifications": {
       "title": "未読通知",
