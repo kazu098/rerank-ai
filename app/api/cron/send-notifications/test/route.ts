@@ -6,7 +6,7 @@ import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
-import { isNotificationTime } from "@/lib/timezone-utils";
+import { isNotificationTime, getCurrentTimeInTimezone } from "@/lib/timezone-utils";
 import { updateArticleNotificationSent } from "@/lib/db/articles";
 
 /**
@@ -137,8 +137,20 @@ async function handleRequest(request: NextRequest) {
           // notification_timeは'HH:MM:SS'形式なので、'HH:MM'形式に変換
           const notificationTimeHHMM = notificationTime.substring(0, 5);
 
-          if (!isNotificationTime(userTimezone, notificationTimeHHMM, 5)) {
-            console.log(`[Test Send Notifications Cron] Skipping notification for user ${user.email}: current time (${userTimezone}) is not notification time (${notificationTimeHHMM})`);
+          // 現在時刻を取得してログに出力
+          const currentTimeInTimezone = getCurrentTimeInTimezone(userTimezone);
+          const isTimeMatch = isNotificationTime(userTimezone, notificationTimeHHMM, 5);
+          
+          console.log(`[Test Send Notifications Cron] Notification time check for user ${user.email}:`, {
+            timezone: userTimezone,
+            notificationTime: notificationTimeHHMM,
+            currentTime: currentTimeInTimezone,
+            isTimeMatch,
+            toleranceMinutes: 5,
+          });
+          
+          if (!isTimeMatch) {
+            console.log(`[Test Send Notifications Cron] Skipping notification for user ${user.email}: current time (${currentTimeInTimezone} in ${userTimezone}) is not notification time (${notificationTimeHHMM})`);
             skippedCount++;
             continue;
           }
