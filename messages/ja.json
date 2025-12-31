@@ -480,7 +480,7 @@
       "webhookMethod": "Webhook方式",
       "notRecommended": "非推奨",
       "notificationTime": "通知時刻",
-      "notificationTimeDescription": "毎日この時刻に通知を送信します（時間単位のみ、デフォルト: 午前9時）",
+      "notificationTimeDescription": "毎日この時刻に通知を送信します（時間単位のみ、デフォルト: 午前9時）。システムの負荷状況により、数分前後することがあります。",
       "startMonitoringButton": "通知を開始する",
       "skipButton": "スキップ",
       "saving": "保存中...",
