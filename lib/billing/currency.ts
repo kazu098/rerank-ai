@@ -70,8 +70,16 @@ export function convertPrice(
     throw new Error(`Exchange rate not found for currency: ${currency}`);
   }
 
-  // 四捨五入して整数に変換
-  return Math.round(priceUSD * rate);
+  // USDセントをUSDドルに変換してから為替レートを掛ける
+  // 例: 2000セント ($20.00) * 150 (JPY/USD) = 3000円
+  // ただし、EUR/GBPはセント単位なので、そのまま掛ける
+  if (currency === 'JPY') {
+    // JPYは円単位なので、USDドルに変換してから為替レートを掛ける
+    return Math.round((priceUSD / 100) * rate);
+  } else {
+    // EUR/GBPはセント単位なので、そのまま為替レートを掛ける
+    return Math.round(priceUSD * rate);
+  }
 }
 
 /**

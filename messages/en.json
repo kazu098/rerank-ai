@@ -80,6 +80,24 @@
         "description": "AI analyzes ranking data and proposes improvements based on differences with competitors"
       }
     },
+    "pricing": {
+      "title": "Pricing Plans",
+      "subtitle": "Choose a plan that fits your needs",
+      "currency": "Currency",
+      "popular": "Popular",
+      "startTrial": "7-Day Free Trial",
+      "getStarted": "Get Started",
+      "features": {
+        "analyses": "Monthly Analyses",
+        "articles": "Monitored Articles",
+        "sites": "Connected Sites",
+        "suggestions": "Article Suggestions",
+        "times": " times",
+        "articleUnit": " articles",
+        "siteUnit": " sites",
+        "timesPerMonth": "/month"
+      }
+    },
     "selectProperty": "Select Search Console Property",
     "selectPropertyDescription": "Please select the Search Console property of the site you want to analyze.",
     "analyzeArticle": "Analyze Article",
@@ -256,7 +274,24 @@
     "step3Error": "⚠ Step 3 error: {error}",
     "suggestionGenerationFailed": "Failed to generate suggestions",
     "noKeywordsFound": "Could not retrieve keyword data from Search Console. This site may not have any impressions or clicks yet.",
-    "noGapKeywordsFound": "No keywords were found that could be suggested as new articles. Existing articles may already cover them sufficiently, or the impression count may be low."
+    "noGapKeywordsFound": "No keywords were found that could be suggested as new articles. Existing articles may already cover them sufficiently, or the impression count may be low.",
+    "planNotSet": "Plan is not set",
+    "planNotFound": "Plan not found",
+    "limitExceeded": "Limit for {limitType} ({limit}) has been reached. Please upgrade your plan.",
+    "limitTypeArticles": "Article monitoring",
+    "limitTypeAnalyses": "Monthly analyses",
+    "limitTypeSites": "Sites",
+    "trialExpired": "Trial period has ended. Please upgrade your plan.",
+    "articlesLimitExceeded": "Article monitoring limit reached",
+    "analysesLimitExceeded": "Monthly analysis limit reached",
+    "sitesLimitExceeded": "Site limit reached"
+  },
+  "billing": {
+    "currentUsage": "Current Usage",
+    "upgradePlan": "Upgrade Plan",
+    "unlimited": "Unlimited",
+    "usage": "{current} / {limit}",
+    "limitExceeded": "Limit Reached"
   },
   "notification": {
     "rankDropDetected": "Rank drop detected",
@@ -276,6 +311,26 @@
   "dashboard": {
     "title": "Dashboard",
     "startAnalysis": "Start Analysis",
+    "billing": {
+      "title": "Billing",
+      "currentPlan": "Current Plan",
+      "viewDetails": "View Details",
+      "trialUntil": "Trial until {date}",
+      "nextRenewalDate": "Next renewal: {date}",
+      "analyses": "Monthly Analyses",
+      "articles": "Monitored Articles",
+      "sites": "Connected Sites",
+      "articleSuggestions": "Article Suggestions (This Month)",
+      "usage": "Usage",
+      "changePlan": "Change Plan",
+      "changePlanButton": "Change Plan",
+      "managePlan": "Manage Plan",
+      "unlimited": "Unlimited",
+      "planLoadFailed": "Failed to load plan information",
+      "stripeCustomerIdNotFound": "Stripe Customer ID not found",
+      "customerPortalFailed": "Failed to get customer portal",
+      "limitWarning": "Usage is approaching the limit. We recommend upgrading your plan."
+    },
     "stats": {
       "totalArticles": "Total Articles",
       "monitoringArticles": "Monitoring",
@@ -337,6 +392,7 @@
       "rankDropDetected": "Rank Drop Detected"
     },
     "sidebar": {
+      "billing": "Billing",
       "overview": "Overview",
       "articleAnalysis": "Article Analysis",
       "articleSuggestions": "Article Suggestions",

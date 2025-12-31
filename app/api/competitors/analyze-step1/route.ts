@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { analyzeStep1 } from "@/lib/competitor-analysis-step1";
+import { checkUserPlanLimit, isTrialActive } from "@/lib/billing/plan-limits";
 
 /**
  * Step 1: GSCデータ取得 + キーワード選定 + 時系列データ取得
@@ -8,6 +10,46 @@ import { analyzeStep1 } from "@/lib/competitor-analysis-step1";
  */
 export async function POST(request: NextRequest) {
   try {
+    // 認証チェック
+    const session = await auth();
+    if (!session?.userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // プラン制限をチェック（月間分析回数）
+    const limitCheck = await checkUserPlanLimit(session.userId, "analyses");
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: limitCheck.reason || "errors.analysesLimitExceeded",
+          errorKey: limitCheck.reason || "errors.analysesLimitExceeded",
+          limitExceeded: true,
+          limitType: "analyses",
+          currentUsage: limitCheck.currentUsage,
+          limit: limitCheck.limit,
+          upgradeRequired: true
+        },
+        { status: 403 }
+      );
+    }
+
+    // トライアル期間のチェック
+    const isTrial = await isTrialActive(session.userId);
+    if (!isTrial && !limitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: "errors.trialExpired",
+          errorKey: "errors.trialExpired",
+          trialExpired: true,
+          upgradeRequired: true
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const {
       siteUrl,

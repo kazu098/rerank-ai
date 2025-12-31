@@ -4,6 +4,7 @@ import { saveOrUpdateArticle } from "@/lib/db/articles";
 import { saveOrUpdateNotificationSettings } from "@/lib/db/notification-settings";
 import { getSitesByUserId } from "@/lib/db/sites";
 import { updateUserTimezone } from "@/lib/db/users";
+import { checkUserPlanLimit, isTrialActive } from "@/lib/billing/plan-limits";
 
 /**
  * 記事の監視を開始
@@ -30,6 +31,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Missing required parameters: url, siteUrl, email" },
         { status: 400 }
+      );
+    }
+
+    // プラン制限をチェック（監視記事数）
+    const limitCheck = await checkUserPlanLimit(session.userId, "articles");
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: limitCheck.reason || "errors.articlesLimitExceeded",
+          errorKey: limitCheck.reason || "errors.articlesLimitExceeded",
+          limitExceeded: true,
+          limitType: "articles",
+          currentUsage: limitCheck.currentUsage,
+          limit: limitCheck.limit,
+          upgradeRequired: true
+        },
+        { status: 403 }
+      );
+    }
+
+    // トライアル期間のチェック
+    const isTrial = await isTrialActive(session.userId);
+    if (!isTrial && !limitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: "errors.trialExpired",
+          errorKey: "errors.trialExpired",
+          trialExpired: true,
+          upgradeRequired: true
+        },
+        { status: 403 }
       );
     }
 

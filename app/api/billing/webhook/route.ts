@@ -140,8 +140,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   await updateStripeSubscriptionId(userId, subscription.id);
 
   // ユーザーのプランを更新
-  const planStartedAt = new Date(subscription.current_period_start * 1000);
-  const planEndsAt = new Date(subscription.current_period_end * 1000);
+  const subscriptionData = subscription as any; // Stripe型定義の互換性のため
+  const planStartedAt = new Date(subscriptionData.current_period_start * 1000);
+  const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
 
   await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
 }
@@ -171,8 +172,9 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   }
 
   // ユーザーのプランを更新
-  const planStartedAt = new Date(subscription.current_period_start * 1000);
-  const planEndsAt = new Date(subscription.current_period_end * 1000);
+  const subscriptionData = subscription as any; // Stripe型定義の互換性のため
+  const planStartedAt = new Date(subscriptionData.current_period_start * 1000);
+  const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
 
   await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
 }
@@ -205,7 +207,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   await updateStripeSubscriptionId(userId, null);
 
   // 無料プランに変更（現在の期間の終了日まで有効）
-  const planEndsAt = new Date(subscription.current_period_end * 1000);
+  const subscriptionData = subscription as any; // Stripe型定義の互換性のため
+  const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
   await updateUserPlan(userId, freePlan.id, new Date(), planEndsAt);
 }
 
@@ -213,7 +216,10 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
  * 請求書の支払い成功時の処理
  */
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
-  const subscriptionId = invoice.subscription as string;
+  const invoiceData = invoice as any; // Stripe型定義の互換性のため
+  const subscriptionId = typeof invoiceData.subscription === 'string' 
+    ? invoiceData.subscription 
+    : invoiceData.subscription?.id;
 
   if (!subscriptionId) {
     return;
@@ -229,7 +235,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   }
 
   // プラン期間を更新
-  const planEndsAt = new Date(subscription.current_period_end * 1000);
+  const subscriptionData = subscription as any; // Stripe型定義の互換性のため
+  const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
   const user = await getUserById(userId);
   if (user) {
     await updateUserPlan(user.plan_id!, user.plan_id!, new Date(), planEndsAt);

@@ -6,9 +6,10 @@ import { createSupabaseClient } from "@/lib/supabase";
 
 export interface PlanLimitCheckResult {
   allowed: boolean;
-  reason?: string;
+  reason?: string; // 翻訳キーまたはメッセージ
   currentUsage: number;
   limit: number | null;
+  limitType?: string; // 翻訳時に使用
 }
 
 /**
@@ -22,7 +23,7 @@ export async function checkUserPlanLimit(
   if (!user || !user.plan_id) {
     return {
       allowed: false,
-      reason: "プランが設定されていません",
+      reason: "errors.planNotSet",
       currentUsage: 0,
       limit: null,
     };
@@ -32,7 +33,7 @@ export async function checkUserPlanLimit(
   if (!plan) {
     return {
       allowed: false,
-      reason: "プランが見つかりません",
+      reason: "errors.planNotFound",
       currentUsage: 0,
       limit: null,
     };
@@ -58,14 +59,22 @@ export async function checkUserPlanLimit(
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
       const supabase = createSupabaseClient();
+      // analysis_runsはarticle_id経由でユーザーを特定する必要がある
       const { data: analyses } = await supabase
         .from("analysis_runs")
-        .select("id")
-        .eq("user_id", userId)
+        .select(`
+          id,
+          article:articles!inner(user_id)
+        `)
         .gte("created_at", startOfMonth.toISOString())
         .lte("created_at", endOfMonth.toISOString());
 
-      currentUsage = analyses?.length || 0;
+      // ユーザーIDでフィルタリング
+      const userAnalyses = analyses?.filter(
+        (analysis: any) => analysis.article?.user_id === userId
+      ) || [];
+
+      currentUsage = userAnalyses.length;
       break;
     }
     case "article_suggestions": {
@@ -98,10 +107,11 @@ export async function checkUserPlanLimit(
   return {
     allowed: !exceeded,
     reason: exceeded
-      ? `${limitType}の制限（${limit}）に達しています。プランをアップグレードしてください。`
+      ? "errors.limitExceeded"
       : undefined,
     currentUsage,
     limit,
+    limitType, // 翻訳時に使用するため追加
   };
 }
 

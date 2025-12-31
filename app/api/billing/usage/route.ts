@@ -32,16 +32,24 @@ export async function GET(request: NextRequest) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
+    // analysis_runsはarticle_id経由でユーザーを特定する必要がある
     const { data: analyses, error: analysesError } = await supabase
       .from("analysis_runs")
-      .select("id")
-      .eq("user_id", session.userId)
+      .select(`
+        id,
+        article:articles!inner(user_id)
+      `)
       .gte("created_at", startOfMonth.toISOString())
       .lte("created_at", endOfMonth.toISOString());
 
     if (analysesError) {
       console.error("[Usage API] Error fetching analyses:", analysesError);
     }
+
+    // ユーザーIDでフィルタリング
+    const userAnalyses = analyses?.filter(
+      (analysis: any) => analysis.article?.user_id === session.userId
+    ) || [];
 
     // 今月の新規記事提案回数を取得
     const { data: suggestions, error: suggestionsError } = await supabase
@@ -57,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     const usage = {
       articles: monitoringArticles.length,
-      analyses_this_month: analyses?.length || 0,
+      analyses_this_month: userAnalyses.length,
       sites: sites.length,
       article_suggestions_this_month: suggestions?.length || 0,
     };

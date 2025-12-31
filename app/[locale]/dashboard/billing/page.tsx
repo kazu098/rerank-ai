@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "@/src/i18n/routing";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface Plan {
@@ -39,6 +39,7 @@ export default function BillingPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const locale = useLocale();
+  const t = useTranslations("dashboard.billing");
   const [userPlan, setUserPlan] = useState<UserPlan | null>(null);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +82,7 @@ export default function BillingPage() {
 
   const handleManageSubscription = async () => {
     if (!userPlan?.stripe_customer_id) {
-      alert("Stripe Customer IDが見つかりません");
+      alert(t("stripeCustomerIdNotFound"));
       return;
     }
 
@@ -98,16 +99,16 @@ export default function BillingPage() {
         }
       } else {
         const error = await response.json();
-        alert(error.message || "カスタマーポータルの取得に失敗しました");
+        alert(error.message || t("customerPortalFailed"));
       }
     } catch (error) {
       console.error("Failed to get customer portal:", error);
-      alert("カスタマーポータルの取得に失敗しました");
+      alert(t("customerPortalFailed"));
     }
   };
 
   const formatLimit = (limit: number | null): string => {
-    if (limit === null) return "無制限";
+    if (limit === null) return t("unlimited");
     return limit.toString();
   };
 
@@ -123,23 +124,37 @@ export default function BillingPage() {
     return Math.min((current / limit) * 100, 100);
   };
 
+  const getProgressBarColor = (percentage: number): string => {
+    if (percentage >= 100) {
+      return "bg-red-400"; // 100%に達した場合：柔らかい赤
+    } else if (percentage >= 90) {
+      return "bg-orange-500"; // 90-99%：オレンジ（警告）
+    } else if (percentage >= 70) {
+      return "bg-yellow-500"; // 70-89%：黄色（注意）
+    } else {
+      return "bg-blue-600"; // 0-69%：青（正常）
+    }
+  };
+
   const isTrialActive = (): boolean => {
     if (!userPlan?.trial_ends_at) return false;
     return new Date(userPlan.trial_ends_at) > new Date();
   };
 
+  const tCommon = useTranslations("common");
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">読み込み中...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">{tCommon("loading")}</div>
       </div>
     );
   }
 
   if (!userPlan) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">プラン情報の取得に失敗しました</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">{t("planLoadFailed")}</div>
       </div>
     );
   }
@@ -148,27 +163,27 @@ export default function BillingPage() {
   const isTrial = isTrialActive();
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
+    <div className="min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">課金管理</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t("title")}</h1>
 
         {/* 現在のプラン */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">現在のプラン</h2>
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("currentPlan")}</h2>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold">{currentPlan.display_name}</div>
-              <div className="text-gray-400 mt-1">
+              <div className="text-2xl font-bold text-gray-900">{currentPlan.display_name}</div>
+              <div className="text-gray-600 mt-1">
                 {formatPrice(currentPlan.price_monthly)}/月
               </div>
               {isTrial && userPlan.trial_ends_at && (
-                <div className="text-yellow-400 mt-2">
-                  トライアル期間: {new Date(userPlan.trial_ends_at).toLocaleDateString("ja-JP")}まで
+                <div className="text-yellow-600 mt-2">
+                  {t("trialUntil", { date: new Date(userPlan.trial_ends_at).toLocaleDateString(locale) })}
                 </div>
               )}
               {userPlan.plan_ends_at && !isTrial && (
-                <div className="text-gray-400 mt-2">
-                  次回更新日: {new Date(userPlan.plan_ends_at).toLocaleDateString("ja-JP")}
+                <div className="text-gray-600 mt-2">
+                  {t("nextRenewalDate", { date: new Date(userPlan.plan_ends_at).toLocaleDateString(locale) })}
                 </div>
               )}
             </div>
@@ -177,7 +192,7 @@ export default function BillingPage() {
                 onClick={handleManageSubscription}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
               >
-                プランを管理
+                {t("managePlan")}
               </button>
             )}
           </div>
@@ -185,20 +200,22 @@ export default function BillingPage() {
 
         {/* 使用状況 */}
         {usage && (
-          <div className="bg-gray-800 rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4">使用状況</h2>
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("usage")}</h2>
             <div className="space-y-4">
               {/* 分析回数 */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span>月間分析回数</span>
-                  <span>
+                  <span className="text-gray-700">{t("analyses")}</span>
+                  <span className="text-gray-900 font-semibold">
                     {usage.analyses_this_month} / {formatLimit(currentPlan.max_analyses_per_month)}
                   </span>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
+                      getUsagePercentage(usage.analyses_this_month, currentPlan.max_analyses_per_month)
+                    )}`}
                     style={{
                       width: `${getUsagePercentage(
                         usage.analyses_this_month,
@@ -212,14 +229,16 @@ export default function BillingPage() {
               {/* 監視記事数 */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span>監視記事数</span>
-                  <span>
+                  <span className="text-gray-700">{t("articles")}</span>
+                  <span className="text-gray-900 font-semibold">
                     {usage.articles} / {formatLimit(currentPlan.max_articles)}
                   </span>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
+                      getUsagePercentage(usage.articles, currentPlan.max_articles)
+                    )}`}
                     style={{
                       width: `${getUsagePercentage(usage.articles, currentPlan.max_articles)}%`,
                     }}
@@ -227,17 +246,19 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              {/* GSC連携サイト数 */}
+              {/* 連携サイト数 */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span>GSC連携サイト数</span>
-                  <span>
+                  <span className="text-gray-700">{t("sites")}</span>
+                  <span className="text-gray-900 font-semibold">
                     {usage.sites} / {formatLimit(currentPlan.max_sites)}
                   </span>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
+                      getUsagePercentage(usage.sites, currentPlan.max_sites)
+                    )}`}
                     style={{
                       width: `${getUsagePercentage(usage.sites, currentPlan.max_sites)}%`,
                     }}
@@ -248,15 +269,20 @@ export default function BillingPage() {
               {/* 新規記事提案 */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span>新規記事提案（今月）</span>
-                  <span>
+                  <span className="text-gray-700">{t("articleSuggestions")}</span>
+                  <span className="text-gray-900 font-semibold">
                     {usage.article_suggestions_this_month} /{" "}
                     {formatLimit(currentPlan.max_article_suggestions_per_month)}
                   </span>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
+                      getUsagePercentage(
+                        usage.article_suggestions_this_month,
+                        currentPlan.max_article_suggestions_per_month
+                      )
+                    )}`}
                     style={{
                       width: `${getUsagePercentage(
                         usage.article_suggestions_this_month,
@@ -272,27 +298,36 @@ export default function BillingPage() {
 
         {/* プラン変更 */}
         {allPlans.length > 0 && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">プランを変更</h2>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("changePlan")}</h2>
             <div className="space-y-4">
               {allPlans
                 .filter((plan) => plan.name !== "free" && plan.name !== currentPlan.name)
                 .map((plan) => (
                   <div
                     key={plan.id}
-                    className="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
                   >
                     <div>
-                      <div className="font-semibold">{plan.display_name}</div>
-                      <div className="text-gray-400 text-sm">
+                      <div className="font-semibold text-gray-900">{plan.display_name}</div>
+                      <div className="text-gray-600 text-sm">
                         {formatPrice(plan.price_monthly)}/月
                       </div>
                     </div>
                     <button
-                      onClick={() => router.push(`/${locale}/pricing`)}
+                      onClick={() => {
+                        router.push("/#pricing");
+                        // ページ遷移後にスクロール
+                        setTimeout(() => {
+                          const element = document.getElementById("pricing");
+                          if (element) {
+                            element.scrollIntoView({ behavior: "smooth" });
+                          }
+                        }, 100);
+                      }}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
                     >
-                      プランを変更
+                      {t("changePlanButton")}
                     </button>
                   </div>
                 ))}
