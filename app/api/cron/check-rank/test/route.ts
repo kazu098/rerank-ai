@@ -276,16 +276,66 @@ async function handleRequest(request: NextRequest) {
               `[Test Cron] GSC API authentication error for site ${site.id}, article ${article.id}:`,
               errorMessage
             );
-            console.error(
-              `[Test Cron] Token may be expired or invalid. Skipping article ${article.id}. User should re-authenticate.`
-            );
-            checkResults.push({
-              articleId: article.id,
-              articleUrl: article.url,
-              shouldNotify: false,
-              reason: "GSC API authentication error (token expired or invalid)",
-              details: { error: errorMessage, siteId: site.id },
-            });
+            
+            // 401エラーの場合、リフレッシュトークンによる自動更新を試みる
+            if (refreshToken) {
+              console.log(`[Test Cron] Attempting to refresh GSC access token for site ${site.id} after 401 error...`);
+              try {
+                const refreshGscClient = new GSCApiClient(accessToken);
+                const refreshed = await refreshGscClient.refreshAccessToken(refreshToken);
+                
+                // トークンをDBに更新
+                await updateSiteTokens(
+                  site.id,
+                  refreshed.accessToken,
+                  refreshed.refreshToken || refreshToken,
+                  refreshed.expiresAt
+                );
+                
+                console.log(`[Test Cron] Successfully refreshed GSC access token for site ${site.id} after 401 error`);
+                
+                // リフレッシュしたトークンで再試行
+                const newGscClient = new GSCApiClient(refreshed.accessToken);
+                const retryChecker = new NotificationChecker(newGscClient);
+                checkResult = await retryChecker.checkNotificationNeeded(
+                  article.user_id,
+                  article.id,
+                  site.site_url,
+                  article.url
+                );
+                
+                // 再試行が成功した場合は、通常の処理フローに戻る
+                console.log(`[Test Cron] Retry successful after token refresh for article ${article.id}`);
+              } catch (refreshError: any) {
+                console.error(
+                  `[Test Cron] Failed to refresh GSC access token for site ${site.id} after 401 error:`,
+                  refreshError.message
+                );
+                console.error(
+                  `[Test Cron] Token may be expired or invalid. Skipping article ${article.id}. User should re-authenticate.`
+                );
+                checkResults.push({
+                  articleId: article.id,
+                  articleUrl: article.url,
+                  shouldNotify: false,
+                  reason: "GSC API authentication error (token expired or invalid, refresh failed)",
+                  details: { error: errorMessage, refreshError: refreshError.message, siteId: site.id },
+                });
+                continue;
+              }
+            } else {
+              console.error(
+                `[Test Cron] No refresh token available. Skipping article ${article.id}. User should re-authenticate.`
+              );
+              checkResults.push({
+                articleId: article.id,
+                articleUrl: article.url,
+                shouldNotify: false,
+                reason: "GSC API authentication error (token expired or invalid, no refresh token)",
+                details: { error: errorMessage, siteId: site.id },
+              });
+              continue;
+            }
           } else {
             console.error(
               `[Test Cron] GSC API error for site ${site.id}, article ${article.id}:`,
@@ -298,8 +348,8 @@ async function handleRequest(request: NextRequest) {
               reason: "GSC API error",
               details: { error: errorMessage, siteId: site.id },
             });
+            continue;
           }
-          continue;
         }
 
         console.log(`[Test Cron] Notification check result for article ${article.id}:`, {
