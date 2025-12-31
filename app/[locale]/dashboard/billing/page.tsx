@@ -59,7 +59,6 @@ export default function BillingPage() {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
-  const [changingPlan, setChangingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (session?.userId) {
