@@ -58,6 +58,8 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  const [changingPlan, setChangingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (session?.userId) {
@@ -124,6 +126,43 @@ export default function BillingPage() {
     } catch (error) {
       console.error("Failed to get customer portal:", error);
       alert(t("customerPortalFailed"));
+    }
+  };
+
+  const handleChangePlan = async (planName: string, prorationBehavior: 'always' | 'none' = 'always') => {
+    if (!userPlan?.stripe_subscription_id) {
+      alert(t("noActiveSubscription"));
+      return;
+    }
+
+    setChangingPlan(planName);
+    try {
+      const response = await fetch("/api/billing/subscription/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planName,
+          prorationBehavior,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || t("planChangeFailed"));
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        alert(t("planChangeSuccess"));
+        // データを再取得
+        await fetchBillingData();
+      }
+    } catch (error: any) {
+      console.error("Failed to change plan:", error);
+      alert(t("planChangeFailed"));
+    } finally {
+      setChangingPlan(null);
     }
   };
 
@@ -334,21 +373,25 @@ export default function BillingPage() {
                         {formatPrice(plan.price_monthly)}/月
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        router.push("/#pricing");
-                        // ページ遷移後にスクロール
-                        setTimeout(() => {
-                          const element = document.getElementById("pricing");
-                          if (element) {
-                            element.scrollIntoView({ behavior: "smooth" });
-                          }
-                        }, 100);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
-                    >
-                      {t("changePlanButton")}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleChangePlan(plan.name, 'always')}
+                        disabled={changingPlan === plan.name}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {changingPlan === plan.name ? t("changing") : t("changePlanButton")}
+                      </button>
+                      {plan.price_monthly > (currentPlan.price_monthly || 0) && (
+                        <button
+                          onClick={() => handleChangePlan(plan.name, 'none')}
+                          disabled={changingPlan === plan.name}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={t("changeAtPeriodEnd")}
+                        >
+                          {t("changeAtPeriodEndShort")}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
             </div>
