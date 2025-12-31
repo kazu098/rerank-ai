@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
+import { useRouter } from "@/src/i18n/routing";
 import { CheckIcon } from "@heroicons/react/24/outline";
 import { Currency, getCurrencyFromLocale, formatPrice, isValidCurrency } from "@/lib/billing/currency";
 import { Plan, getPlanPrice } from "@/lib/db/plans";
@@ -10,9 +12,12 @@ import { useLocale } from "next-intl";
 export function PricingSection() {
   const t = useTranslations();
   const locale = useLocale();
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(() => getCurrencyFromLocale(locale));
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -31,6 +36,44 @@ export function PricingSection() {
     };
     fetchPlans();
   }, []);
+
+  const handlePlanSelect = async (planName: string) => {
+    // 未ログイン時はログインに誘導
+    if (status !== "authenticated") {
+      router.push(`/${locale}?signin=true`);
+      return;
+    }
+
+    setProcessingPlan(planName);
+    try {
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planName,
+          currency: selectedCurrency,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || t("errors.checkoutFailed"));
+        return;
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      alert(t("errors.checkoutFailed"));
+    } finally {
+      setProcessingPlan(null);
+    }
+  };
 
   return (
     <section id="pricing" className="py-20 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-20">
@@ -129,19 +172,21 @@ export function PricingSection() {
                     {/* CTAボタン */}
                     <div className="mt-8">
                       {plan.name === "starter" ? (
-                        <a
-                          href="#pricing"
-                          className="block w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors text-center mb-2"
+                        <button
+                          onClick={() => handlePlanSelect(plan.name)}
+                          disabled={processingPlan === plan.name || loadingPlans}
+                          className="block w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors text-center mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {t("home.pricing.startTrial")}
-                        </a>
+                          {processingPlan === plan.name ? t("common.loading") : t("home.pricing.startTrial")}
+                        </button>
                       ) : null}
-                      <a
-                        href="#pricing"
-                        className="block w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors text-center"
+                      <button
+                        onClick={() => handlePlanSelect(plan.name)}
+                        disabled={processingPlan === plan.name || loadingPlans}
+                        className="block w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {t("home.pricing.getStarted")}
-                      </a>
+                        {processingPlan === plan.name ? t("common.loading") : t("home.pricing.getStarted")}
+                      </button>
                     </div>
                   </div>
                 );
