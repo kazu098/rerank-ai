@@ -19,6 +19,16 @@ export async function checkUserPlanLimit(
   userId: string,
   limitType: "articles" | "analyses" | "sites" | "concurrent_analyses" | "article_suggestions"
 ): Promise<PlanLimitCheckResult> {
+  // プラン制限を一時的に無効化（リリース前の開発用）
+  // 環境変数 ENABLE_PLAN_LIMITS=true で有効化可能（デフォルトは無効）
+  if (process.env.ENABLE_PLAN_LIMITS !== 'true') {
+    return {
+      allowed: true,
+      currentUsage: 0,
+      limit: null,
+    };
+  }
+
   const user = await getUserById(userId);
   if (!user || !user.plan_id) {
     return {
