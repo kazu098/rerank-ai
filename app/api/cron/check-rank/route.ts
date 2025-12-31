@@ -6,7 +6,6 @@ import { getSitesByUserId, updateSiteTokens, updateSiteAuthError } from "@/lib/d
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
-import { createSupabaseClient } from "@/lib/supabase";
 import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
