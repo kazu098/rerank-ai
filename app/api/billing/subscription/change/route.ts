@@ -121,12 +121,15 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Stripe型定義の互換性のため
+    const subscriptionData = updatedSubscription as any;
+
     return NextResponse.json({
       success: true,
       subscription: {
         id: updatedSubscription.id,
         status: updatedSubscription.status,
-        currentPeriodEnd: updatedSubscription.current_period_end,
+        currentPeriodEnd: subscriptionData.current_period_end,
       },
     });
   } catch (error: any) {
