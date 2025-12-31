@@ -289,10 +289,10 @@ export function formatSlackBulkNotification(
     // 順位を小数第2位で四捨五入してから差を計算
     const roundedFrom = Math.round(article.averagePositionChange.from * 10) / 10;
     const roundedTo = Math.round(article.averagePositionChange.to * 10) / 10;
-    const roundedChange = roundedFrom - roundedTo; // 順位上昇の場合は負の値、下落の場合は正の値
+    const roundedChange = roundedFrom - roundedTo; // 順位上昇の場合は正の値（例: 3.6→3.5 = 0.1）、下落の場合は負の値（例: 3.5→4.0 = -0.5）
     
-    // 順位上昇の場合はマイナス表示、下落の場合はプラス表示
-    const changeDisplay = isRise ? roundedChange.toFixed(1) : `+${roundedChange.toFixed(1)}`;
+    // 順位上昇の場合はマイナス表示（順位が小さくなる = 改善）、下落の場合はプラス表示（順位が大きくなる = 悪化）
+    const changeDisplay = isRise ? `-${roundedChange.toFixed(1)}` : `+${Math.abs(roundedChange).toFixed(1)}`;
     
     blocks.push({
       type: 'section',
