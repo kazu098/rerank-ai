@@ -284,7 +284,8 @@
     "trialExpired": "Trial period has ended. Please upgrade your plan.",
     "articlesLimitExceeded": "Article monitoring limit reached",
     "analysesLimitExceeded": "Monthly analysis limit reached",
-    "sitesLimitExceeded": "Site limit reached"
+    "sitesLimitExceeded": "Site limit reached",
+    "checkoutFailed": "Checkout failed"
   },
   "billing": {
     "currentUsage": "Current Usage",
@@ -329,7 +330,14 @@
       "planLoadFailed": "Failed to load plan information",
       "stripeCustomerIdNotFound": "Stripe Customer ID not found",
       "customerPortalFailed": "Failed to get customer portal",
-      "limitWarning": "Usage is approaching the limit. We recommend upgrading your plan."
+      "limitWarning": "Usage is approaching the limit. We recommend upgrading your plan.",
+      "invoiceHistory": "Invoice History",
+      "viewInvoice": "View Invoice",
+      "invoiceStatus": {
+        "paid": "Paid",
+        "open": "Open",
+        "void": "Void"
+      }
     },
     "stats": {
       "totalArticles": "Total Articles",

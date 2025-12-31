@@ -35,6 +35,19 @@ interface Usage {
   article_suggestions_this_month: number;
 }
 
+interface Invoice {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created: number;
+  periodStart: number;
+  periodEnd: number;
+  hostedInvoiceUrl: string | null;
+  invoicePdf: string | null;
+  description: string;
+}
+
 export default function BillingPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -44,6 +57,7 @@ export default function BillingPage() {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [loading, setLoading] = useState(true);
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
     if (session?.userId) {
@@ -53,10 +67,11 @@ export default function BillingPage() {
 
   const fetchBillingData = async () => {
     try {
-      const [userResponse, usageResponse, plansResponse] = await Promise.all([
+      const [userResponse, usageResponse, plansResponse, invoicesResponse] = await Promise.all([
         fetch("/api/users/me"),
         fetch("/api/billing/usage"),
         fetch("/api/plans"),
+        fetch("/api/billing/invoices"),
       ]);
 
       if (userResponse.ok) {
@@ -72,6 +87,11 @@ export default function BillingPage() {
       if (plansResponse.ok) {
         const plansData = await plansResponse.json();
         setAllPlans(plansData.plans || []);
+      }
+
+      if (invoicesResponse.ok) {
+        const invoicesData = await invoicesResponse.json();
+        setInvoices(invoicesData.invoices || []);
       }
     } catch (error) {
       console.error("Failed to fetch billing data:", error);
@@ -331,6 +351,76 @@ export default function BillingPage() {
                     </button>
                   </div>
                 ))}
+            </div>
+          </div>
+        )}
+
+        {/* 請求履歴 */}
+        {invoices.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("invoiceHistory")}</h2>
+            <div className="space-y-3">
+              {invoices.map((invoice) => (
+                <div
+                  key={invoice.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="font-semibold text-gray-900">
+                        {formatPrice(invoice.amount / 100)} {invoice.currency.toUpperCase()}
+                      </span>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          invoice.status === "paid"
+                            ? "bg-green-100 text-green-800"
+                            : invoice.status === "open"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {invoice.status === "paid"
+                          ? t("invoiceStatus.paid")
+                          : invoice.status === "open"
+                          ? t("invoiceStatus.open")
+                          : t("invoiceStatus.void")}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {new Date(invoice.created * 1000).toLocaleDateString(locale, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </div>
+                    {invoice.description && (
+                      <div className="text-xs text-gray-500 mt-1">{invoice.description}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {invoice.hostedInvoiceUrl && (
+                      <a
+                        href={invoice.hostedInvoiceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
+                      >
+                        {t("viewInvoice")}
+                      </a>
+                    )}
+                    {invoice.invoicePdf && (
+                      <a
+                        href={invoice.invoicePdf}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-600 hover:text-gray-700 text-sm"
+                      >
+                        PDF
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
