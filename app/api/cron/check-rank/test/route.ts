@@ -7,6 +7,7 @@ import { getUserById } from "@/lib/db/users";
 import { BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
+import { getUserAlertSettings } from "@/lib/db/alert-settings";
 
 /**
  * テスト用: 順位下落チェックを手動実行
