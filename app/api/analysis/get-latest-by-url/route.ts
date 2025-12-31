@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 詳細データを取得
-    let detailedData = null;
+    let detailedData: {
+      semanticDiffAnalysis?: any;
+      aiSEOAnalysis?: any;
+    } | null = null;
     if (latestAnalysis.detailed_result_storage_key) {
       detailedData = await getDetailedAnalysisData(
         latestAnalysis.id,

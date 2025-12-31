@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "@/src/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
+import { getBrowserTimezone } from "@/lib/timezone-utils";
 
 interface UserSettings {
   locale: string;
@@ -325,11 +326,14 @@ export default function SettingsPage() {
               onClick={async () => {
                 try {
                   const timeValue = notificationTime + ":00";
+                  // 現在のユーザーのタイムゾーンを取得（user_alert_settings.timezoneがnullの場合に使用）
+                  const userTimezone = settings.timezone || getBrowserTimezone();
                   const response = await fetch("/api/alert-settings", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       notification_time: timeValue,
+                      timezone: userTimezone, // タイムゾーンも一緒に保存
                     }),
                   });
                   if (response.ok) {
