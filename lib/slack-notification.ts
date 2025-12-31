@@ -145,10 +145,17 @@ export function formatSlackRankDropNotification(
   const t = messages[locale];
 
   // キーワードごとの順位変化をフォーマット
-  const keywordFields = keywords.slice(0, 10).map((kw) => ({
-    type: 'mrkdwn',
-    text: `*${kw.keyword}*\n${kw.from}位 → ${kw.to}位 (${kw.change > 0 ? '+' : ''}${kw.change}位)`,
-  }));
+  // 順位を小数第2位で四捨五入してから差を計算
+  const keywordFields = keywords.slice(0, 10).map((kw) => {
+    const roundedFrom = Math.round(kw.from * 10) / 10;
+    const roundedTo = Math.round(kw.to * 10) / 10;
+    const roundedChange = roundedFrom - roundedTo; // 順位上昇の場合は負の値、下落の場合は正の値
+    const changeDisplay = roundedChange >= 0 ? `+${roundedChange.toFixed(1)}` : roundedChange.toFixed(1);
+    return {
+      type: 'mrkdwn',
+      text: `*${kw.keyword}*\n${roundedFrom.toFixed(1)}位 → ${roundedTo.toFixed(1)}位 (${changeDisplay}位)`,
+    };
+  });
 
   const blocks = [
     {
@@ -167,7 +174,14 @@ export function formatSlackRankDropNotification(
         },
         {
           type: 'mrkdwn',
-          text: `*${t.averagePosition}*\n${averagePositionChange.from.toFixed(1)}位 → ${averagePositionChange.to.toFixed(1)}位 (${averagePositionChange.change > 0 ? '+' : ''}${averagePositionChange.change.toFixed(1)}位)`,
+          text: (() => {
+            // 順位を小数第2位で四捨五入してから差を計算
+            const roundedFrom = Math.round(averagePositionChange.from * 10) / 10;
+            const roundedTo = Math.round(averagePositionChange.to * 10) / 10;
+            const roundedChange = roundedFrom - roundedTo; // 順位上昇の場合は負の値、下落の場合は正の値
+            const changeDisplay = roundedChange >= 0 ? `+${roundedChange.toFixed(1)}` : roundedChange.toFixed(1);
+            return `*${t.averagePosition}*\n${roundedFrom.toFixed(1)}位 → ${roundedTo.toFixed(1)}位 (${changeDisplay}位)`;
+          })(),
         },
       ],
     },
@@ -272,6 +286,14 @@ export function formatSlackBulkNotification(
           : `${appUrl}/${locale}/dashboard/articles/${article.articleId}?analyze=true`)
       : article.url;
     
+    // 順位を小数第2位で四捨五入してから差を計算
+    const roundedFrom = Math.round(article.averagePositionChange.from * 10) / 10;
+    const roundedTo = Math.round(article.averagePositionChange.to * 10) / 10;
+    const roundedChange = roundedFrom - roundedTo; // 順位上昇の場合は負の値、下落の場合は正の値
+    
+    // 順位上昇の場合はマイナス表示、下落の場合はプラス表示
+    const changeDisplay = isRise ? roundedChange.toFixed(1) : `+${roundedChange.toFixed(1)}`;
+    
     blocks.push({
       type: 'section',
       fields: [
@@ -281,7 +303,7 @@ export function formatSlackBulkNotification(
         },
         {
           type: 'mrkdwn',
-          text: `*${t.averagePosition}*\n${article.averagePositionChange.from.toFixed(1)}位 → ${article.averagePositionChange.to.toFixed(1)}位 (${article.averagePositionChange.change > 0 ? '+' : ''}${article.averagePositionChange.change.toFixed(1)}位)`,
+          text: `*${t.averagePosition}*\n${roundedFrom.toFixed(1)}位 → ${roundedTo.toFixed(1)}位 (${changeDisplay}位)`,
         },
       ],
     } as any);
