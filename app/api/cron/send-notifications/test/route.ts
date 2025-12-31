@@ -162,6 +162,15 @@ async function handleRequest(request: NextRequest) {
         // 通知をメール通知とSlack通知に分類
         const emailNotifications = notifications.filter((n) => n.channel === "email");
         const slackNotifications = notifications.filter((n) => n.channel === "slack");
+        
+        console.log(`[Test Send Notifications Cron] Notification breakdown for user ${user.email}:`, {
+          totalNotifications: notifications.length,
+          emailNotifications: emailNotifications.length,
+          slackNotifications: slackNotifications.length,
+          hasSlackSettings: !!(notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id),
+          slackBotTokenExists: !!notificationSettings?.slack_bot_token,
+          slackChannelId: notificationSettings?.slack_channel_id,
+        });
 
         // メール通知を送信
         if (emailNotifications.length > 0) {

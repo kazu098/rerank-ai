@@ -638,5 +638,176 @@ export class NotificationService {
 
     return html;
   }
+
+  /**
+   * GSC認証エラー（リフレッシュトークン無効）をメールで通知
+   */
+  async sendAuthErrorNotification(
+    to: string,
+    siteUrl: string,
+    locale: "ja" | "en" = "ja"
+  ): Promise<void> {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn("[Notification] RESEND_API_KEY is not set, skipping email notification");
+      return;
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "https://rerank-ai.com";
+    const dashboardUrl = `${baseUrl}/${locale}/dashboard`;
+
+    const subject = locale === "ja"
+      ? "【ReRank AI】Google Search Consoleの認証が必要です"
+      : "[ReRank AI] Google Search Console authentication required";
+
+    const html = locale === "ja"
+      ? this.formatAuthErrorEmailBodyJa(siteUrl, dashboardUrl)
+      : this.formatAuthErrorEmailBodyEn(siteUrl, dashboardUrl);
+
+    try {
+      const { data, error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "ReRank AI <noreply@rerank.ai>",
+        to: [to],
+        subject,
+        html,
+      });
+
+      if (error) {
+        console.error("[Notification] Failed to send auth error email:", error);
+        throw new Error(`Failed to send email: ${error.message}`);
+      }
+
+      console.log("[Notification] Auth error email sent successfully:", data);
+    } catch (error: any) {
+      console.error("[Notification] Error sending auth error email:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * 認証エラーメール本文（日本語）
+   */
+  private formatAuthErrorEmailBodyJa(siteUrl: string, dashboardUrl: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #EF4444; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+          .section { background: white; padding: 16px; margin-bottom: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
+          .alert { background: #FEF2F2; border-left: 4px solid #EF4444; padding: 16px; margin-bottom: 16px; border-radius: 4px; }
+          .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 16px; }
+          .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">⚠️ ReRank AI - 認証が必要です</h1>
+          </div>
+          <div class="content">
+            <div class="alert">
+              <p style="margin: 0; font-weight: bold; color: #991B1B;">
+                Google Search Consoleの認証が期限切れになりました
+              </p>
+            </div>
+            <div class="section">
+              <h2 style="margin-top: 0;">定期監視が停止しています</h2>
+              <p>
+                以下のサイトの定期監視が停止しています。Google Search Consoleの再認証が必要です。
+              </p>
+              <p style="background: #f3f4f6; padding: 12px; border-radius: 4px; font-family: monospace;">
+                ${siteUrl}
+              </p>
+              <p>
+                再認証を行わないと、順位変動の通知が届かなくなります。
+              </p>
+              <a href="${dashboardUrl}" class="button">ダッシュボードで再認証する</a>
+            </div>
+            <div class="section">
+              <h3 style="margin-top: 0;">再認証の手順</h3>
+              <ol>
+                <li>ダッシュボードにアクセス</li>
+                <li>右上のユーザーアイコンから「ログアウト」をクリック</li>
+                <li>再度「Googleでログイン」をクリック</li>
+                <li>サイトを再選択してください</li>
+              </ol>
+            </div>
+          </div>
+          <div class="footer">
+            <p>ReRank AI - 順位下落の防止から上位への引き上げまで</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  /**
+   * 認証エラーメール本文（英語）
+   */
+  private formatAuthErrorEmailBodyEn(siteUrl: string, dashboardUrl: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #EF4444; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+          .section { background: white; padding: 16px; margin-bottom: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
+          .alert { background: #FEF2F2; border-left: 4px solid #EF4444; padding: 16px; margin-bottom: 16px; border-radius: 4px; }
+          .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 16px; }
+          .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">⚠️ ReRank AI - Authentication Required</h1>
+          </div>
+          <div class="content">
+            <div class="alert">
+              <p style="margin: 0; font-weight: bold; color: #991B1B;">
+                Google Search Console authentication has expired
+              </p>
+            </div>
+            <div class="section">
+              <h2 style="margin-top: 0;">Regular monitoring has stopped</h2>
+              <p>
+                Regular monitoring for the following site has stopped. Google Search Console re-authentication is required.
+              </p>
+              <p style="background: #f3f4f6; padding: 12px; border-radius: 4px; font-family: monospace;">
+                ${siteUrl}
+              </p>
+              <p>
+                Without re-authentication, you will not receive rank change notifications.
+              </p>
+              <a href="${dashboardUrl}" class="button">Re-authenticate in Dashboard</a>
+            </div>
+            <div class="section">
+              <h3 style="margin-top: 0;">Re-authentication Steps</h3>
+              <ol>
+                <li>Access the dashboard</li>
+                <li>Click "Logout" from the user icon in the top right</li>
+                <li>Click "Sign in with Google" again</li>
+                <li>Re-select your site</li>
+              </ol>
+            </div>
+          </div>
+          <div class="footer">
+            <p>ReRank AI - From preventing ranking drops to boosting rankings</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
 }
 
