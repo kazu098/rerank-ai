@@ -37,6 +37,7 @@ export interface Site {
   gsc_access_token: string | null;
   gsc_refresh_token: string | null;
   gsc_token_expires_at: string | null;
+  auth_error_at: string | null; // 認証エラーが発生した時刻（24時間以内の重複通知を防ぐため）
   is_active: boolean;
   is_trial: boolean;
   created_at: string;
@@ -202,7 +203,8 @@ export async function updateSiteTokens(
   siteId: string,
   accessToken: string,
   refreshToken: string | null,
-  expiresAt: Date
+  expiresAt: Date,
+  clearAuthError: boolean = true
 ): Promise<void> {
   const supabase = createSupabaseClient();
 
@@ -211,6 +213,7 @@ export async function updateSiteTokens(
     gsc_refresh_token?: string | null;
     gsc_token_expires_at: string;
     updated_at: string;
+    auth_error_at?: string | null;
   } = {
     gsc_access_token: accessToken,
     gsc_token_expires_at: expiresAt.toISOString(),
@@ -222,6 +225,11 @@ export async function updateSiteTokens(
     updateData.gsc_refresh_token = refreshToken;
   }
 
+  // 認証エラーをクリア（再認証が成功した場合）
+  if (clearAuthError) {
+    updateData.auth_error_at = null;
+  }
+
   const { error } = await supabase
     .from('sites')
     .update(updateData)
@@ -229,6 +237,25 @@ export async function updateSiteTokens(
 
   if (error) {
     throw new Error(`Failed to update site tokens: ${error.message}`);
+  }
+}
+
+/**
+ * サイトの認証エラー時刻を更新
+ */
+export async function updateSiteAuthError(siteId: string): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const { error } = await supabase
+    .from('sites')
+    .update({
+      auth_error_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', siteId);
+
+  if (error) {
+    throw new Error(`Failed to update site auth error: ${error.message}`);
   }
 }
 

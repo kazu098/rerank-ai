@@ -4,10 +4,12 @@ import { NotificationChecker } from "@/lib/notification-checker";
 import { getMonitoringArticles, updateArticleNotificationSent, updateArticleAnalysis } from "@/lib/db/articles";
 import { getSitesByUserId, updateSiteTokens } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
-import { BulkNotificationItem } from "@/lib/notification";
+import { BulkNotificationItem, NotificationService } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
+import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
+import { updateSiteAuthError } from "@/lib/db/sites";
 
 /**
  * テスト用: 順位下落チェックを手動実行
@@ -205,10 +207,12 @@ async function handleRequest(request: NextRequest) {
             const refreshed = await gscClient.refreshAccessToken(refreshToken);
 
             // トークンをDBに更新
+            // 注意: Google OAuth 2.0では、リフレッシュトークンは通常返されない（既存のリフレッシュトークンがそのまま有効）
+            // 新しいリフレッシュトークンが返された場合のみ更新し、それ以外は既存のリフレッシュトークンを保持
             await updateSiteTokens(
               site.id,
               refreshed.accessToken,
-              refreshed.refreshToken || refreshToken,
+              refreshed.refreshToken ?? refreshToken, // 新しいリフレッシュトークンがあれば使用、なければ既存のものを保持
               refreshed.expiresAt
             );
 
@@ -226,6 +230,43 @@ async function handleRequest(request: NextRequest) {
             console.error(
               `[Test Cron] Skipping article ${article.id} due to token refresh failure. User should re-authenticate.`
             );
+            
+            // 認証エラーを記録
+            try {
+              await updateSiteAuthError(site.id);
+              
+              // 24時間以内に通知を送っていない場合のみメール通知を送る
+              const supabase = createSupabaseClient();
+              const { data: siteData } = await supabase
+                .from('sites')
+                .select('auth_error_at, user_id')
+                .eq('id', site.id)
+                .single();
+              
+              if (siteData) {
+                const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
+                const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
+                
+                if (shouldNotify) {
+                  const user = await getUserById(siteData.user_id);
+                  if (user?.email) {
+                    const notificationService = new NotificationService();
+                    const locale = (user.locale || "ja") as "ja" | "en";
+                    await notificationService.sendAuthErrorNotification(
+                      user.email,
+                      site.site_url,
+                      locale
+                    );
+                    console.log(`[Test Cron] Auth error notification sent to user ${user.email} for site ${site.id}`);
+                  }
+                } else {
+                  console.log(`[Test Cron] Auth error notification already sent within 24 hours for site ${site.id}, skipping`);
+                }
+              }
+            } catch (notifyError: any) {
+              console.error(`[Test Cron] Failed to send auth error notification:`, notifyError);
+            }
+            
             checkResults.push({
               articleId: article.id,
               articleUrl: article.url,
@@ -285,10 +326,12 @@ async function handleRequest(request: NextRequest) {
                 const refreshed = await refreshGscClient.refreshAccessToken(refreshToken);
                 
                 // トークンをDBに更新
+                // 注意: Google OAuth 2.0では、リフレッシュトークンは通常返されない（既存のリフレッシュトークンがそのまま有効）
+                // 新しいリフレッシュトークンが返された場合のみ更新し、それ以外は既存のリフレッシュトークンを保持
                 await updateSiteTokens(
                   site.id,
                   refreshed.accessToken,
-                  refreshed.refreshToken || refreshToken,
+                  refreshed.refreshToken ?? refreshToken, // 新しいリフレッシュトークンがあれば使用、なければ既存のものを保持
                   refreshed.expiresAt
                 );
                 
@@ -314,6 +357,43 @@ async function handleRequest(request: NextRequest) {
                 console.error(
                   `[Test Cron] Token may be expired or invalid. Skipping article ${article.id}. User should re-authenticate.`
                 );
+                
+                // 認証エラーを記録
+                try {
+                  await updateSiteAuthError(site.id);
+                  
+                  // 24時間以内に通知を送っていない場合のみメール通知を送る
+                  const supabase = createSupabaseClient();
+                  const { data: siteData } = await supabase
+                    .from('sites')
+                    .select('auth_error_at, user_id')
+                    .eq('id', site.id)
+                    .single();
+                  
+                  if (siteData) {
+                    const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
+                    const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
+                    
+                    if (shouldNotify) {
+                      const user = await getUserById(siteData.user_id);
+                      if (user?.email) {
+                        const notificationService = new NotificationService();
+                        const locale = (user.locale || "ja") as "ja" | "en";
+                        await notificationService.sendAuthErrorNotification(
+                          user.email,
+                          site.site_url,
+                          locale
+                        );
+                        console.log(`[Test Cron] Auth error notification sent to user ${user.email} for site ${site.id}`);
+                      }
+                    } else {
+                      console.log(`[Test Cron] Auth error notification already sent within 24 hours for site ${site.id}, skipping`);
+                    }
+                  }
+                } catch (notifyError: any) {
+                  console.error(`[Test Cron] Failed to send auth error notification:`, notifyError);
+                }
+                
                 checkResults.push({
                   articleId: article.id,
                   articleUrl: article.url,
@@ -541,14 +621,45 @@ async function handleRequest(request: NextRequest) {
         // 通知頻度や通知時刻のチェックは通知送信cron（/api/cron/send-notifications）で実行される
 
         // 通知設定を取得（Slack通知を取得するため）
-        const notificationSettings = await getNotificationSettings(user.id);
+        let notificationSettings = await getNotificationSettings(user.id);
+        
+        // notification_settingsテーブルにレコードがない場合、slack_integrationsテーブルから直接取得
+        if (!notificationSettings) {
+          console.log(`[Test Cron] No notification_settings found, trying to get Slack integration directly...`);
+          const slackIntegration = await getSlackIntegrationByUserId(user.id);
+          if (slackIntegration) {
+            // NotificationSettings形式に変換
+            notificationSettings = {
+              id: '',
+              user_id: user.id,
+              article_id: null,
+              notification_type: 'rank_drop',
+              channel: 'slack',
+              recipient: slackIntegration.slack_channel_id || '',
+              is_enabled: true,
+              slack_integration_id: slackIntegration.id,
+              slack_bot_token: slackIntegration.slack_bot_token,
+              slack_user_id: slackIntegration.slack_user_id,
+              slack_team_id: slackIntegration.slack_team_id,
+              slack_channel_id: slackIntegration.slack_channel_id,
+              slack_notification_type: slackIntegration.slack_notification_type,
+              created_at: slackIntegration.created_at,
+              updated_at: slackIntegration.updated_at,
+            };
+            console.log(`[Test Cron] Found Slack integration directly from slack_integrations table`);
+          }
+        }
+        
         console.log(`[Test Cron] Notification settings:`, {
           hasEmail: true, // メールは常に有効
           hasSlack: !!(notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id),
           slackChannelId: notificationSettings?.slack_channel_id,
           slackNotificationType: notificationSettings?.slack_notification_type,
           slackTeamId: notificationSettings?.slack_team_id,
-          slackBotTokenPrefix: notificationSettings?.slack_bot_token?.substring(0, 10) + '...',
+          slackBotTokenPrefix: notificationSettings?.slack_bot_token ? notificationSettings.slack_bot_token.substring(0, 10) + '...' : 'null',
+          slackBotTokenExists: !!notificationSettings?.slack_bot_token,
+          slackChannelIdExists: !!notificationSettings?.slack_channel_id,
+          notificationSettingsExists: !!notificationSettings,
         });
 
         // 通知履歴をDBに保存（sent_atはNULL、通知送信cronで送信）
