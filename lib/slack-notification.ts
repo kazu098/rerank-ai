@@ -250,6 +250,7 @@ export function formatSlackBulkNotification(
       averagePosition: '平均順位',
       positionChange: '順位変化',
       viewRecommendations: '改善案を確認',
+      viewDetails: '詳細を確認',
     },
     en: {
       title: '🔔 Rank change detected ({count} articles)',
@@ -257,6 +258,7 @@ export function formatSlackBulkNotification(
       averagePosition: 'Average Position',
       positionChange: 'Position Change',
       viewRecommendations: 'View recommendations',
+      viewDetails: 'View details',
     },
   };
 
@@ -308,13 +310,13 @@ export function formatSlackBulkNotification(
       ],
     } as any);
     
-    // 記事ごとに「改善案を確認」リンクを追加
+    // 記事ごとにリンクを追加（順位上昇時は「詳細を確認」、順位下落時は「改善案を確認」）
     if (article.articleId) {
       blocks.push({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `<${articleUrl}|${t.viewRecommendations}>`,
+          text: `<${articleUrl}|${isRise ? t.viewDetails : t.viewRecommendations}>`,
         },
       } as any);
     }
