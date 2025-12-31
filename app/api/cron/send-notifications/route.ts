@@ -3,6 +3,7 @@ import { createSupabaseClient } from "@/lib/supabase";
 import { getUserById } from "@/lib/db/users";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
 import { getNotificationSettings } from "@/lib/db/notification-settings";
+import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
 import { isNotificationTime } from "@/lib/timezone-utils";
@@ -125,7 +126,38 @@ export async function GET(request: NextRequest) {
         const locale = (user.locale || "ja") as "ja" | "en";
 
         // 通知設定を取得（Slack通知を取得するため）
-        const notificationSettings = await getNotificationSettings(user.id);
+        let notificationSettings = await getNotificationSettings(user.id);
+        
+        // notification_settingsテーブルにレコードがない場合、またはslack_bot_tokenがnullの場合、slack_integrationsテーブルから直接取得
+        if (!notificationSettings || !notificationSettings.slack_bot_token) {
+          if (!notificationSettings) {
+            console.log(`[Send Notifications Cron] No notification_settings found for user ${user.email}, trying to get Slack integration directly...`);
+          } else {
+            console.log(`[Send Notifications Cron] notification_settings found but slack_bot_token is null for user ${user.email}, trying to get Slack integration directly...`);
+          }
+          const slackIntegration = await getSlackIntegrationByUserId(user.id);
+          if (slackIntegration) {
+            // NotificationSettings形式に変換
+            notificationSettings = {
+              id: notificationSettings?.id || '',
+              user_id: user.id,
+              article_id: notificationSettings?.article_id || null,
+              notification_type: notificationSettings?.notification_type || 'rank_drop',
+              channel: notificationSettings?.channel || 'slack',
+              recipient: slackIntegration.slack_channel_id || '',
+              is_enabled: notificationSettings?.is_enabled ?? true,
+              slack_integration_id: slackIntegration.id,
+              slack_bot_token: slackIntegration.slack_bot_token,
+              slack_user_id: slackIntegration.slack_user_id,
+              slack_team_id: slackIntegration.slack_team_id,
+              slack_channel_id: slackIntegration.slack_channel_id,
+              slack_notification_type: slackIntegration.slack_notification_type,
+              created_at: notificationSettings?.created_at || slackIntegration.created_at,
+              updated_at: notificationSettings?.updated_at || slackIntegration.updated_at,
+            };
+            console.log(`[Send Notifications Cron] Found Slack integration directly from slack_integrations table for user ${user.email}`);
+          }
+        }
 
         // 通知をメール通知とSlack通知に分類
         const emailNotifications = notifications.filter((n) => n.channel === "email");
