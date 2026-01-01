@@ -434,8 +434,8 @@ export class CompetitorAnalyzer {
               competitorResults: this.competitorResults,
               uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
               keywordTimeSeries: [],
-              semanticDiffAnalysis: null,
-              aiSEOAnalysis: null,
+              semanticDiffAnalysis: undefined,
+              aiSEOAnalysis: undefined,
               topRankingKeywords: this.prioritizedKeywords.filter((kw: any) => kw.position <= 10),
             };
           }

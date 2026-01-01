@@ -65,8 +65,8 @@ export async function analyzeStep3(
             competitorResults,
             uniqueCompetitorUrls,
             keywordTimeSeries: [],
-            semanticDiffAnalysis: null,
-            aiSEOAnalysis: null,
+            semanticDiffAnalysis: undefined,
+            aiSEOAnalysis: undefined,
             topRankingKeywords: prioritizedKeywords.filter((kw: any) => kw.position <= 10),
           };
         }
