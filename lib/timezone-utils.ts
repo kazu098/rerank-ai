@@ -6,13 +6,13 @@
  * 指定されたタイムゾーンで現在時刻が通知時刻に達しているかチェック
  * @param timezone タイムゾーン（例: 'Asia/Tokyo', 'America/New_York'）
  * @param notificationTime 通知時刻（HH:MM形式、例: '09:00'）
- * @param toleranceMinutes 許容範囲（分）。デフォルトは5分（Cronジョブの実行間隔を考慮）
+ * @param toleranceMinutes 許容範囲（分）。デフォルトは20分（GitHub ActionsのCronジョブの遅延を考慮）
  * @returns 通知時刻に達している場合true
  */
 export function isNotificationTime(
   timezone: string,
   notificationTime: string,
-  toleranceMinutes: number = 5
+  toleranceMinutes: number = 20
 ): boolean {
   try {
     // 通知時刻をパース（HH:MM形式）
