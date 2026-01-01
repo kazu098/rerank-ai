@@ -428,15 +428,15 @@ export class CompetitorAnalyzer {
           // 404エラーの場合は、分析を続行できるように警告を出して続行
           if (errorReason?.message?.includes("404") || errorReason?.message?.includes("Not Found")) {
             console.warn(`[CompetitorAnalysis] Own article URL returned 404, skipping diff analysis but continuing with other analysis`);
-            // 差分分析をスキップして続行
+            // 差分分析をスキップして続行（ローカル変数を使用）
             return {
-              prioritizedKeywords: this.prioritizedKeywords,
-              competitorResults: this.competitorResults,
+              prioritizedKeywords,
+              competitorResults,
               uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
               keywordTimeSeries: [],
               semanticDiffAnalysis: undefined,
               aiSEOAnalysis: undefined,
-              topRankingKeywords: this.prioritizedKeywords.filter((kw: any) => kw.position <= 10),
+              topRankingKeywords: prioritizedKeywords.filter((kw: any) => kw.position <= 10),
             };
           }
           
