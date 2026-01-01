@@ -86,6 +86,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // articleがnullの場合はエラー
+    if (!article) {
+      return NextResponse.json(
+        { error: "記事の作成または取得に失敗しました" },
+        { status: 500 }
+      );
+    }
+
     // 分析結果をDBに保存
     const { run, result } = await saveAnalysisResult(
       session.userId,
