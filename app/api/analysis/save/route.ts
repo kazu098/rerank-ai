@@ -12,8 +12,10 @@ import { CompetitorAnalysisSummary } from "@/lib/competitor-analysis";
  * Body: { articleUrl: string, siteUrl: string, analysisResult: CompetitorAnalysisSummary, analysisDurationSeconds?: number }
  */
 export async function POST(request: NextRequest) {
+  console.log("[Analysis Save] POST /api/analysis/save called");
   try {
     const session = await auth();
+    console.log("[Analysis Save] Session:", session ? "authenticated" : "not authenticated");
 
     if (!session?.userId) {
       return NextResponse.json(

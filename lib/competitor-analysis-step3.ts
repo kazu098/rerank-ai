@@ -53,7 +53,21 @@ export async function analyzeStep3(
 
       // 自社記事の取得結果を処理
       if (ownArticle.status === "rejected") {
-        throw new Error(`Failed to scrape own article: ${ownArticle.reason}`);
+        const errorReason = ownArticle.reason;
+        console.error(`[CompetitorAnalysis] Failed to scrape own article ${ownUrl}:`, errorReason);
+        
+        // 404エラーの場合は、分析を続行できるように警告を出して続行
+        if (errorReason?.message?.includes("404") || errorReason?.message?.includes("Not Found")) {
+          console.warn(`[CompetitorAnalysis] Own article URL returned 404, skipping diff analysis but continuing with other analysis`);
+          // 差分分析をスキップして続行（Step3Resultの形式に合わせる）
+          return {
+            diffAnalysis: undefined,
+            semanticDiffAnalysis: undefined,
+            aiSEOAnalysis: undefined,
+          };
+        }
+        
+        throw new Error(`Failed to scrape own article: ${errorReason?.message || errorReason}`);
       }
       const ownArticleContent = ownArticle.value;
 
