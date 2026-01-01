@@ -59,15 +59,11 @@ export async function analyzeStep3(
         // 404エラーの場合は、分析を続行できるように警告を出して続行
         if (errorReason?.message?.includes("404") || errorReason?.message?.includes("Not Found")) {
           console.warn(`[CompetitorAnalysis] Own article URL returned 404, skipping diff analysis but continuing with other analysis`);
-          // 差分分析をスキップして続行
+          // 差分分析をスキップして続行（Step3Resultの形式に合わせる）
           return {
-            prioritizedKeywords,
-            competitorResults,
-            uniqueCompetitorUrls,
-            keywordTimeSeries: [],
+            diffAnalysis: undefined,
             semanticDiffAnalysis: undefined,
             aiSEOAnalysis: undefined,
-            topRankingKeywords: prioritizedKeywords.filter((kw: any) => kw.position <= 10),
           };
         }
         
