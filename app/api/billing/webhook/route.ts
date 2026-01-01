@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getUserById, updateStripeCustomerId, updateStripeSubscriptionId, updateUserPlan } from "@/lib/db/users";
-import { getPlanByName } from "@/lib/db/plans";
+import { getPlanByName, findPlanByStripePriceId } from "@/lib/db/plans";
 import Stripe from "stripe";
 
 /**
@@ -43,15 +43,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    console.log(`[Webhook] Received event type: ${event.type}`);
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+        console.log(`[Webhook] checkout.session.completed - session ID: ${session.id}, metadata:`, session.metadata);
         await handleCheckoutSessionCompleted(session);
         break;
       }
 
       case "customer.subscription.created": {
         const subscription = event.data.object as Stripe.Subscription;
+        console.log(`[Webhook] customer.subscription.created - subscription ID: ${subscription.id}, metadata:`, subscription.metadata);
         await handleSubscriptionCreated(subscription);
         break;
       }
@@ -101,14 +104,55 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const userId = session.metadata?.userId;
   const planName = session.metadata?.planName;
 
+  console.log(`[Webhook] handleCheckoutSessionCompleted - userId: ${userId}, planName: ${planName}, subscription:`, session.subscription);
+
   if (!userId || !planName) {
-    console.error("[Webhook] Missing metadata in checkout session");
+    console.error("[Webhook] Missing metadata in checkout session", { userId, planName, metadata: session.metadata });
     return;
   }
 
   // サブスクリプションIDを保存
   if (session.subscription) {
-    await updateStripeSubscriptionId(userId, session.subscription as string);
+    const subscriptionId = typeof session.subscription === 'string' 
+      ? session.subscription 
+      : session.subscription.id;
+    
+    await updateStripeSubscriptionId(userId, subscriptionId);
+
+    // サブスクリプション情報を取得してプランを更新
+    const stripe = getStripeClient();
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      const user = await getUserById(userId);
+      if (!user) {
+        console.error(`[Webhook] User not found: ${userId}`);
+        return;
+      }
+
+      const plan = await getPlanByName(planName);
+      if (!plan) {
+        console.error(`[Webhook] Plan not found: ${planName}`);
+        return;
+      }
+
+      // ユーザーのプランを更新
+      const subscriptionData = subscription as any;
+      const currentPeriodStart = subscriptionData.current_period_start;
+      const currentPeriodEnd = subscriptionData.current_period_end;
+      
+      const planStartedAt = currentPeriodStart 
+        ? new Date(currentPeriodStart * 1000)
+        : new Date();
+      const planEndsAt = currentPeriodEnd
+        ? new Date(currentPeriodEnd * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
+
+      await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
+      console.log(`[Webhook] Plan updated for user ${userId}: ${planName}`);
+    } catch (error: any) {
+      console.error(`[Webhook] Failed to retrieve subscription ${subscriptionId}:`, error.message, error);
+    }
   }
 }
 
@@ -140,11 +184,19 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   await updateStripeSubscriptionId(userId, subscription.id);
 
   // ユーザーのプランを更新
-  const subscriptionData = subscription as any; // Stripe型定義の互換性のため
-  const planStartedAt = new Date(subscriptionData.current_period_start * 1000);
-  const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
+  const subscriptionData = subscription as any;
+  const currentPeriodStart = subscriptionData.current_period_start;
+  const currentPeriodEnd = subscriptionData.current_period_end;
+  
+  const planStartedAt = currentPeriodStart
+    ? new Date(currentPeriodStart * 1000)
+    : new Date();
+  const planEndsAt = currentPeriodEnd
+    ? new Date(currentPeriodEnd * 1000)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
 
   await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
+  console.log(`[Webhook] Plan updated for user ${userId}: ${planName} (subscription.created)`);
 }
 
 /**
@@ -152,10 +204,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
  */
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.userId;
-  const planName = subscription.metadata?.planName;
-
-  if (!userId || !planName) {
-    console.error("[Webhook] Missing metadata in subscription");
+  
+  if (!userId) {
+    console.error("[Webhook] Missing userId in subscription metadata");
     return;
   }
 
@@ -165,18 +216,45 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     return;
   }
 
-  const plan = await getPlanByName(planName);
+  // プラン名を特定（metadataから、またはPrice IDから）
+  let planName = subscription.metadata?.planName;
+  let plan = null;
+
+  if (planName) {
+    // metadataにplanNameがある場合はそれを使用
+    plan = await getPlanByName(planName);
+  } else {
+    // metadataにplanNameがない場合（Customer Portal経由で変更した場合など）
+    // Price IDからプラン名を特定
+    const currentPriceId = subscription.items.data[0]?.price?.id;
+    if (currentPriceId) {
+      plan = await findPlanByStripePriceId(currentPriceId);
+      if (plan) {
+        planName = plan.name;
+        console.log(`[Webhook] Found plan from Price ID: ${planName} (${currentPriceId})`);
+      }
+    }
+  }
+
   if (!plan) {
-    console.error(`[Webhook] Plan not found: ${planName}`);
+    console.error(`[Webhook] Plan not found. planName: ${planName}, subscription ID: ${subscription.id}`);
     return;
   }
 
   // ユーザーのプランを更新
-  const subscriptionData = subscription as any; // Stripe型定義の互換性のため
-  const planStartedAt = new Date(subscriptionData.current_period_start * 1000);
-  const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
+  const subscriptionData = subscription as any;
+  const currentPeriodStart = subscriptionData.current_period_start;
+  const currentPeriodEnd = subscriptionData.current_period_end;
+  
+  const planStartedAt = currentPeriodStart
+    ? new Date(currentPeriodStart * 1000)
+    : new Date();
+  const planEndsAt = currentPeriodEnd
+    ? new Date(currentPeriodEnd * 1000)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
 
   await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
+  console.log(`[Webhook] Plan updated for user ${userId}: ${planName}`);
 }
 
 /**
@@ -235,8 +313,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   }
 
   // プラン期間を更新
-  const subscriptionData = subscription as any; // Stripe型定義の互換性のため
-  const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
+  const subscriptionData = subscription as any;
+  const currentPeriodEnd = subscriptionData.current_period_end;
+  
+  const planEndsAt = currentPeriodEnd
+    ? new Date(currentPeriodEnd * 1000)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
   const user = await getUserById(userId);
   if (user) {
     await updateUserPlan(user.plan_id!, user.plan_id!, new Date(), planEndsAt);

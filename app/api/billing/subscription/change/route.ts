@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getPlanByName, getPlanStripePriceId } from "@/lib/db/plans";
-import { getUserById } from "@/lib/db/users";
+import { getUserById, updateStripeCustomerId } from "@/lib/db/users";
 import { Currency, getCurrencyFromLocale, isValidCurrency } from "@/lib/billing/currency";
 import Stripe from "stripe";
 
@@ -13,7 +13,9 @@ import Stripe from "stripe";
  * 
  * prorationBehavior:
  * - 'always': 即座に変更（差額を請求/返金）
- * - 'none': 期間終了時に変更（差額なし）
+ * - 'none': 期間終了時に変更（差額なし）- デフォルト
+ * 
+ * フリープランから有料プランに変更する場合は、チェックアウトセッションを作成します。
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planName, currency, prorationBehavior = 'always' } = body;
+    const { planName, currency, prorationBehavior = 'none' } = body;
 
     if (!planName) {
       return NextResponse.json(
@@ -48,13 +50,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
-      );
-    }
-
-    if (!user.stripe_subscription_id) {
-      return NextResponse.json(
-        { error: "No active subscription found" },
-        { status: 400 }
       );
     }
 
@@ -91,8 +86,84 @@ export async function POST(request: NextRequest) {
 
     const stripe = getStripeClient();
 
+    // フリープランから有料プランに変更する場合は、チェックアウトセッションを作成
+    if (!user.stripe_subscription_id) {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      const locale = user.locale || "ja";
+
+      // Stripe Customerを作成または取得
+      let customerId = user.stripe_customer_id;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name || undefined,
+          metadata: {
+            userId: user.id,
+          },
+        });
+        customerId = customer.id;
+        await updateStripeCustomerId(user.id, customerId);
+      }
+
+      // チェックアウトセッションを作成
+      const checkoutSession = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "subscription",
+        line_items: [
+          {
+            price: newStripePriceId,
+            quantity: 1,
+          },
+        ],
+        success_url: `${baseUrl}/${locale}/dashboard/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/${locale}/dashboard/billing?canceled=true`,
+        metadata: {
+          userId: user.id,
+          planName: planName,
+          currency: selectedCurrency,
+        },
+        subscription_data: {
+          metadata: {
+            userId: user.id,
+            planName: planName,
+          },
+        },
+        locale: locale === "ja" ? "ja" : "en",
+      });
+
+      return NextResponse.json({
+        success: true,
+        requiresCheckout: true,
+        url: checkoutSession.url,
+        sessionId: checkoutSession.id,
+      });
+    }
+
+    // 既存のサブスクリプションがある場合は、サブスクリプションを更新
     // 現在のサブスクリプションを取得
     const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id);
+
+    // 現在のサブスクリプションのPrice IDを取得して通貨を判定
+    const currentPriceId = subscription.items.data[0]?.price?.id;
+    if (!currentPriceId) {
+      return NextResponse.json(
+        { error: "Current subscription price not found" },
+        { status: 400 }
+      );
+    }
+
+    // 現在のPrice情報を取得して通貨を確認
+    const currentPrice = await stripe.prices.retrieve(currentPriceId);
+    const currentCurrency = currentPrice.currency.toUpperCase() as Currency;
+
+    // 既存のサブスクリプションと同じ通貨のPrice IDを使用
+    const stripePriceIdForChange = getPlanStripePriceId(newPlan, currentCurrency);
+    if (!stripePriceIdForChange) {
+      return NextResponse.json(
+        { error: `Stripe Price ID not found for currency: ${currentCurrency}. Please configure Stripe Price IDs in the database.` },
+        { status: 400 }
+      );
+    }
 
     // サブスクリプションアイテムIDを取得
     const subscriptionItemId = subscription.items.data[0]?.id;
@@ -103,14 +174,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // サブスクリプションを更新
+    // サブスクリプションを更新（デフォルトで期間終了時に変更）
     const updatedSubscription = await stripe.subscriptions.update(
       user.stripe_subscription_id,
       {
         items: [
           {
             id: subscriptionItemId,
-            price: newStripePriceId,
+            price: stripePriceIdForChange,
           },
         ],
         proration_behavior: prorationBehavior === 'always' ? 'always_invoice' : 'none',

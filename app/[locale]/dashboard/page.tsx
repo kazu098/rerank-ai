@@ -50,7 +50,9 @@ interface UserPlan {
     max_analyses_per_month: number | null;
     max_sites: number | null;
   } | null;
+  plan_ends_at: string | null;
   trial_ends_at: string | null;
+  stripe_subscription_id: string | null;
 }
 
 interface Usage {
@@ -197,10 +199,17 @@ export default function DashboardPage() {
                 <div className="text-2xl font-bold text-gray-900 mb-1">
                   {userPlan.plan.display_name}
                 </div>
-                {isTrialActive() && userPlan.trial_ends_at && (
+                {isTrialActive() && userPlan.trial_ends_at && userPlan.plan?.name === "free" && (
                   <div className="text-sm text-yellow-600 mt-1">
                     {t("dashboard.billing.trialUntil", {
                       date: new Date(userPlan.trial_ends_at).toLocaleDateString(locale)
+                    })}
+                  </div>
+                )}
+                {userPlan.plan_ends_at && userPlan.plan?.name !== "free" && userPlan.stripe_subscription_id && (
+                  <div className="text-sm text-gray-600 mt-1">
+                    {t("dashboard.billing.nextRenewalDate", {
+                      date: new Date(userPlan.plan_ends_at).toLocaleDateString(locale)
                     })}
                   </div>
                 )}
