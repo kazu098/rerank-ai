@@ -422,7 +422,25 @@ export class CompetitorAnalyzer {
 
         // 自社記事の取得結果を処理
         if (ownArticle.status === "rejected") {
-          throw new Error(`Failed to scrape own article: ${ownArticle.reason}`);
+          const errorReason = ownArticle.reason;
+          console.error(`[CompetitorAnalysis] Failed to scrape own article ${ownUrl}:`, errorReason);
+          
+          // 404エラーの場合は、分析を続行できるように警告を出して続行
+          if (errorReason?.message?.includes("404") || errorReason?.message?.includes("Not Found")) {
+            console.warn(`[CompetitorAnalysis] Own article URL returned 404, skipping diff analysis but continuing with other analysis`);
+            // 差分分析をスキップして続行
+            return {
+              prioritizedKeywords: this.prioritizedKeywords,
+              competitorResults: this.competitorResults,
+              uniqueCompetitorUrls: Array.from(uniqueCompetitorUrls),
+              keywordTimeSeries: [],
+              semanticDiffAnalysis: null,
+              aiSEOAnalysis: null,
+              topRankingKeywords: this.prioritizedKeywords.filter((kw: any) => kw.position <= 10),
+            };
+          }
+          
+          throw new Error(`Failed to scrape own article: ${errorReason?.message || errorReason}`);
         }
         const ownArticleContent = ownArticle.value;
 
