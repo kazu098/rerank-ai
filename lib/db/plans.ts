@@ -25,11 +25,18 @@ export interface Plan {
  */
 export function getPlanPrice(plan: Plan, currency: Currency): number {
   if (!plan.prices) {
+    console.error(`[getPlanPrice] Plan ${plan.name} does not have prices set. Plan data:`, {
+      id: plan.id,
+      name: plan.name,
+      prices: plan.prices,
+      price_monthly: plan.price_monthly,
+    });
     throw new Error(`Plan ${plan.name} does not have prices set`);
   }
 
   const price = plan.prices[currency];
   if (price === undefined || price === null) {
+    console.error(`[getPlanPrice] Plan ${plan.name} does not have price for currency ${currency}. Available currencies:`, Object.keys(plan.prices));
     throw new Error(`Plan ${plan.name} does not have price for currency ${currency}`);
   }
 
@@ -55,7 +62,7 @@ export async function getPlanByName(planName: string): Promise<Plan | null> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*')
+    .select('*, prices')
     .eq('name', planName)
     .single();
 
@@ -77,7 +84,7 @@ export async function getPlanById(planId: string): Promise<Plan | null> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*')
+    .select('*, prices')
     .eq('id', planId)
     .single();
 
@@ -99,7 +106,7 @@ export async function getAllPlans(): Promise<Plan[]> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*')
+    .select('*, prices')
     .order('price_monthly', { ascending: true });
 
   if (error) {
@@ -107,6 +114,43 @@ export async function getAllPlans(): Promise<Plan[]> {
   }
 
   return (data || []) as Plan[];
+}
+
+/**
+ * Stripe Price IDからプランを検索
+ */
+export async function findPlanByStripePriceId(stripePriceId: string): Promise<Plan | null> {
+  const supabase = createSupabaseClient();
+
+  // 全プランを取得
+  const { data: plans, error } = await supabase
+    .from('plans')
+    .select('*, prices');
+
+  if (error) {
+    throw new Error(`Failed to get plans: ${error.message}`);
+  }
+
+  if (!plans) {
+    return null;
+  }
+
+  // stripe_price_ids JSONBから該当するPrice IDを検索
+  for (const plan of plans) {
+    if (plan.stripe_price_ids) {
+      const priceIds = plan.stripe_price_ids as StripePriceIds;
+      if (
+        priceIds.usd === stripePriceId ||
+        priceIds.jpy === stripePriceId ||
+        priceIds.eur === stripePriceId ||
+        priceIds.gbp === stripePriceId
+      ) {
+        return plan as Plan;
+      }
+    }
+  }
+
+  return null;
 }
 
 /**

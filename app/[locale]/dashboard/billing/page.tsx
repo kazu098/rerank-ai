@@ -128,12 +128,35 @@ export default function BillingPage() {
     }
   };
 
-  const handleChangePlan = async (planName: string, prorationBehavior: 'always' | 'none' = 'always') => {
-    if (!userPlan?.stripe_subscription_id) {
-      alert(t("noActiveSubscription"));
+  const handleCancelSubscription = async () => {
+    if (!confirm(t("confirmCancelSubscription"))) {
       return;
     }
 
+    setChangingPlan("free");
+    try {
+      const response = await fetch("/api/billing/subscription/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.ok) {
+        alert(t("subscriptionCancelled"));
+        // データを再取得
+        await fetchBillingData();
+      } else {
+        const error = await response.json();
+        alert(error.error || t("cancelSubscriptionFailed"));
+      }
+    } catch (error) {
+      console.error("Failed to cancel subscription:", error);
+      alert(t("cancelSubscriptionFailed"));
+    } finally {
+      setChangingPlan(null);
+    }
+  };
+
+  const handleChangePlan = async (planName: string) => {
     setChangingPlan(planName);
     try {
       const response = await fetch("/api/billing/subscription/change", {
@@ -141,7 +164,7 @@ export default function BillingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planName,
-          prorationBehavior,
+          prorationBehavior: 'none', // デフォルトで期間終了時に変更
         }),
       });
 
@@ -153,6 +176,14 @@ export default function BillingPage() {
 
       const data = await response.json();
       if (data.success) {
+        // チェックアウトが必要な場合（フリープランから有料プランに変更）
+        if (data.requiresCheckout && data.url) {
+          window.open(data.url, '_blank');
+          // チェックアウトは新しいタブで開くので、ここでは処理を終了
+          // ユーザーがチェックアウトを完了すると、Webhookでプランが更新される
+          setChangingPlan(null);
+          return;
+        }
         alert(t("planChangeSuccess"));
         // データを再取得
         await fetchBillingData();
@@ -234,12 +265,12 @@ export default function BillingPage() {
               <div className="text-gray-600 mt-1">
                 {formatPrice(currentPlan.price_monthly)}/月
               </div>
-              {isTrial && userPlan.trial_ends_at && (
+              {isTrial && userPlan.trial_ends_at && currentPlan.name === "free" && (
                 <div className="text-yellow-600 mt-2">
                   {t("trialUntil", { date: new Date(userPlan.trial_ends_at).toLocaleDateString(locale) })}
                 </div>
               )}
-              {userPlan.plan_ends_at && !isTrial && (
+              {userPlan.plan_ends_at && currentPlan.name !== "free" && userPlan.stripe_subscription_id && (
                 <div className="text-gray-600 mt-2">
                   {t("nextRenewalDate", { date: new Date(userPlan.plan_ends_at).toLocaleDateString(locale) })}
                 </div>
@@ -327,7 +358,7 @@ export default function BillingPage() {
               {/* 新規記事提案 */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">{t("articleSuggestions")}</span>
+                  <span className="text-gray-700">{t("articleSuggestionsCount")}</span>
                   <span className="text-gray-900 font-semibold">
                     {usage.article_suggestions_this_month} /{" "}
                     {formatLimit(currentPlan.max_article_suggestions_per_month)}
@@ -360,39 +391,94 @@ export default function BillingPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("changePlan")}</h2>
             <div className="space-y-4">
               {allPlans
-                .filter((plan) => plan.name !== "free" && plan.name !== currentPlan.name)
-                .map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
-                  >
-                    <div>
-                      <div className="font-semibold text-gray-900">{plan.display_name}</div>
-                      <div className="text-gray-600 text-sm">
-                        {formatPrice(plan.price_monthly)}/月
+                .filter((plan) => plan.name !== "free")
+                .map((plan) => {
+                  const isCurrentPlan = plan.name === currentPlan.name;
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`flex items-center justify-between p-4 rounded-lg border ${
+                        isCurrentPlan
+                          ? "bg-blue-50 border-blue-300 ring-2 ring-blue-200"
+                          : "bg-gray-50 border-gray-200"
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div>
+                            <div className="font-semibold text-gray-900">{plan.display_name}</div>
+                            <div className="text-gray-600 text-sm">
+                              {formatPrice(plan.price_monthly)}/月
+                            </div>
+                          </div>
+                          {isCurrentPlan && (
+                            <span className="px-3 py-1 bg-blue-600 text-white text-sm font-semibold rounded-full">
+                              {t("currentPlan")}
+                            </span>
+                          )}
+                        </div>
+                        {/* 機能リスト */}
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400">•</span>
+                            <span>{t("analyses")}: {formatLimit(plan.max_analyses_per_month)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400">•</span>
+                            <span>{t("articles")}: {formatLimit(plan.max_articles)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400">•</span>
+                            <span>{t("sites")}: {formatLimit(plan.max_sites)}</span>
+                          </div>
+                          {plan.max_article_suggestions_per_month !== null && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>
+                                {t("articleSuggestionsCount")}: {formatLimit(plan.max_article_suggestions_per_month)}
+                                {plan.max_article_suggestions_per_month !== null && plan.max_article_suggestions_per_month > 0 && (
+                                  <span className="text-gray-500"> ({t("articleSuggestionsPerTime")})</span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!isCurrentPlan && (
+                          <button
+                            onClick={() => handleChangePlan(plan.name)}
+                            disabled={changingPlan === plan.name}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {changingPlan === plan.name ? t("changing") : t("changePlanButton")}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleChangePlan(plan.name, 'always')}
-                        disabled={changingPlan === plan.name}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {changingPlan === plan.name ? t("changing") : t("changePlanButton")}
-                      </button>
-                      {plan.price_monthly > (currentPlan.price_monthly || 0) && (
-                        <button
-                          onClick={() => handleChangePlan(plan.name, 'none')}
-                          disabled={changingPlan === plan.name}
-                          className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={t("changeAtPeriodEnd")}
-                        >
-                          {t("changeAtPeriodEndShort")}
-                        </button>
-                      )}
+                  );
+                })}
+              
+              {/* フリープランに戻る */}
+              {currentPlan.name !== "free" && userPlan?.stripe_subscription_id && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div>
+                      <div className="font-semibold text-gray-900">{t("backToFreePlan")}</div>
+                      <div className="text-gray-600 text-sm mt-1">
+                        {t("backToFreePlanDescription")}
+                      </div>
                     </div>
+                    <button
+                      onClick={handleCancelSubscription}
+                      disabled={changingPlan === "free"}
+                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {changingPlan === "free" ? t("cancelling") : t("backToFreePlanButton")}
+                    </button>
                   </div>
-                ))}
+                </div>
+              )}
             </div>
           </div>
         )}
