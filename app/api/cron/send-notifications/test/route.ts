@@ -139,14 +139,15 @@ async function handleRequest(request: NextRequest) {
 
           // 現在時刻を取得してログに出力
           const currentTimeInTimezone = getCurrentTimeInTimezone(userTimezone);
-          const isTimeMatch = isNotificationTime(userTimezone, notificationTimeHHMM, 5);
+          // GitHub ActionsのCronジョブの遅延を考慮して許容範囲を20分に設定
+          const isTimeMatch = isNotificationTime(userTimezone, notificationTimeHHMM, 20);
           
           console.log(`[Test Send Notifications Cron] Notification time check for user ${user.email}:`, {
             timezone: userTimezone,
             notificationTime: notificationTimeHHMM,
             currentTime: currentTimeInTimezone,
             isTimeMatch,
-            toleranceMinutes: 5,
+            toleranceMinutes: 20,
           });
           
           if (!isTimeMatch) {
