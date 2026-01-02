@@ -86,7 +86,8 @@ export function AuthenticatedContent() {
         }
       } else {
         const error = await response.json();
-        if (error.code === "TOKEN_EXPIRED" || response.status === 401) {
+        if (error.code === "TOKEN_EXPIRED" || error.code === "INSUFFICIENT_SCOPES" || response.status === 401 || response.status === 403) {
+          // 認証トークンの期限切れまたはスコープ不足の場合は再ログインを促す
           signOut({ callbackUrl: "/" });
           return;
         } else {
