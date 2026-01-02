@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStripeClient } from "@/lib/stripe/client";
+import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe/client";
 import { getUserById, updateStripeCustomerId, updateStripeSubscriptionId, updateUserPlan } from "@/lib/db/users";
 import { getPlanByName, findPlanByStripePriceId } from "@/lib/db/plans";
 import Stripe from "stripe";
@@ -10,7 +10,7 @@ import Stripe from "stripe";
  */
 export async function POST(request: NextRequest) {
   const stripe = getStripeClient();
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = getStripeWebhookSecret();
 
   if (!webhookSecret) {
     console.error("[Webhook] STRIPE_WEBHOOK_SECRET is not set");
