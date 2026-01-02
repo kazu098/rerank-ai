@@ -145,11 +145,11 @@ export function AuthenticatedContent() {
     }
   };
 
-  const loadArticles = async (siteUrl: string) => {
+  const loadArticles = async (siteUrl: string, page: number = 1) => {
     setLoadingArticles(true);
     setError(null);
     try {
-      const response = await fetch(`/api/articles/list?siteUrl=${encodeURIComponent(siteUrl)}`);
+      const response = await fetch(`/api/articles/list?siteUrl=${encodeURIComponent(siteUrl)}&page=${page}&pageSize=50`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -157,9 +157,14 @@ export function AuthenticatedContent() {
       }
 
       const result = await response.json();
-      setArticles(result.articles || []);
+      // ページ1の場合は置き換え、それ以外は追加（無限スクロール的な動作）
+      if (page === 1) {
+        setArticles(result.articles || []);
+      } else {
+        setArticles((prev) => [...prev, ...(result.articles || [])]);
+      }
       setShowArticleSelection(true);
-      setArticlePage(1);
+      setArticlePage(page);
     } catch (err: any) {
       console.error("[Articles] Error loading articles:", err);
       setError(err.message || t("errors.articleListLoadFailed"));

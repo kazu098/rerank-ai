@@ -59,6 +59,8 @@ export default function ArticlesPage() {
   const prevPathnameRef = useRef<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalArticles, setTotalArticles] = useState(0);
   const searchParams = useSearchParams();
   const highlightedArticleId = searchParams.get("highlight");
   const [slackConnected, setSlackConnected] = useState(false);
@@ -77,7 +79,14 @@ export default function ArticlesPage() {
   const fetchArticles = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/dashboard/data");
+      // サーバーサイドでフィルタ・ソート・ページネーションを行う
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: itemsPerPage.toString(),
+        filter: filter,
+        sortBy: sortBy,
+      });
+      const response = await fetch(`/api/dashboard/data?${params.toString()}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -85,50 +94,27 @@ export default function ArticlesPage() {
       }
 
       const data = await response.json();
-      let filteredArticles = data.articles || [];
-
-      // フィルタリング
-      if (filter === "monitoring") {
-        filteredArticles = filteredArticles.filter((a: Article) => a.is_monitoring);
-      } else if (filter === "fixed") {
-        filteredArticles = filteredArticles.filter((a: Article) => a.is_fixed);
-      }
-
-      // ソート
-      filteredArticles.sort((a: Article, b: Article) => {
-        if (sortBy === "date") {
-          const dateA = a.last_analyzed_at ? new Date(a.last_analyzed_at).getTime() : 0;
-          const dateB = b.last_analyzed_at ? new Date(b.last_analyzed_at).getTime() : 0;
-          return dateB - dateA; // 新しい順
-        } else if (sortBy === "position") {
-          const posA = a.latestAnalysis?.average_position ?? 999;
-          const posB = b.latestAnalysis?.average_position ?? 999;
-          return posA - posB; // 順位が良い順
-        } else if (sortBy === "title") {
-          const titleA = a.title || a.url;
-          const titleB = b.title || b.url;
-          return titleA.localeCompare(titleB);
-        }
-        return 0;
-      });
-
-      setArticles(filteredArticles);
+      setArticles(data.articles || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalArticles(data.total || 0);
+      
       // ページが変更された場合、現在のページが存在しない場合は1ページ目に戻す
-      const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
-      if (currentPage > totalPages && totalPages > 0) {
+      if (data.totalPages && currentPage > data.totalPages && data.totalPages > 0) {
         setCurrentPage(1);
       }
       
-      // ハイライトされた記事が現在のページにない場合は、該当ページに移動
-      if (highlightedArticleId) {
-        const highlightedIndex = filteredArticles.findIndex((a: Article) => a.id === highlightedArticleId);
-        if (highlightedIndex >= 0) {
-          const targetPage = Math.floor(highlightedIndex / itemsPerPage) + 1;
-          if (targetPage !== currentPage) {
-            setCurrentPage(targetPage);
-          }
-        }
-      }
+      // ハイライトされた記事が現在のページにない場合は、該当ページを計算して移動
+      // サーバーサイドページネーションの場合、全記事リストが取得できないため、
+      // ハイライト機能は一旦無効化（必要に応じて、API側で対応）
+      // if (highlightedArticleId) {
+      //   const highlightedIndex = articles.findIndex((a: Article) => a.id === highlightedArticleId);
+      //   if (highlightedIndex >= 0) {
+      //     const targetPage = Math.floor(highlightedIndex / itemsPerPage) + 1;
+      //     if (targetPage !== currentPage) {
+      //       setCurrentPage(targetPage);
+      //     }
+      //   }
+      // }
     } catch (err: any) {
       console.error("[Articles] Error:", err);
       setError(err.message || t("dashboard.articles.errorOccurred"));
@@ -514,7 +500,7 @@ export default function ArticlesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {articles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((article) => (
+                {articles.map((article) => (
                   <tr
                     key={article.id}
                     onClick={() => router.push(`/dashboard/articles/${article.id}`)}
@@ -944,10 +930,10 @@ export default function ArticlesPage() {
           </div>
           )}
           {/* ページネーション */}
-          {articles.length > itemsPerPage && (
+          {totalPages > 1 && (
             <div className="bg-white px-6 py-4 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                {((currentPage - 1) * itemsPerPage + 1)} - {Math.min(currentPage * itemsPerPage, articles.length)} / {articles.length}件
+                {((currentPage - 1) * itemsPerPage + 1)} - {Math.min(currentPage * itemsPerPage, totalArticles)} / {totalArticles}件
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -958,10 +944,9 @@ export default function ArticlesPage() {
                   前へ
                 </button>
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.ceil(articles.length / itemsPerPage) }, (_, i) => i + 1)
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter(page => {
                       // 現在のページ周辺と最初・最後のページを表示
-                      const totalPages = Math.ceil(articles.length / itemsPerPage);
                       return page === 1 || 
                              page === totalPages || 
                              (page >= currentPage - 2 && page <= currentPage + 2);

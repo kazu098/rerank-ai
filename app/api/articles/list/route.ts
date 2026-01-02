@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const siteUrl = searchParams.get("siteUrl");
+    const page = parseInt(searchParams.get("page") || "1");
+    const pageSize = parseInt(searchParams.get("pageSize") || "50");
 
     if (!siteUrl) {
       return NextResponse.json(
@@ -226,9 +228,19 @@ export async function GET(request: NextRequest) {
     // インプレッション数でソート（多い順）
     mergedArticles.sort((a, b) => b.impressions - a.impressions);
 
+    // ページネーション
+    const total = mergedArticles.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedArticles = mergedArticles.slice(startIndex, endIndex);
+
     return NextResponse.json({
-      articles: mergedArticles,
-      total: mergedArticles.length,
+      articles: paginatedArticles,
+      total,
+      page,
+      pageSize,
+      totalPages,
     });
   } catch (error: any) {
     console.error("Error fetching article list:", error);
