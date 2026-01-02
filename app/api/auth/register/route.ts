@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createUserWithPassword } from "@/lib/db/users";
 import { sendVerificationEmail } from "@/lib/email-verification";
+import { checkRateLimit, getClientIpAddress } from "@/lib/rate-limit";
 
 /**
  * ユーザー登録
@@ -16,6 +17,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "メールアドレスとパスワードは必須です" },
         { status: 400 }
+      );
+    }
+
+    // レート制限をチェック（IPアドレスベース）
+    const ipAddress = getClientIpAddress(request);
+    if (ipAddress) {
+      const rateLimitResult = await checkRateLimit(ipAddress, 'register');
+      if (!rateLimitResult.allowed) {
+        const resetTime = new Date(rateLimitResult.resetAt).toLocaleString('ja-JP');
+        return NextResponse.json(
+          { 
+            error: `登録試行回数が上限に達しました。${resetTime}に再度お試しください。`,
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    // レート制限をチェック（メールアドレスベース）
+    const emailRateLimitResult = await checkRateLimit(email, 'register');
+    if (!emailRateLimitResult.allowed) {
+      const resetTime = new Date(emailRateLimitResult.resetAt).toLocaleString('ja-JP');
+      return NextResponse.json(
+        { 
+          error: `このメールアドレスでの登録試行回数が上限に達しました。${resetTime}に再度お試しください。`,
+        },
+        { status: 429 }
       );
     }
 

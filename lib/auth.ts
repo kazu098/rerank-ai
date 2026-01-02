@@ -57,7 +57,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           };
         } catch (error: any) {
           console.error("[Auth] Credentials authentication error:", error);
-          throw error;
+          // アカウントロックエラーの場合は、そのままエラーメッセージを返す
+          if (error.message?.includes('ロックされています')) {
+            throw error;
+          }
+          // その他のエラーは認証失敗として扱う
+          return null;
         }
       },
     }),
