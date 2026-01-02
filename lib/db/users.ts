@@ -1,6 +1,7 @@
 import { createSupabaseClient } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import { isAccountLocked, getLockRemainingMinutes, recordLoginAttempt } from '@/lib/db/login-attempts';
 
 export interface User {
   id: string;
@@ -305,17 +306,35 @@ export async function authenticateUserWithPassword(
   email: string,
   password: string
 ): Promise<User | null> {
+  // ログイン試行回数制限をチェック
+  const locked = await isAccountLocked(email);
+  if (locked) {
+    const remainingMinutes = await getLockRemainingMinutes(email);
+    throw new Error(
+      remainingMinutes 
+        ? `アカウントがロックされています。${remainingMinutes}分後に再度お試しください。`
+        : 'アカウントがロックされています。しばらくしてから再度お試しください。'
+    );
+  }
+
   const user = await getUserByEmail(email);
   
   if (!user || !user.password_hash) {
+    // ログイン失敗を記録（ユーザーが存在しない場合も記録）
+    await recordLoginAttempt(email, null, null, false, 'invalid_credentials');
     return null;
   }
 
   const isValid = await verifyPassword(password, user.password_hash);
+  
   if (!isValid) {
+    await recordLoginAttempt(email, null, null, false, 'invalid_password');
     return null;
   }
 
+  // ログイン成功を記録
+  await recordLoginAttempt(email, null, null, true);
+  
   return user;
 }
 
