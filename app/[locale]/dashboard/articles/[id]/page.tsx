@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getDetailedAnalysisData } from "@/lib/db/analysis-results";
+import { KeywordTimeSeriesChart } from "@/components/landing/KeywordTimeSeriesChart";
 
 interface ArticleDetail {
   article: {
@@ -706,6 +707,12 @@ export default function ArticleDetailPage({
                       <p className="text-sm text-red-600">{detailedData[result.id].error}</p>
                     ) : detailedData[result.id] ? (
                       <div className="space-y-4">
+                        {/* キーワード時系列グラフ */}
+                        {detailedData[result.id].keywordTimeSeries && detailedData[result.id].keywordTimeSeries.length > 0 && (
+                          <div className="mb-6">
+                            <KeywordTimeSeriesChart keywordTimeSeries={detailedData[result.id].keywordTimeSeries} />
+                          </div>
+                        )}
                         {detailedData[result.id].semanticDiffAnalysis?.semanticAnalysis?.whyCompetitorsRankHigher && (
                           <div>
                             <h4 className="font-semibold text-sm mb-2">なぜ競合が上位なのか</h4>

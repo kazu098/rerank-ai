@@ -5,11 +5,16 @@ import { Step1Result } from "./competitor-analysis";
 
 /**
  * Step 1: GSCデータ取得 + キーワード選定 + 時系列データ取得
+ * @param siteUrl サイトURL
+ * @param pageUrl ページURL
+ * @param maxKeywords 最大キーワード数
+ * @param articleTitle 記事のタイトル（オプショナル、キーワード選定の関連性スコアに使用）
  */
 export async function analyzeStep1(
   siteUrl: string,
   pageUrl: string,
-  maxKeywords: number = 3
+  maxKeywords: number = 3,
+  articleTitle?: string | null
 ): Promise<Step1Result> {
   const startTime = Date.now();
   console.log(`[CompetitorAnalysis] ⏱️ Step 1 starting at ${new Date().toISOString()}`);
@@ -86,7 +91,7 @@ export async function analyzeStep1(
   if (rankDropResult.droppedKeywords.length > 0) {
     // 転落キーワードを優先（意味的に同じキーワードはグループ化）
     const droppedPrioritized = keywordPrioritizer
-      .prioritizeDroppedKeywords(rankDropResult.droppedKeywords, maxKeywords * 2, minImpressions)
+      .prioritizeDroppedKeywords(rankDropResult.droppedKeywords, maxKeywords * 2, minImpressions, articleTitle)
       .map((kw) => ({
         keyword: kw.keyword,
         priority: kw.priority,
@@ -100,7 +105,7 @@ export async function analyzeStep1(
 
   // 全体から主要なキーワードを追加（意味的に同じキーワードはグループ化）
   const regularPrioritized = keywordPrioritizer
-    .prioritizeKeywords(keywordList, maxKeywords * 2, minImpressions)
+    .prioritizeKeywords(keywordList, maxKeywords * 2, minImpressions, articleTitle)
     .map((kw) => ({
       keyword: kw.keyword,
       priority: kw.priority,
