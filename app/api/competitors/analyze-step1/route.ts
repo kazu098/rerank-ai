@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { analyzeStep1 } from "@/lib/competitor-analysis-step1";
 import { checkUserPlanLimit, isTrialActive } from "@/lib/billing/plan-limits";
+import { getArticleByUrl } from "@/lib/db/articles";
 
 /**
  * Step 1: GSCデータ取得 + キーワード選定 + 時系列データ取得
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
       siteUrl,
       pageUrl,
       maxKeywords = 3,
+      selectedKeywords, // 手動選択されたキーワード（オプション）
     } = body;
 
     if (!siteUrl || !pageUrl) {
@@ -69,7 +71,21 @@ export async function POST(request: NextRequest) {
       `[API] ⏱️ Step 1 starting for ${siteUrl}${pageUrl}, maxKeywords: ${maxKeywords} at ${new Date().toISOString()}`
     );
 
-    const result = await analyzeStep1(siteUrl, pageUrl, maxKeywords);
+    // 記事のタイトルを取得（キーワード選定の関連性スコアに使用）
+    let articleTitle: string | null = null;
+    try {
+      const fullUrl = `${siteUrl}${pageUrl}`;
+      const article = await getArticleByUrl(session.userId, fullUrl);
+      articleTitle = article?.title || null;
+      if (articleTitle) {
+        console.log(`[API] Article title found: ${articleTitle}`);
+      }
+    } catch (error) {
+      console.warn(`[API] Failed to get article title: ${error}`);
+      // 記事タイトルの取得に失敗しても分析は続行
+    }
+
+    const result = await analyzeStep1(siteUrl, pageUrl, maxKeywords, articleTitle, selectedKeywords);
 
     const apiTotalTime = Date.now() - apiStartTime;
     console.log(

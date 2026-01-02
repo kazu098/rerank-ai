@@ -365,6 +365,21 @@
       "titleUrl": "Title/URL",
       "averagePosition": "Average Position",
       "improveArticle": "Improve Article",
+      "selectKeywords": "Select Keywords Manually",
+      "keywordSelect": {
+        "title": "Select Keywords",
+        "description": "Select keywords to use for analysis (max 3). Data from Search Console is displayed.",
+        "loading": "Loading keyword data...",
+        "noKeywords": "No keyword data found",
+        "selectedCount": "Selected: {count} / {max}",
+        "clearAll": "Clear All",
+        "select": "Select",
+        "keyword": "Keyword",
+        "position": "Position",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "startAnalysis": "Start Analysis with Selected Keywords"
+      },
       "improvement": {
         "title": "Article Improvement Proposal",
         "loading": "Generating improvement proposal...",
@@ -417,7 +432,8 @@
       "highlightedArticleMessage": "You can configure notifications for this article",
       "delete": "Delete",
       "confirmDelete": "Are you sure you want to delete this article?",
-      "deleteFailed": "Failed to delete article"
+      "deleteFailed": "Failed to delete article",
+      "analyzedTodayTooltip": "This article has already been analyzed today. Search Console data is updated once per day, so you will get the same results. You can run the analysis again tomorrow or later."
     },
     "notifications": {
       "title": "Unread Notifications",

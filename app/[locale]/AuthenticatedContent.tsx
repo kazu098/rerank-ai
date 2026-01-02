@@ -34,6 +34,12 @@ export function AuthenticatedContent() {
   const [maxKeywords, setMaxKeywords] = useState(3);
   const [maxCompetitorsPerKeyword, setMaxCompetitorsPerKeyword] = useState(3);
   
+  // キーワード手動選択関連
+  const [showKeywordSelectModal, setShowKeywordSelectModal] = useState(false);
+  const [keywords, setKeywords] = useState<Array<{ keyword: string; position: number; impressions: number; clicks: number; ctr: number }>>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set());
+  const [loadingKeywords, setLoadingKeywords] = useState(false);
+  
   // GSCプロパティ選択関連
   const [gscProperties, setGscProperties] = useState<any[]>([]);
   const [selectedSiteUrl, setSelectedSiteUrl] = useState<string | null>(null);
@@ -233,9 +239,48 @@ export function AuthenticatedContent() {
       const params = new URLSearchParams(window.location.search);
       const siteIdParam = params.get("siteId");
       const tabParam = params.get("tab");
+      const articleUrlParam = params.get("articleUrl");
       
       if (tabParam === "suggestion") {
         setActiveTab("suggestion");
+      }
+      
+      // 記事URLパラメータがある場合、記事URLを設定（analyze=trueの処理は別のuseEffectで行う）
+      if (articleUrlParam && status === "authenticated") {
+        const decodedUrl = decodeURIComponent(articleUrlParam);
+        setArticleUrl(decodedUrl);
+        
+        // サイトURLを抽出して設定
+        try {
+          const urlObj = new URL(decodedUrl);
+          const siteUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+          
+          // 既に選択されているサイトURLと一致しない場合は、サイトを保存して選択
+          if (!selectedSiteUrl || (selectedSiteUrl.replace(/\/$/, "") !== siteUrl && selectedSiteUrl.replace(/\/$/, "") !== siteUrl + "/")) {
+            fetch("/api/sites/save", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                siteUrl: siteUrl,
+                displayName: siteUrl,
+              }),
+            })
+              .then(async (res) => {
+                const result = await res.json();
+                if (res.ok) {
+                  setSelectedSiteUrl(siteUrl);
+                  if (result.site?.id) {
+                    setSelectedSiteId(result.site.id);
+                  }
+                }
+              })
+              .catch((err) => console.error("Error saving site:", err));
+          }
+        } catch (err) {
+          console.error("Error parsing article URL:", err);
+        }
       }
       
       if (siteIdParam && status === "authenticated") {
@@ -253,7 +298,7 @@ export function AuthenticatedContent() {
           .catch((err) => console.error("Error fetching sites:", err));
       }
     }
-  }, [status]);
+  }, [status, selectedSiteUrl]);
 
   useEffect(() => {
     if (selectedSiteUrl) {
@@ -267,6 +312,30 @@ export function AuthenticatedContent() {
       setSuggestionSiteUrl(normalizedUrl);
     }
   }, [selectedSiteUrl]);
+
+  // articleUrlとselectedSiteUrlが設定された後、analyze=trueの場合は自動分析を開始
+  useEffect(() => {
+    if (typeof window !== "undefined" && status === "authenticated" && articleUrl && selectedSiteUrl) {
+      const params = new URLSearchParams(window.location.search);
+      const analyzeParam = params.get("analyze");
+      
+      if (analyzeParam === "true") {
+        // URLからクエリパラメータを削除
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete("articleUrl");
+        currentUrl.searchParams.delete("analyze");
+        window.history.replaceState({}, "", currentUrl.toString());
+        
+        // 少し遅延させてから分析を開始（状態が更新されるのを待つ）
+        const timer = setTimeout(() => {
+          startAnalysis();
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, articleUrl, selectedSiteUrl]);
 
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && session?.userId) {
@@ -371,6 +440,21 @@ export function AuthenticatedContent() {
       const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
       
       setCurrentStep(1);
+      
+      // 手動選択されたキーワードがある場合はそれを使用、ない場合は自動選定
+      const selectedKeywordsArray = selectedKeywords.size > 0 
+        ? Array.from(selectedKeywords).map(kw => {
+            const keywordData = keywords.find(k => k.keyword === kw);
+            return keywordData ? {
+              keyword: keywordData.keyword,
+              position: keywordData.position,
+              impressions: keywordData.impressions,
+              clicks: keywordData.clicks,
+              ctr: keywordData.ctr,
+            } : null;
+          }).filter(Boolean) as Array<{ keyword: string; position: number; impressions: number; clicks: number; ctr: number }>
+        : undefined;
+      
       const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
           headers: {
@@ -379,7 +463,8 @@ export function AuthenticatedContent() {
         body: JSON.stringify({
           siteUrl,
           pageUrl,
-          maxKeywords,
+          maxKeywords: selectedKeywordsArray ? selectedKeywordsArray.length : maxKeywords,
+          selectedKeywords: selectedKeywordsArray,
         }),
       });
 
@@ -543,6 +628,9 @@ export function AuthenticatedContent() {
           console.error("[Analysis] Error saving to database:", saveError);
         }
       }
+      
+      // 手動選択されたキーワードをクリア
+      setSelectedKeywords(new Set());
     } catch (err: any) {
       if (err.limitExceeded) {
         setLimitError({
@@ -560,6 +648,55 @@ export function AuthenticatedContent() {
       setCompletedSteps(new Set());
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenKeywordSelectModal = async () => {
+    if (!selectedSiteUrl || !articleUrl) return;
+    
+    setShowKeywordSelectModal(true);
+    setLoadingKeywords(true);
+    setSelectedKeywords(new Set());
+    
+    try {
+      const siteUrl = selectedSiteUrl.replace(/\/$/, "");
+      const urlObj = new URL(articleUrl);
+      const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
+      
+      // GSCデータからキーワード一覧を取得
+      const endDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      const startDate = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      
+      const keywordsResponse = await fetch(
+        `/api/gsc/keywords?siteUrl=${encodeURIComponent(siteUrl)}&pageUrl=${encodeURIComponent(pageUrl)}&startDate=${startDate}&endDate=${endDate}`
+      );
+      
+      if (!keywordsResponse.ok) {
+        throw new Error("キーワードデータの取得に失敗しました");
+      }
+      
+      const keywordsData = await keywordsResponse.json();
+      const keywordList = (keywordsData.rows || []).map((row: any) => ({
+        keyword: row.keys[0],
+        position: row.position,
+        impressions: row.impressions,
+        clicks: row.clicks,
+        ctr: row.ctr,
+      })).filter((kw: any) => kw.impressions >= 1); // インプレッション1以上を表示
+      
+      // インプレッション数でソート（降順）
+      keywordList.sort((a: any, b: any) => b.impressions - a.impressions);
+      
+      setKeywords(keywordList);
+    } catch (err: any) {
+      console.error("[Keyword Select] Error:", err);
+      setError(err.message || "キーワードデータの取得に失敗しました");
+    } finally {
+      setLoadingKeywords(false);
     }
   };
 
@@ -988,15 +1125,15 @@ export function AuthenticatedContent() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        {t("options.notificationEmail")}
+                        {t("dashboard.articles.selectKeywords")}
                       </label>
-                      <input
-                        type="email"
-                        value={notificationEmail}
-                        onChange={(e) => setNotificationEmail(e.target.value)}
-                        placeholder={t("options.notificationEmailPlaceholder")}
-                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                      />
+                      <button
+                        onClick={handleOpenKeywordSelectModal}
+                        disabled={loading || !articleUrl || !selectedSiteUrl}
+                        className="w-full px-4 py-2 bg-white text-gray-600 border border-gray-300 rounded hover:bg-gray-50 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
+                      >
+                        {t("dashboard.articles.selectKeywords")}
+                      </button>
                     </div>
                   </div>
                 </details>
@@ -1087,7 +1224,7 @@ export function AuthenticatedContent() {
 
                 {/* 結果表示エリア - 2列レイアウト */}
                 {data && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* 左列: 検索順位データ・キーワード分析 */}
                     <div className="space-y-6">
                       {/* 上位を保てているキーワード（安心させる） */}
@@ -1757,6 +1894,159 @@ export function AuthenticatedContent() {
           </div>
         )}
       </div>
+
+      {/* キーワード選択モーダル */}
+      {showKeywordSelectModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowKeywordSelectModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {t("dashboard.articles.keywordSelect.title")}
+                </h2>
+                <button
+                  onClick={() => setShowKeywordSelectModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                {t("dashboard.articles.keywordSelect.description")}
+              </p>
+              
+              {loadingKeywords ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-sm text-gray-600">{t("dashboard.articles.keywordSelect.loading")}</p>
+                </div>
+              ) : keywords.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {t("dashboard.articles.keywordSelect.noKeywords")}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        {t("dashboard.articles.keywordSelect.selectedCount", { count: selectedKeywords.size, max: maxKeywords })}
+                      </span>
+                      {selectedKeywords.size > 0 && (
+                        <button
+                          onClick={() => setSelectedKeywords(new Set())}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          {t("dashboard.articles.keywordSelect.clearAll")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.select")}
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.keyword")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.position")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.impressions")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.clicks")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {keywords.map((kw, index) => {
+                          const isSelected = selectedKeywords.has(kw.keyword);
+                          const isDisabled = !isSelected && selectedKeywords.size >= maxKeywords;
+                          
+                          return (
+                            <tr
+                              key={index}
+                              className={`hover:bg-gray-50 ${isDisabled ? "opacity-50" : ""}`}
+                            >
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  disabled={isDisabled}
+                                  onChange={() => {
+                                    const newSelected = new Set(selectedKeywords);
+                                    if (isSelected) {
+                                      newSelected.delete(kw.keyword);
+                                    } else if (newSelected.size < maxKeywords) {
+                                      newSelected.add(kw.keyword);
+                                    }
+                                    setSelectedKeywords(newSelected);
+                                  }}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                {kw.keyword}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.position.toFixed(1)}位
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.impressions.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.clicks.toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setShowKeywordSelectModal(false);
+                        setSelectedKeywords(new Set());
+                      }}
+                      className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 text-sm"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedKeywords.size > 0) {
+                          setShowKeywordSelectModal(false);
+                          startAnalysis();
+                        }
+                      }}
+                      disabled={selectedKeywords.size === 0}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
+                      {t("dashboard.articles.keywordSelect.startAnalysis")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

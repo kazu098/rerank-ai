@@ -19,11 +19,13 @@ export class KeywordPrioritizer {
    * @param keywords キーワードデータ
    * @param maxKeywords 選定する最大キーワード数（デフォルト: 5）
    * @param minImpressions 最小インプレッション数（デフォルト: 10）
+   * @param articleTitle 記事のタイトル（オプショナル、関連性スコアに使用）
    */
   prioritizeKeywords(
     keywords: KeywordData[],
     maxKeywords: number = 5,
-    minImpressions: number = 10
+    minImpressions: number = 10,
+    articleTitle?: string | null
   ): PrioritizedKeyword[] {
     // インプレッション数の閾値でフィルタリング
     const filteredKeywords = keywords.filter((kw) => kw.impressions >= minImpressions);
@@ -47,7 +49,7 @@ export class KeywordPrioritizer {
       // グループ内で優先度スコアを計算
       const prioritized = groupKeywords.map((kw) => ({
         keyword: kw.keyword,
-        priority: this.calculatePriority(kw, minImpressions),
+        priority: this.calculatePriority(kw, minImpressions, articleTitle),
         impressions: kw.impressions,
         clicks: kw.clicks,
         position: kw.position,
@@ -103,10 +105,17 @@ export class KeywordPrioritizer {
    * - クリック数（多いほど重要）
    * - 順位（低いほど重要、ただし10位以下は優先度を下げる）
    * - CTR（高いほど重要）
+   * - 記事タイトルとの関連性（記事のテーマに合致するキーワードを最優先、0-50点）
    * 
+   * @param keyword キーワードデータ
    * @param minImpressions 最小インプレッション数（これ未満のキーワードは優先度0を返す）
+   * @param articleTitle 記事のタイトル（オプショナル、関連性スコアに使用）
    */
-  private calculatePriority(keyword: KeywordData, minImpressions: number = 10): number {
+  private calculatePriority(
+    keyword: KeywordData, 
+    minImpressions: number = 10,
+    articleTitle?: string | null
+  ): number {
     // インプレッション数が少ないキーワードは除外（検索ボリュームが少ない）
     if (keyword.impressions < minImpressions) {
       return 0;
@@ -134,13 +143,62 @@ export class KeywordPrioritizer {
     // CTRのスコア（0-5点）
     const ctrScore = Math.min(keyword.ctr * 100 * 5, 5);
 
-    return impressionsScore + clicksScore + positionScore + ctrScore;
+    // 記事タイトルとの関連性スコア（0-50点）
+    // 記事のテーマに合致するキーワードを優先する（重要度を上げる）
+    const relevanceScore = articleTitle 
+      ? this.calculateRelevanceScore(keyword.keyword, articleTitle)
+      : 0;
+
+    return impressionsScore + clicksScore + positionScore + ctrScore + relevanceScore;
+  }
+
+  /**
+   * キーワードと記事タイトルの関連性スコアを計算
+   * 記事のテーマに合致するキーワードを優先する
+   * 
+   * @param keyword キーワード
+   * @param articleTitle 記事のタイトル
+   * @returns 関連性スコア（0-50点）
+   */
+  private calculateRelevanceScore(keyword: string, articleTitle: string): number {
+    if (!articleTitle) return 0;
+
+    const normalizedKeyword = this.normalizeKeyword(keyword);
+    const normalizedTitle = this.normalizeKeyword(articleTitle);
+
+    // 完全一致: 50点（記事のテーマと完全に一致するキーワードは最優先）
+    if (normalizedTitle.includes(normalizedKeyword)) {
+      return 50;
+    }
+
+    // キーワードを単語に分割
+    const keywordWords = normalizedKeyword.split(/\s+/).filter(w => w.length > 1);
+    const titleWords = normalizedTitle.split(/\s+/).filter(w => w.length > 1);
+
+    if (keywordWords.length === 0) return 0;
+
+    // キーワード内の単語がタイトルに含まれている数をカウント
+    let matchedWords = 0;
+    for (const word of keywordWords) {
+      if (titleWords.some(tw => tw.includes(word) || word.includes(tw))) {
+        matchedWords++;
+      }
+    }
+
+    // 一致した単語の割合に基づいてスコアを計算（最大40点）
+    // より多くの単語が一致するほど、記事のテーマに近いと判断
+    const matchRatio = matchedWords / keywordWords.length;
+    return Math.round(matchRatio * 40);
   }
 
   /**
    * 転落したキーワードから主要なキーワードを選定
    * 転落キーワードは優先度を上げる
    * 意味的に同じキーワードはグループ化して、代表的なキーワードのみを選定
+   * @param droppedKeywords 転落したキーワードデータ
+   * @param maxKeywords 選定する最大キーワード数（デフォルト: 3）
+   * @param minImpressions 最小インプレッション数（デフォルト: 10）
+   * @param articleTitle 記事のタイトル（オプショナル、関連性スコアに使用）
    */
   prioritizeDroppedKeywords(
     droppedKeywords: Array<{
@@ -151,7 +209,8 @@ export class KeywordPrioritizer {
       ctr: number;
     }>,
     maxKeywords: number = 3,
-    minImpressions: number = 10
+    minImpressions: number = 10,
+    articleTitle?: string | null
   ): PrioritizedKeyword[] {
     // インプレッション数の閾値でフィルタリング
     const filteredKeywords = droppedKeywords.filter((kw) => kw.impressions >= minImpressions);
@@ -173,14 +232,23 @@ export class KeywordPrioritizer {
 
     for (const [normalizedKey, groupKeywords] of groups.entries()) {
       // グループ内で優先度スコアを計算（転落キーワードは2倍）
-      const prioritized = groupKeywords.map((kw) => ({
-        keyword: kw.keyword,
-        priority: this.calculatePriority(kw, minImpressions) * 2, // 転落キーワードは優先度を2倍
-        impressions: kw.impressions,
-        clicks: kw.clicks,
-        position: kw.position,
-        ctr: kw.ctr,
-      }));
+      const prioritized = groupKeywords.map((kw) => {
+        const keywordData: KeywordData = {
+          keyword: kw.keyword,
+          position: kw.position,
+          impressions: kw.impressions,
+          clicks: kw.clicks,
+          ctr: kw.ctr,
+        };
+        return {
+          keyword: kw.keyword,
+          priority: this.calculatePriority(keywordData, minImpressions, articleTitle) * 2, // 転落キーワードは優先度を2倍
+          impressions: kw.impressions,
+          clicks: kw.clicks,
+          position: kw.position,
+          ctr: kw.ctr,
+        };
+      });
 
       // 優先度が最も高いキーワードを代表として選定
       prioritized.sort((a, b) => b.priority - a.priority);

@@ -34,6 +34,12 @@ export function AuthenticatedContent() {
   const [maxKeywords, setMaxKeywords] = useState(3);
   const [maxCompetitorsPerKeyword, setMaxCompetitorsPerKeyword] = useState(3);
   
+  // キーワード手動選択関連
+  const [showKeywordSelectModal, setShowKeywordSelectModal] = useState(false);
+  const [keywords, setKeywords] = useState<Array<{ keyword: string; position: number; impressions: number; clicks: number; ctr: number }>>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set());
+  const [loadingKeywords, setLoadingKeywords] = useState(false);
+  
   // GSCプロパティ選択関連
   const [gscProperties, setGscProperties] = useState<any[]>([]);
   const [selectedSiteUrl, setSelectedSiteUrl] = useState<string | null>(null);
@@ -52,6 +58,13 @@ export function AuthenticatedContent() {
 
   // 通知設定関連
   const [analyzedArticleId, setAnalyzedArticleId] = useState<string | null>(null);
+  const [analyzedAnalysisResultId, setAnalyzedAnalysisResultId] = useState<string | null>(null);
+
+  // 記事改善関連の状態
+  const [improvementLoading, setImprovementLoading] = useState(false);
+  const [improvementData, setImprovementData] = useState<any>(null);
+  const [improvementError, setImprovementError] = useState<string | null>(null);
+  const [showImprovementModal, setShowImprovementModal] = useState(false);
 
   // タブ管理
   const [activeTab, setActiveTab] = useState<"analysis" | "suggestion">("analysis");
@@ -233,9 +246,49 @@ export function AuthenticatedContent() {
       const params = new URLSearchParams(window.location.search);
       const siteIdParam = params.get("siteId");
       const tabParam = params.get("tab");
+      const articleUrlParam = params.get("articleUrl");
+      const analyzeParam = params.get("analyze");
       
       if (tabParam === "suggestion") {
         setActiveTab("suggestion");
+      }
+      
+      // 記事URLパラメータがある場合、記事URLを設定（analyze=trueの処理は別のuseEffectで行う）
+      if (articleUrlParam && status === "authenticated") {
+        const decodedUrl = decodeURIComponent(articleUrlParam);
+        setArticleUrl(decodedUrl);
+        
+        // サイトURLを抽出して設定
+        try {
+          const urlObj = new URL(decodedUrl);
+          const siteUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+          
+          // 既に選択されているサイトURLと一致しない場合は、サイトを保存して選択
+          if (!selectedSiteUrl || (selectedSiteUrl.replace(/\/$/, "") !== siteUrl && selectedSiteUrl.replace(/\/$/, "") !== siteUrl + "/")) {
+            fetch("/api/sites/save", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                siteUrl: siteUrl,
+                displayName: siteUrl,
+              }),
+            })
+              .then(async (res) => {
+                const result = await res.json();
+                if (res.ok) {
+                  setSelectedSiteUrl(siteUrl);
+                  if (result.site?.id) {
+                    setSelectedSiteId(result.site.id);
+                  }
+                }
+              })
+              .catch((err) => console.error("Error saving site:", err));
+          }
+        } catch (err) {
+          console.error("Error parsing article URL:", err);
+        }
       }
       
       if (siteIdParam && status === "authenticated") {
@@ -253,7 +306,31 @@ export function AuthenticatedContent() {
           .catch((err) => console.error("Error fetching sites:", err));
       }
     }
-  }, [status]);
+  }, [status, selectedSiteUrl]);
+
+  // articleUrlとselectedSiteUrlが設定された後、analyze=trueの場合は自動分析を開始
+  useEffect(() => {
+    if (typeof window !== "undefined" && status === "authenticated" && articleUrl && selectedSiteUrl) {
+      const params = new URLSearchParams(window.location.search);
+      const analyzeParam = params.get("analyze");
+      
+      if (analyzeParam === "true") {
+        // URLからクエリパラメータを削除
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete("articleUrl");
+        currentUrl.searchParams.delete("analyze");
+        window.history.replaceState({}, "", currentUrl.toString());
+        
+        // 少し遅延させてから分析を開始（状態が更新されるのを待つ）
+        const timer = setTimeout(() => {
+          startAnalysis();
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, articleUrl, selectedSiteUrl]);
 
   useEffect(() => {
     if (selectedSiteUrl) {
@@ -371,6 +448,21 @@ export function AuthenticatedContent() {
       const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
       
       setCurrentStep(1);
+      
+      // 手動選択されたキーワードがある場合はそれを使用、ない場合は自動選定
+      const selectedKeywordsArray = selectedKeywords.size > 0 
+        ? Array.from(selectedKeywords).map(kw => {
+            const keywordData = keywords.find(k => k.keyword === kw);
+            return keywordData ? {
+              keyword: keywordData.keyword,
+              position: keywordData.position,
+              impressions: keywordData.impressions,
+              clicks: keywordData.clicks,
+              ctr: keywordData.ctr,
+            } : null;
+          }).filter(Boolean) as Array<{ keyword: string; position: number; impressions: number; clicks: number; ctr: number }>
+        : undefined;
+      
       const step1Response = await fetch("/api/competitors/analyze-step1", {
           method: "POST",
           headers: {
@@ -379,7 +471,8 @@ export function AuthenticatedContent() {
         body: JSON.stringify({
           siteUrl,
           pageUrl,
-          maxKeywords,
+          maxKeywords: selectedKeywordsArray ? selectedKeywordsArray.length : maxKeywords,
+          selectedKeywords: selectedKeywordsArray,
         }),
       });
 
@@ -535,6 +628,9 @@ export function AuthenticatedContent() {
             if (saveResult.articleId) {
               setAnalyzedArticleId(saveResult.articleId);
             }
+            if (saveResult.analysisResultId) {
+              setAnalyzedAnalysisResultId(saveResult.analysisResultId);
+            }
           } else {
             const errorData = await saveResponse.json();
             console.error("[Analysis] Failed to save to database:", errorData);
@@ -560,6 +656,55 @@ export function AuthenticatedContent() {
       setCompletedSteps(new Set());
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenKeywordSelectModal = async () => {
+    if (!selectedSiteUrl || !articleUrl) return;
+    
+    setShowKeywordSelectModal(true);
+    setLoadingKeywords(true);
+    setSelectedKeywords(new Set());
+    
+    try {
+      const siteUrl = selectedSiteUrl.replace(/\/$/, "");
+      const urlObj = new URL(articleUrl);
+      const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
+      
+      // GSCデータからキーワード一覧を取得
+      const endDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      const startDate = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      
+      const keywordsResponse = await fetch(
+        `/api/gsc/keywords?siteUrl=${encodeURIComponent(siteUrl)}&pageUrl=${encodeURIComponent(pageUrl)}&startDate=${startDate}&endDate=${endDate}`
+      );
+      
+      if (!keywordsResponse.ok) {
+        throw new Error("キーワードデータの取得に失敗しました");
+      }
+      
+      const keywordsData = await keywordsResponse.json();
+      const keywordList = (keywordsData.rows || []).map((row: any) => ({
+        keyword: row.keys[0],
+        position: row.position,
+        impressions: row.impressions,
+        clicks: row.clicks,
+        ctr: row.ctr,
+      })).filter((kw: any) => kw.impressions >= 1); // インプレッション1以上を表示
+      
+      // インプレッション数でソート（降順）
+      keywordList.sort((a: any, b: any) => b.impressions - a.impressions);
+      
+      setKeywords(keywordList);
+    } catch (err: any) {
+      console.error("[Keyword Select] Error:", err);
+      setError(err.message || "キーワードデータの取得に失敗しました");
+    } finally {
+      setLoadingKeywords(false);
     }
   };
 
@@ -594,6 +739,49 @@ export function AuthenticatedContent() {
       alert(`通知の送信に失敗しました: ${err.message}`);
     } finally {
       setSendingNotification(false);
+    }
+  };
+
+  const handleGenerateImprovement = async () => {
+    if (!analyzedAnalysisResultId) return;
+
+    try {
+      setImprovementLoading(true);
+      setImprovementError(null);
+
+      const response = await fetch("/api/article-improvement/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          analysisResultId: analyzedAnalysisResultId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "修正案の生成に失敗しました");
+      }
+
+      const result = await response.json();
+      setImprovementData(result);
+      setShowImprovementModal(true);
+    } catch (err: any) {
+      console.error("[Home] Error generating improvement:", err);
+      setImprovementError(err.message);
+    } finally {
+      setImprovementLoading(false);
+    }
+  };
+
+  const handleCopyContent = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(t("dashboard.articles.improvement.copied"));
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      alert("コピーに失敗しました");
     }
   };
 
@@ -988,15 +1176,15 @@ export function AuthenticatedContent() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        {t("options.notificationEmail")}
+                        {t("dashboard.articles.selectKeywords")}
                       </label>
-                      <input
-                        type="email"
-                        value={notificationEmail}
-                        onChange={(e) => setNotificationEmail(e.target.value)}
-                        placeholder={t("options.notificationEmailPlaceholder")}
-                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                      />
+                      <button
+                        onClick={handleOpenKeywordSelectModal}
+                        disabled={loading || !articleUrl || !selectedSiteUrl}
+                        className="w-full px-4 py-2 bg-white text-gray-600 border border-gray-300 rounded hover:bg-gray-50 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
+                      >
+                        {t("dashboard.articles.selectKeywords")}
+                      </button>
                     </div>
                   </div>
                 </details>
@@ -1087,7 +1275,7 @@ export function AuthenticatedContent() {
 
                 {/* 結果表示エリア - 2列レイアウト */}
                 {data && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* 左列: 検索順位データ・キーワード分析 */}
                     <div className="space-y-6">
                       {/* 上位を保てているキーワード（安心させる） */}
@@ -1145,6 +1333,33 @@ export function AuthenticatedContent() {
                               {data.semanticDiffAnalysis.semanticAnalysis.whyCompetitorsRankHigher}
                             </div>
                           )}
+
+                          {/* 記事改善ボタン（recommendedAdditionsがある場合のみ表示） */}
+                          {data.semanticDiffAnalysis?.semanticAnalysis?.recommendedAdditions &&
+                            data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0 && (
+                              <div className="mb-6 flex justify-end">
+                                <button
+                                  onClick={handleGenerateImprovement}
+                                  disabled={improvementLoading || !analyzedAnalysisResultId}
+                                  className="relative px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                  {improvementLoading ? t("dashboard.articles.improvement.loading") : t("dashboard.articles.improveArticle")}
+                                  {/* AIバッジ */}
+                                  {!improvementLoading && (
+                                    <span className="absolute -top-2 -right-2 px-2 py-0.5 text-xs font-bold text-white bg-orange-500 rounded-full shadow-md">
+                                      AI
+                                    </span>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          {data.semanticDiffAnalysis?.semanticAnalysis?.recommendedAdditions &&
+                            data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0 &&
+                            improvementError && (
+                              <div className="mb-6 p-2 bg-red-50 border border-red-300 rounded text-sm text-red-600">
+                                {improvementError}
+                              </div>
+                            )}
 
                           {/* キーワード固有の分析結果（最優先） */}
                           {data.semanticDiffAnalysis && data.semanticDiffAnalysis.keywordSpecificAnalysis.length > 0 && (
@@ -1262,42 +1477,42 @@ export function AuthenticatedContent() {
                                 {data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions &&
                                   data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0 && (
                                     <details>
-                                      <summary className="font-semibold text-sm mb-2 cursor-pointer hover:text-purple-600">
-                                        {t("results.recommendedAdditions", { count: data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length })}
-                                      </summary>
-                                      <div className="space-y-2 mt-2">
-                                        {data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.map(
-                                          (rec: any, i: number) => (
-                                            <div key={i} className="bg-yellow-50 p-3 rounded border border-yellow-300">
-                                              <p className="font-semibold text-sm">{t("results.sectionLabel", { section: rec.section })}</p>
-                                              <p className="text-xs text-gray-600 mt-1">{t("results.reason")}: {rec.reason}</p>
-                                              <p className="text-sm mt-2">{rec.content}</p>
-                                              {rec.competitorUrls && rec.competitorUrls.length > 0 && (
-                                                <div className="mt-3 pt-3 border-t border-yellow-400">
-                                                  <p className="text-xs font-semibold text-gray-700 mb-2">
-                                                    {t("results.referenceCompetitorSites")}
-                                                  </p>
-                                                  <ul className="list-none space-y-1">
-                                                    {rec.competitorUrls.map((url: string, j: number) => (
-                                                      <li key={j}>
-                                                        <a
-                                                          href={url}
-                                                          target="_blank"
-                                                          rel="noopener noreferrer"
-                                                          className="text-xs text-blue-600 hover:text-blue-800 underline break-all"
-                                                        >
-                                                          {url}
-                                                        </a>
-                                                      </li>
-                                                    ))}
-                                                  </ul>
-                                                </div>
-                                              )}
-                                            </div>
-                                          )
-                                        )}
-                                      </div>
-                                    </details>
+                                        <summary className="font-semibold text-sm mb-2 cursor-pointer hover:text-purple-600">
+                                          {t("results.recommendedAdditions", { count: data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length })}
+                                        </summary>
+                                        <div className="space-y-2 mt-2">
+                                          {data.semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.map(
+                                            (rec: any, i: number) => (
+                                              <div key={i} className="bg-yellow-50 p-3 rounded border border-yellow-300">
+                                                <p className="font-semibold text-sm">{t("results.sectionLabel", { section: rec.section })}</p>
+                                                <p className="text-xs text-gray-600 mt-1">{t("results.reason")}: {rec.reason}</p>
+                                                <p className="text-sm mt-2">{rec.content}</p>
+                                                {rec.competitorUrls && rec.competitorUrls.length > 0 && (
+                                                  <div className="mt-3 pt-3 border-t border-yellow-400">
+                                                    <p className="text-xs font-semibold text-gray-700 mb-2">
+                                                      {t("results.referenceCompetitorSites")}
+                                                    </p>
+                                                    <ul className="list-none space-y-1">
+                                                      {rec.competitorUrls.map((url: string, j: number) => (
+                                                        <li key={j}>
+                                                          <a
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-blue-600 hover:text-blue-800 underline break-all"
+                                                          >
+                                                            {url}
+                                                          </a>
+                                                        </li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )
+                                          )}
+                                        </div>
+                                      </details>
                                   )}
                               </div>
                             </details>
@@ -1757,6 +1972,244 @@ export function AuthenticatedContent() {
           </div>
         )}
       </div>
+
+      {/* キーワード選択モーダル */}
+      {showKeywordSelectModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowKeywordSelectModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {t("dashboard.articles.keywordSelect.title")}
+                </h2>
+                <button
+                  onClick={() => setShowKeywordSelectModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                {t("dashboard.articles.keywordSelect.description")}
+              </p>
+              
+              {loadingKeywords ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-sm text-gray-600">{t("dashboard.articles.keywordSelect.loading")}</p>
+                </div>
+              ) : keywords.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {t("dashboard.articles.keywordSelect.noKeywords")}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        {t("dashboard.articles.keywordSelect.selectedCount", { count: selectedKeywords.size, max: maxKeywords })}
+                      </span>
+                      {selectedKeywords.size > 0 && (
+                        <button
+                          onClick={() => setSelectedKeywords(new Set())}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          {t("dashboard.articles.keywordSelect.clearAll")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.select")}
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.keyword")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.position")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.impressions")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.clicks")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {keywords.map((kw, index) => {
+                          const isSelected = selectedKeywords.has(kw.keyword);
+                          const isDisabled = !isSelected && selectedKeywords.size >= maxKeywords;
+                          
+                          return (
+                            <tr
+                              key={index}
+                              className={`hover:bg-gray-50 ${isDisabled ? "opacity-50" : ""}`}
+                            >
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  disabled={isDisabled}
+                                  onChange={() => {
+                                    const newSelected = new Set(selectedKeywords);
+                                    if (isSelected) {
+                                      newSelected.delete(kw.keyword);
+                                    } else if (newSelected.size < maxKeywords) {
+                                      newSelected.add(kw.keyword);
+                                    }
+                                    setSelectedKeywords(newSelected);
+                                  }}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                {kw.keyword}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.position.toFixed(1)}位
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.impressions.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.clicks.toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setShowKeywordSelectModal(false);
+                        setSelectedKeywords(new Set());
+                      }}
+                      className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 text-sm"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedKeywords.size > 0) {
+                          setShowKeywordSelectModal(false);
+                          startAnalysis();
+                        }
+                      }}
+                      disabled={selectedKeywords.size === 0}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
+                      {t("dashboard.articles.keywordSelect.startAnalysis")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 記事改善案サイドパネル */}
+      {showImprovementModal && improvementData && (
+        <>
+          {/* オーバーレイ */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-30 z-40"
+            onClick={() => setShowImprovementModal(false)}
+          />
+          {/* サイドパネル */}
+          <div
+            className="fixed top-0 right-0 bottom-0 w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto transform transition-transform duration-300 ease-in-out"
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-4 border-b">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {t("dashboard.articles.improvement.title")}
+                </h2>
+                <button
+                  onClick={() => setShowImprovementModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {improvementData.improvement?.changes && improvementData.improvement.changes.length > 0 ? (
+                <div className="space-y-6">
+                  {improvementData.improvement.changes.map((change: any, index: number) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="mb-4">
+                        <h3 className="font-semibold text-lg mb-2">
+                          {t("dashboard.articles.improvement.change")} {index + 1}
+                        </h3>
+                        <div className="text-sm text-gray-600 mb-2">
+                          <span className="font-medium">{t("dashboard.articles.improvement.position")}:</span>{" "}
+                          {change.simpleFormat?.position || `${change.position} ${change.target}`}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">{t("dashboard.articles.improvement.section")}:</span>{" "}
+                          {change.simpleFormat?.section || change.target}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-sm text-gray-700">
+                            {t("dashboard.articles.improvement.copyableFormat")}
+                          </h4>
+                          <button
+                            onClick={() => handleCopyContent(change.content)}
+                            className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
+                          >
+                            {t("dashboard.articles.improvement.copyContent")}
+                          </button>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                          <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
+                            {change.content}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  {t("dashboard.articles.improvement.error")}
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end sticky bottom-0 bg-white pt-4 border-t">
+                <button
+                  onClick={() => setShowImprovementModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                >
+                  {t("dashboard.articles.improvement.close")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
