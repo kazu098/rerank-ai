@@ -78,7 +78,26 @@ export async function POST(request: NextRequest) {
 
     // タイトルを取得
     scraper = new ArticleScraper();
-    const content = await scraper.scrapeArticle(targetUrl, false);
+    let content;
+    try {
+      content = await scraper.scrapeArticle(targetUrl, false);
+    } catch (scrapeError: any) {
+      // 404エラーの場合、特別な処理を行う
+      const errorMessage = scrapeError.message || String(scrapeError);
+      if (errorMessage.includes("404") || errorMessage.includes("Not Found")) {
+        console.warn(`[Fetch Title] Article URL returned 404: ${targetUrl}`);
+        return NextResponse.json(
+          {
+            error: "記事が見つかりません（404エラー）。URLが移動または削除された可能性があります。",
+            code: "ARTICLE_NOT_FOUND",
+            url: targetUrl,
+          },
+          { status: 404 }
+        );
+      }
+      // その他のエラーは再スロー
+      throw scrapeError;
+    }
 
     // DBに保存（タイトルを更新）
     const { saveOrUpdateArticle } = await import("@/lib/db/articles");
@@ -96,6 +115,19 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error fetching article title:", error);
+    
+    // 既に404エラーの場合はそのまま返す
+    if (error.code === "ARTICLE_NOT_FOUND") {
+      return NextResponse.json(
+        {
+          error: error.error || "記事が見つかりません",
+          code: error.code,
+          url: error.url,
+        },
+        { status: 404 }
+      );
+    }
+    
     return NextResponse.json(
       { error: error.message || "タイトルの取得に失敗しました" },
       { status: 500 }
