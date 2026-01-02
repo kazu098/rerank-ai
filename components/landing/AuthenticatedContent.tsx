@@ -191,6 +191,11 @@ export function AuthenticatedContent() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        // 404エラーの場合、エラーをスローせずにログだけ記録（他の記事の処理を続行できるように）
+        if (response.status === 404 || errorData.code === "ARTICLE_NOT_FOUND") {
+          console.warn(`[Articles] Article not found (404): ${errorData.url || url}`);
+          return; // エラーをスローせずに終了
+        }
         throw new Error(errorData.error || t("errors.titleFetchFailed"));
       }
 
