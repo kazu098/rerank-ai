@@ -61,6 +61,12 @@ export default function ArticleDetailPage({
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | null>(null);
   const searchParams = useSearchParams();
   const articleId = params.id;
+  
+  // 記事改善関連の状態
+  const [improvementLoading, setImprovementLoading] = useState<Record<string, boolean>>({});
+  const [improvementData, setImprovementData] = useState<Record<string, any>>({});
+  const [improvementError, setImprovementError] = useState<Record<string, string>>({});
+  const [showImprovementModal, setShowImprovementModal] = useState<Record<string, boolean>>({});
 
   const fetchArticleDetail = useCallback(async () => {
     if (!articleId) return;
@@ -331,6 +337,55 @@ export default function ArticleDetailPage({
     }
   };
 
+  const handleGenerateImprovement = async (analysisResultId: string) => {
+    try {
+      setImprovementLoading((prev) => ({ ...prev, [analysisResultId]: true }));
+      setImprovementError((prev) => {
+        const next = { ...prev };
+        delete next[analysisResultId];
+        return next;
+      });
+
+      const response = await fetch("/api/article-improvement/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          analysisResultId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "修正案の生成に失敗しました");
+      }
+
+      const result = await response.json();
+      setImprovementData((prev) => ({ ...prev, [analysisResultId]: result }));
+      setShowImprovementModal((prev) => ({ ...prev, [analysisResultId]: true }));
+    } catch (err: any) {
+      console.error("[Article Detail] Error generating improvement:", err);
+      setImprovementError((prev) => ({ ...prev, [analysisResultId]: err.message }));
+    } finally {
+      setImprovementLoading((prev) => {
+        const next = { ...prev };
+        delete next[analysisResultId];
+        return next;
+      });
+    }
+  };
+
+  const handleCopyContent = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(t("dashboard.articles.improvement.copied"));
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      alert("コピーに失敗しました");
+    }
+  };
+
   const handleDeleteArticle = async () => {
     if (!articleId || !confirm("この記事を削除しますか？")) {
       return;
@@ -502,7 +557,7 @@ export default function ArticleDetailPage({
               {article.title || article.url}
             </h1>
             <p className="text-sm text-gray-500 mb-4 break-all">{article.url}</p>
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-4 text-sm flex-wrap">
               {article.current_average_position !== null && (
                 <span className="text-gray-600">
                   {t("dashboard.articles.averagePosition")}:{" "}
@@ -525,7 +580,7 @@ export default function ArticleDetailPage({
             <button
               onClick={handleStartAnalysis}
               disabled={analyzing || !article.site_id}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded hover:bg-blue-50 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
             >
               {analyzing ? t("analysis.analyzing") : t("analysis.startAnalysis")}
             </button>
@@ -533,7 +588,7 @@ export default function ArticleDetailPage({
               <div className="group relative inline-block">
               <button
                 onClick={handleMarkAsFixed}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                className="px-4 py-2 bg-white text-green-600 border border-green-600 rounded hover:bg-green-50 text-sm"
               >
                   対応完了にする
               </button>
@@ -547,7 +602,7 @@ export default function ArticleDetailPage({
             )}
             <button
               onClick={handleDeleteArticle}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+              className="px-4 py-2 bg-white text-red-600 border border-red-600 rounded hover:bg-red-50 text-sm"
             >
               削除
             </button>
@@ -557,8 +612,31 @@ export default function ArticleDetailPage({
 
       {/* 分析結果履歴 */}
       <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b">
+        <div className="px-6 py-4 border-b flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">分析結果履歴</h2>
+          {analysisResults.length > 0 && (() => {
+            // 最新の分析結果を取得
+            const latestResult = analysisResults[0];
+            const hasRecommendedAdditions = latestResult.detailed_result_storage_key && 
+              detailedData[latestResult.id]?.semanticDiffAnalysis?.semanticAnalysis?.recommendedAdditions &&
+              detailedData[latestResult.id].semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0;
+            
+            return hasRecommendedAdditions ? (
+              <button
+                onClick={() => handleGenerateImprovement(latestResult.id)}
+                disabled={improvementLoading[latestResult.id]}
+                className="relative px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {improvementLoading[latestResult.id] ? t("dashboard.articles.improvement.loading") : t("dashboard.articles.improveArticle")}
+                {/* AIバッジ */}
+                {!improvementLoading[latestResult.id] && (
+                  <span className="absolute -top-2 -right-2 px-2 py-0.5 text-xs font-bold text-white bg-orange-500 rounded-full shadow-md">
+                    AI
+                  </span>
+                )}
+              </button>
+            ) : null;
+          })()}
         </div>
         <div className="divide-y">
           {analysisResults.length === 0 ? (
@@ -642,6 +720,11 @@ export default function ArticleDetailPage({
                             <h4 className="font-semibold text-sm mb-2">
                               追加すべき項目 ({detailedData[result.id].semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length}個)
                             </h4>
+                            {improvementError[result.id] && (
+                              <div className="mt-2 mb-2 p-2 bg-red-50 border border-red-300 rounded text-sm text-red-600">
+                                {improvementError[result.id]}
+                              </div>
+                            )}
                             <div className="space-y-3 mt-2">
                               {detailedData[result.id].semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.map(
                                 (rec: any, i: number) => (
@@ -687,6 +770,119 @@ export default function ArticleDetailPage({
           )}
         </div>
       </div>
+
+      {/* 記事改善案モーダル */}
+      {Object.entries(showImprovementModal).map(([analysisResultId, isOpen]) => {
+        if (!isOpen || !improvementData[analysisResultId]) return null;
+
+        const improvement = improvementData[analysisResultId].improvement;
+
+        return (
+          <div
+            key={analysisResultId}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => setShowImprovementModal((prev) => ({ ...prev, [analysisResultId]: false }))}
+          >
+            <div
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {t("dashboard.articles.improvement.title")}
+                  </h2>
+                  <button
+                    onClick={() => setShowImprovementModal((prev) => ({ ...prev, [analysisResultId]: false }))}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {improvement.changes && improvement.changes.length > 0 ? (
+                  <div className="space-y-6">
+                    {improvement.changes.map((change: any, index: number) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4">
+                        <div className="mb-4">
+                          <h3 className="font-semibold text-lg mb-2">
+                            {t("dashboard.articles.improvement.change")} {index + 1}
+                          </h3>
+                          <div className="text-sm text-gray-600 mb-2">
+                            <span className="font-medium">{t("dashboard.articles.improvement.position")}:</span>{" "}
+                            {change.simpleFormat?.position || `${change.position} ${change.target}`}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium">{t("dashboard.articles.improvement.section")}:</span>{" "}
+                            {change.simpleFormat?.section || change.target}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* シンプルな形式 */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-sm text-gray-700">
+                                {t("dashboard.articles.improvement.simpleFormat")}
+                              </h4>
+                              <button
+                                onClick={() => handleCopyContent(change.simpleFormat?.content || change.content)}
+                                className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
+                              >
+                                {t("dashboard.articles.improvement.copyContent")}
+                              </button>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                                {change.simpleFormat?.content || change.content}
+                              </pre>
+                            </div>
+                          </div>
+
+                          {/* コピペ可能な形式 */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-sm text-gray-700">
+                                {t("dashboard.articles.improvement.copyableFormat")}
+                              </h4>
+                              <button
+                                onClick={() => handleCopyContent(change.content)}
+                                className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
+                              >
+                                {t("dashboard.articles.improvement.copyContent")}
+                              </button>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
+                                {change.content}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    {t("dashboard.articles.improvement.error")}
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => setShowImprovementModal((prev) => ({ ...prev, [analysisResultId]: false }))}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                  >
+                    {t("dashboard.articles.improvement.close")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
