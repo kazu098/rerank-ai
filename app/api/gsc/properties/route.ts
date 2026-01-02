@@ -57,6 +57,33 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // 403エラーの場合、認証スコープが不足している可能性
+      if (response.status === 403) {
+        const errorMessage = errorData?.error?.message || errorData?.message || "";
+        const isScopeError = errorMessage.includes("insufficient authentication scopes") || 
+                            errorMessage.includes("PERMISSION_DENIED");
+        
+        if (isScopeError) {
+          return NextResponse.json(
+            {
+              error: "Search Console APIのアクセス権限が不足しています。再度ログインして権限を付与してください。",
+              code: "INSUFFICIENT_SCOPES",
+              details: errorData,
+            },
+            { status: 403 }
+          );
+        }
+        
+        return NextResponse.json(
+          {
+            error: "Search Consoleプロパティへのアクセス権限がありません。",
+            code: "GSC_PERMISSION_DENIED",
+            details: errorData,
+          },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
         {
           error: "Search Consoleプロパティの取得に失敗しました。",
