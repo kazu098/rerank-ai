@@ -14,7 +14,14 @@ export async function analyzeStep1(
   siteUrl: string,
   pageUrl: string,
   maxKeywords: number = 3,
-  articleTitle?: string | null
+  articleTitle?: string | null,
+  selectedKeywords?: Array<{
+    keyword: string;
+    position: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+  }> | null
 ): Promise<Step1Result> {
   const startTime = Date.now();
   console.log(`[CompetitorAnalysis] ⏱️ Step 1 starting at ${new Date().toISOString()}`);
@@ -48,23 +55,8 @@ export async function analyzeStep1(
 
   // キーワードを優先順位付け
   const step3Start = Date.now();
-  // keywordData.rowsが存在することを確認
-  const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
-  const keywordList: Array<{
-    keyword: string;
-    position: number;
-    impressions: number;
-    clicks: number;
-    ctr: number;
-  }> = keywordRows.map((row) => ({
-    keyword: row.keys[0],
-    position: row.position,
-    impressions: row.impressions,
-    clicks: row.clicks,
-    ctr: row.ctr,
-  }));
-
-  // 転落したキーワードを優先
+  
+  // 手動選択されたキーワードがある場合はそれを使用、ない場合は自動選定
   let prioritizedKeywords: Array<{
     keyword: string;
     priority: number;
@@ -72,26 +64,71 @@ export async function analyzeStep1(
     clicks: number;
     position: number;
   }> = [];
+  
+  let keywordList: Array<{
+    keyword: string;
+    position: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+  }> = [];
+  
+  if (selectedKeywords && selectedKeywords.length > 0) {
+    // 手動選択されたキーワードを使用（優先度は固定値100を設定）
+    prioritizedKeywords = selectedKeywords.map((kw) => ({
+      keyword: kw.keyword,
+      priority: 100, // 手動選択の場合は優先度を固定
+      impressions: kw.impressions,
+      clicks: kw.clicks,
+      position: kw.position,
+    }));
+    console.log(`[CompetitorAnalysis] Using manually selected keywords: ${prioritizedKeywords.length}`);
+  } else {
+    // 自動選定のロジック（既存の処理）
+    // keywordData.rowsが存在することを確認
+    const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
+    keywordList = keywordRows.map((row) => ({
+      keyword: row.keys[0],
+      position: row.position,
+      impressions: row.impressions,
+      clicks: row.clicks,
+      ctr: row.ctr,
+    }));
 
-  // 最小インプレッション数の閾値（検索ボリュームが少ないキーワードを除外）
-  // データが少ないページでもキーワードを取得できるように、閾値を下げる
-  const minImpressions = 1; // 10から1に変更
+    // 転落したキーワードを優先
+    // 最小インプレッション数の閾値（検索ボリュームが少ないキーワードを除外）
+    // データが少ないページでもキーワードを取得できるように、閾値を下げる
+    const minImpressions = 1; // 10から1に変更
 
-  // デバッグログ
-  console.log(`[CompetitorAnalysis] Keyword data:`, {
-    keywordListCount: keywordList.length,
-    keywordListSample: keywordList.slice(0, 5).map(kw => ({ keyword: kw.keyword, impressions: kw.impressions, position: kw.position })),
-    droppedKeywordsCount: rankDropResult.droppedKeywords.length,
-    minImpressions,
-  });
+    // デバッグログ
+    console.log(`[CompetitorAnalysis] Keyword data:`, {
+      keywordListCount: keywordList.length,
+      keywordListSample: keywordList.slice(0, 5).map(kw => ({ keyword: kw.keyword, impressions: kw.impressions, position: kw.position })),
+      droppedKeywordsCount: rankDropResult.droppedKeywords.length,
+      minImpressions,
+    });
 
-  // 転落キーワードと通常キーワードを統合してから、正規化で重複排除
-  const allPrioritizedKeywords: typeof prioritizedKeywords = [];
+    // 転落キーワードと通常キーワードを統合してから、正規化で重複排除
+    const allPrioritizedKeywords: typeof prioritizedKeywords = [];
 
-  if (rankDropResult.droppedKeywords.length > 0) {
-    // 転落キーワードを優先（意味的に同じキーワードはグループ化）
-    const droppedPrioritized = keywordPrioritizer
-      .prioritizeDroppedKeywords(rankDropResult.droppedKeywords, maxKeywords * 2, minImpressions, articleTitle)
+    if (rankDropResult.droppedKeywords.length > 0) {
+      // 転落キーワードを優先（意味的に同じキーワードはグループ化）
+      const droppedPrioritized = keywordPrioritizer
+        .prioritizeDroppedKeywords(rankDropResult.droppedKeywords, maxKeywords * 2, minImpressions, articleTitle)
+        .map((kw) => ({
+          keyword: kw.keyword,
+          priority: kw.priority,
+          impressions: kw.impressions,
+          clicks: kw.clicks,
+          position: kw.position,
+        }));
+      console.log(`[CompetitorAnalysis] Dropped prioritized:`, droppedPrioritized.length);
+      allPrioritizedKeywords.push(...droppedPrioritized);
+    }
+
+    // 全体から主要なキーワードを追加（意味的に同じキーワードはグループ化）
+    const regularPrioritized = keywordPrioritizer
+      .prioritizeKeywords(keywordList, maxKeywords * 2, minImpressions, articleTitle)
       .map((kw) => ({
         keyword: kw.keyword,
         priority: kw.priority,
@@ -99,46 +136,49 @@ export async function analyzeStep1(
         clicks: kw.clicks,
         position: kw.position,
       }));
-    console.log(`[CompetitorAnalysis] Dropped prioritized:`, droppedPrioritized.length);
-    allPrioritizedKeywords.push(...droppedPrioritized);
+    console.log(`[CompetitorAnalysis] Regular prioritized:`, regularPrioritized.length);
+    allPrioritizedKeywords.push(...regularPrioritized);
+
+    // 意味的に同じキーワードを統合（最終的な重複排除）
+    const keywordMap = new Map<string, typeof prioritizedKeywords[0]>();
+
+    // 優先度の高い順に処理
+    allPrioritizedKeywords
+      .sort((a, b) => b.priority - a.priority)
+      .forEach((kw) => {
+        const normalized = keywordPrioritizer.normalizeKeyword(kw.keyword);
+        // まだ登録されていない、または現在のキーワードの優先度が高い場合のみ更新
+        if (!keywordMap.has(normalized) || keywordMap.get(normalized)!.priority < kw.priority) {
+          keywordMap.set(normalized, kw);
+        }
+      });
+
+    // Mapから配列に変換し、優先度順にソート
+    prioritizedKeywords = Array.from(keywordMap.values())
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, maxKeywords);
   }
-
-  // 全体から主要なキーワードを追加（意味的に同じキーワードはグループ化）
-  const regularPrioritized = keywordPrioritizer
-    .prioritizeKeywords(keywordList, maxKeywords * 2, minImpressions, articleTitle)
-    .map((kw) => ({
-      keyword: kw.keyword,
-      priority: kw.priority,
-      impressions: kw.impressions,
-      clicks: kw.clicks,
-      position: kw.position,
-    }));
-  console.log(`[CompetitorAnalysis] Regular prioritized:`, regularPrioritized.length);
-  allPrioritizedKeywords.push(...regularPrioritized);
-
-  // 意味的に同じキーワードを統合（最終的な重複排除）
-  const keywordMap = new Map<string, typeof prioritizedKeywords[0]>();
-
-  // 優先度の高い順に処理
-  allPrioritizedKeywords
-    .sort((a, b) => b.priority - a.priority)
-    .forEach((kw) => {
-      const normalized = keywordPrioritizer.normalizeKeyword(kw.keyword);
-      // まだ登録されていない、または現在のキーワードの優先度が高い場合のみ更新
-      if (!keywordMap.has(normalized) || keywordMap.get(normalized)!.priority < kw.priority) {
-        keywordMap.set(normalized, kw);
-      }
-    });
-
-  // Mapから配列に変換し、優先度順にソート
-  prioritizedKeywords = Array.from(keywordMap.values())
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, maxKeywords);
 
   console.log(`[CompetitorAnalysis] ⏱️ Step 1.3 (Keyword prioritization): ${Date.now() - step3Start}ms`);
 
   // 上位を保てているキーワードを抽出（1-5位）
-  const topRankingKeywords = keywordList
+  // 手動選択の場合はkeywordListが定義されていないので、GSCデータから再取得
+  const keywordRowsForTopRanking = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
+  const keywordListForTopRanking: Array<{
+    keyword: string;
+    position: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+  }> = keywordRowsForTopRanking.map((row) => ({
+    keyword: row.keys[0],
+    position: row.position,
+    impressions: row.impressions,
+    clicks: row.clicks,
+    ctr: row.ctr,
+  }));
+  
+  const topRankingKeywords = keywordListForTopRanking
     .filter((kw) => kw.position >= 1 && kw.position <= 5 && kw.impressions >= 10)
     .sort((a, b) => a.position - b.position)
     .slice(0, 5)

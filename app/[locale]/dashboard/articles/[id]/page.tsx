@@ -68,6 +68,12 @@ export default function ArticleDetailPage({
   const [improvementData, setImprovementData] = useState<Record<string, any>>({});
   const [improvementError, setImprovementError] = useState<Record<string, string>>({});
   const [showImprovementModal, setShowImprovementModal] = useState<Record<string, boolean>>({});
+  
+  // キーワード手動選択関連の状態
+  const [showKeywordSelectModal, setShowKeywordSelectModal] = useState(false);
+  const [keywords, setKeywords] = useState<Array<{ keyword: string; position: number; impressions: number; clicks: number; ctr: number }>>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set());
+  const [loadingKeywords, setLoadingKeywords] = useState(false);
 
   const fetchArticleDetail = useCallback(async () => {
     if (!articleId) return;
@@ -139,177 +145,11 @@ export default function ArticleDetailPage({
   const handleStartAnalysis = useCallback(async () => {
     if (!data?.article || !data.article.site_id || analyzing) return;
 
-    // 今日既に分析されているかチェック
-    try {
-      const checkResponse = await fetch("/api/articles/check-recent-analysis", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: data.article.url,
-        }),
-      });
-
-      if (checkResponse.ok) {
-        const checkResult = await checkResponse.json();
-        if (checkResult.analyzedToday) {
-          // 今日既に分析されている場合は、分析結果を再取得して表示
-          await fetchArticleDetail();
-          return; // 新しい分析を実行せずに終了
-        }
-      }
-    } catch (checkError: any) {
-      console.error("[Article Detail] Error checking recent analysis:", checkError);
-      // チェックエラーは無視して続行
-    }
-
-    setAnalyzing(true);
-    setError(null);
-    setCurrentStep(0);
-    setCompletedSteps(new Set());
-    setEstimatedTimeRemaining(60); // 初期推定時間: 60秒
-
-    const analysisStartTime = Date.now();
-
-    try {
-      // サイト情報を取得
-      const siteResponse = await fetch(`/api/sites/${data.article.site_id}`);
-      if (!siteResponse.ok) {
-        throw new Error("サイト情報の取得に失敗しました");
-      }
-      const site = await siteResponse.json();
-      const siteUrl = site.site_url.replace(/\/$/, "");
-
-      // 記事URLからpageUrlを抽出
-      const urlObj = new URL(data.article.url);
-      const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
-
-      // Step 1: 記事の検索順位データを取得中
-      setCurrentStep(1);
-      setEstimatedTimeRemaining(50);
-      const step1Response = await fetch("/api/competitors/analyze-step1", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          siteUrl,
-          pageUrl,
-          maxKeywords: 3,
-        }),
-      });
-
-      if (!step1Response.ok) {
-        const errorData = await step1Response.json();
-        throw new Error(errorData.error || "Step 1に失敗しました");
-      }
-
-      const step1Result = await step1Response.json();
-      setCompletedSteps(prev => new Set([1, 2, 3]));
-      setCurrentStep(4);
-      setEstimatedTimeRemaining(40);
-
-      // Step 2: 競合URL抽出
-      const step2Response = await fetch("/api/competitors/analyze-step2", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          siteUrl,
-          pageUrl,
-          prioritizedKeywords: step1Result.prioritizedKeywords,
-          maxCompetitorsPerKeyword: 3,
-        }),
-      });
-
-      if (!step2Response.ok) {
-        const errorData = await step2Response.json();
-        throw new Error(errorData.error || "Step 2に失敗しました");
-      }
-
-      const step2Result = await step2Response.json();
-      setCompletedSteps(prev => new Set([...prev, 4]));
-      setCurrentStep(5);
-      setEstimatedTimeRemaining(30);
-
-      // Step 3: 記事スクレイピング + LLM分析
-      let step3Result: any = null;
-      if (step2Result.uniqueCompetitorUrls.length > 0) {
-        setCompletedSteps(prev => new Set([...prev, 5]));
-        setCurrentStep(6);
-        setEstimatedTimeRemaining(20);
-
-        const step3Response = await fetch("/api/competitors/analyze-step3", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            siteUrl,
-            pageUrl,
-            prioritizedKeywords: step1Result.prioritizedKeywords,
-            competitorResults: step2Result.competitorResults,
-            uniqueCompetitorUrls: step2Result.uniqueCompetitorUrls,
-            skipLLMAnalysis: false,
-          }),
-        });
-
-        if (!step3Response.ok) {
-          const errorData = await step3Response.json();
-          console.error("Step 3 failed:", errorData);
-          setCompletedSteps(prev => new Set([...prev, 6, 7]));
-          setCurrentStep(0);
-        } else {
-          step3Result = await step3Response.json();
-          setCompletedSteps(prev => new Set([...prev, 6, 7]));
-          setCurrentStep(0);
-          setEstimatedTimeRemaining(null);
-        }
-      } else {
-        setCompletedSteps(prev => new Set([...prev, 5, 6, 7]));
-        setCurrentStep(0);
-        setEstimatedTimeRemaining(null);
-      }
-
-      // 分析結果をDBに保存
-      const analysisDurationSeconds = Math.floor((Date.now() - analysisStartTime) / 1000);
-      const saveResponse = await fetch("/api/analysis/save", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          articleUrl: data.article.url,
-          siteUrl,
-          analysisResult: {
-            ...step1Result,
-            ...step2Result,
-            ...(step3Result || {}),
-          },
-          analysisDurationSeconds,
-        }),
-      });
-
-      if (saveResponse.ok) {
-        // データを再取得
-        await fetchArticleDetail();
-      }
-
-      // URLからanalyzeパラメータを削除
-      const currentPath = pathname.split('?')[0]; // クエリパラメータを除去
-      router.replace(currentPath);
-    } catch (err: any) {
-      console.error("[Analysis] Error:", err);
-      setError(err.message || "分析の実行に失敗しました");
-      setCurrentStep(0);
-      setCompletedSteps(new Set());
-    } finally {
-      setAnalyzing(false);
-      setEstimatedTimeRemaining(null);
-    }
-  }, [data, analyzing, router, fetchArticleDetail]);
+    // ホームページの記事分析タブに遷移（記事URLとanalyze=trueパラメータ付き）
+    // routerは既にロケールプレフィックスを自動処理するため、/だけを指定
+    const articleUrl = encodeURIComponent(data.article.url);
+    router.push(`/?articleUrl=${articleUrl}&analyze=true`);
+  }, [data, analyzing, router]);
 
   const fetchDetailedAnalysis = async (analysisId: string, storageKey: string) => {
     if (detailedData[analysisId] || loadingDetailed.has(analysisId)) {
@@ -335,6 +175,63 @@ export default function ArticleDetailPage({
         next.delete(analysisId);
         return next;
       });
+    }
+  };
+
+  const handleOpenKeywordSelectModal = async () => {
+    if (!data?.article || !data.article.site_id) return;
+    
+    setShowKeywordSelectModal(true);
+    setLoadingKeywords(true);
+    setSelectedKeywords(new Set());
+    
+    try {
+      // サイト情報を取得
+      const siteResponse = await fetch(`/api/sites/${data.article.site_id}`);
+      if (!siteResponse.ok) {
+        throw new Error("サイト情報の取得に失敗しました");
+      }
+      const site = await siteResponse.json();
+      const siteUrl = site.site_url.replace(/\/$/, "");
+      
+      // 記事URLからpageUrlを抽出
+      const urlObj = new URL(data.article.url);
+      const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
+      
+      // GSCデータからキーワード一覧を取得
+      const endDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      const startDate = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      
+      const keywordsResponse = await fetch(
+        `/api/gsc/keywords?siteUrl=${encodeURIComponent(siteUrl)}&pageUrl=${encodeURIComponent(pageUrl)}&startDate=${startDate}&endDate=${endDate}`
+      );
+      
+      if (!keywordsResponse.ok) {
+        throw new Error("キーワードデータの取得に失敗しました");
+      }
+      
+      const keywordsData = await keywordsResponse.json();
+      const keywordList = (keywordsData.rows || []).map((row: any) => ({
+        keyword: row.keys[0],
+        position: row.position,
+        impressions: row.impressions,
+        clicks: row.clicks,
+        ctr: row.ctr,
+      })).filter((kw: any) => kw.impressions >= 1); // インプレッション1以上を表示
+      
+      // インプレッション数でソート（降順）
+      keywordList.sort((a: any, b: any) => b.impressions - a.impressions);
+      
+      setKeywords(keywordList);
+    } catch (err: any) {
+      console.error("[Keyword Select] Error:", err);
+      setError(err.message || "キーワードデータの取得に失敗しました");
+    } finally {
+      setLoadingKeywords(false);
     }
   };
 
@@ -548,6 +445,20 @@ export default function ArticleDetailPage({
 
   const { article, analysisResults, analysisRuns } = data;
 
+  // 今日既に分析されているかチェック
+  const isAnalyzedToday = (() => {
+    if (!article.last_analyzed_at) return false;
+    const lastAnalyzed = new Date(article.last_analyzed_at);
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const lastAnalyzedStart = new Date(
+      lastAnalyzed.getFullYear(),
+      lastAnalyzed.getMonth(),
+      lastAnalyzed.getDate()
+    );
+    return lastAnalyzedStart.getTime() === todayStart.getTime();
+  })();
+
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
@@ -578,13 +489,23 @@ export default function ArticleDetailPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleStartAnalysis}
-              disabled={analyzing || !article.site_id}
-              className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded hover:bg-blue-50 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
-            >
-              {analyzing ? t("analysis.analyzing") : t("analysis.startAnalysis")}
-            </button>
+            <div className="group relative inline-block">
+              <button
+                onClick={handleStartAnalysis}
+                disabled={analyzing || !article.site_id || isAnalyzedToday}
+                className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded hover:bg-blue-50 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
+              >
+                {analyzing ? t("analysis.analyzing") : t("analysis.startAnalysis")}
+              </button>
+              {isAnalyzedToday && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 whitespace-normal">
+                  {t("dashboard.articles.analyzedTodayTooltip")}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                    <div className="w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                </div>
+              )}
+            </div>
             {!article.is_fixed && (
               <div className="group relative inline-block">
               <button
@@ -778,6 +699,160 @@ export default function ArticleDetailPage({
         </div>
       </div>
 
+      {/* キーワード選択モーダル */}
+      {showKeywordSelectModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowKeywordSelectModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {t("dashboard.articles.keywordSelect.title")}
+                </h2>
+                <button
+                  onClick={() => setShowKeywordSelectModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                {t("dashboard.articles.keywordSelect.description")}
+              </p>
+              
+              {loadingKeywords ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-sm text-gray-600">{t("dashboard.articles.keywordSelect.loading")}</p>
+                </div>
+              ) : keywords.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {t("dashboard.articles.keywordSelect.noKeywords")}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        {t("dashboard.articles.keywordSelect.selectedCount", { count: selectedKeywords.size, max: 3 })}
+                      </span>
+                      {selectedKeywords.size > 0 && (
+                        <button
+                          onClick={() => setSelectedKeywords(new Set())}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          {t("dashboard.articles.keywordSelect.clearAll")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.select")}
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.keyword")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.position")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.impressions")}
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                            {t("dashboard.articles.keywordSelect.clicks")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {keywords.map((kw, index) => {
+                          const isSelected = selectedKeywords.has(kw.keyword);
+                          const maxKeywords = 3; // 記事詳細ページでは固定値3を使用
+                          const isDisabled = !isSelected && selectedKeywords.size >= maxKeywords;
+                          
+                          return (
+                            <tr
+                              key={index}
+                              className={`hover:bg-gray-50 ${isDisabled ? "opacity-50" : ""}`}
+                            >
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  disabled={isDisabled}
+                                  onChange={() => {
+                                    const newSelected = new Set(selectedKeywords);
+                                    if (isSelected) {
+                                      newSelected.delete(kw.keyword);
+                                    } else if (newSelected.size < maxKeywords) {
+                                      newSelected.add(kw.keyword);
+                                    }
+                                    setSelectedKeywords(newSelected);
+                                  }}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                {kw.keyword}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.position.toFixed(1)}位
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.impressions.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                {kw.clicks.toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setShowKeywordSelectModal(false);
+                        setSelectedKeywords(new Set());
+                      }}
+                      className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 text-sm"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedKeywords.size > 0) {
+                          setShowKeywordSelectModal(false);
+                          handleStartAnalysis();
+                        }
+                      }}
+                      disabled={selectedKeywords.size === 0}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
+                      {t("dashboard.articles.keywordSelect.startAnalysis")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 記事改善案モーダル */}
       {Object.entries(showImprovementModal).map(([analysisResultId, isOpen]) => {
         if (!isOpen || !improvementData[analysisResultId]) return null;
@@ -827,45 +902,22 @@ export default function ArticleDetailPage({
                           </div>
                         </div>
 
-                        <div className="space-y-4">
-                          {/* シンプルな形式 */}
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-medium text-sm text-gray-700">
-                                {t("dashboard.articles.improvement.simpleFormat")}
-                              </h4>
-                              <button
-                                onClick={() => handleCopyContent(change.simpleFormat?.content || change.content)}
-                                className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
-                              >
-                                {t("dashboard.articles.improvement.copyContent")}
-                              </button>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded border border-gray-200">
-                              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
-                                {change.simpleFormat?.content || change.content}
-                              </pre>
-                            </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm text-gray-700">
+                              {t("dashboard.articles.improvement.copyableFormat")}
+                            </h4>
+                            <button
+                              onClick={() => handleCopyContent(change.content)}
+                              className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
+                            >
+                              {t("dashboard.articles.improvement.copyContent")}
+                            </button>
                           </div>
-
-                          {/* コピペ可能な形式 */}
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-medium text-sm text-gray-700">
-                                {t("dashboard.articles.improvement.copyableFormat")}
-                              </h4>
-                              <button
-                                onClick={() => handleCopyContent(change.content)}
-                                className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
-                              >
-                                {t("dashboard.articles.improvement.copyContent")}
-                              </button>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded border border-gray-200">
-                              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
-                                {change.content}
-                              </pre>
-                            </div>
+                          <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                            <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
+                              {change.content}
+                            </pre>
                           </div>
                         </div>
                       </div>

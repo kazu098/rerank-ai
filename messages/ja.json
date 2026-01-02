@@ -102,7 +102,7 @@
     "selectPropertyDescription": "分析したいサイトのSearch Consoleプロパティを選択してください。",
     "analyzeArticle": "記事を分析する",
     "analyzeArticleDescription": "記事のURLを入力すると、順位データを取得して競合との差分を分析し、改善案を提示します。",
-    "startAnalysis": "AIによる差分スキャンを開始",
+    "startAnalysis": "AIによる記事分析開始",
     "analyzing": "分析中...",
     "propertyLoading": "プロパティを取得中...",
     "selectedProperty": "選択中のプロパティ",
@@ -375,6 +375,21 @@
       "titleUrl": "タイトル/URL",
       "averagePosition": "平均順位",
       "improveArticle": "記事を修正する",
+      "selectKeywords": "キーワードを手動で選択",
+      "keywordSelect": {
+        "title": "キーワードを選択",
+        "description": "分析に使用するキーワードを選択してください（最大3個）。Search Consoleのデータから表示されます。",
+        "loading": "キーワードデータを取得中...",
+        "noKeywords": "キーワードデータが見つかりませんでした",
+        "selectedCount": "選択中: {count} / {max}",
+        "clearAll": "すべてクリア",
+        "select": "選択",
+        "keyword": "キーワード",
+        "position": "順位",
+        "impressions": "インプレッション",
+        "clicks": "クリック",
+        "startAnalysis": "選択したキーワードで分析を開始"
+      },
       "improvement": {
         "title": "記事修正案",
         "loading": "修正案を生成中...",
@@ -427,7 +442,8 @@
       "highlightedArticleMessage": "この記事の通知設定を行えます",
       "delete": "削除",
       "confirmDelete": "この記事を削除しますか？",
-      "deleteFailed": "記事の削除に失敗しました"
+      "deleteFailed": "記事の削除に失敗しました",
+      "analyzedTodayTooltip": "今日は既に分析済みです。Search Consoleのデータは1日1回更新されるため、同じ結果になります。明日以降に再度分析を実行できます。"
     },
     "notifications": {
       "title": "未読通知",

@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       siteUrl,
       pageUrl,
       maxKeywords = 3,
+      selectedKeywords, // 手動選択されたキーワード（オプション）
     } = body;
 
     if (!siteUrl || !pageUrl) {
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       // 記事タイトルの取得に失敗しても分析は続行
     }
 
-    const result = await analyzeStep1(siteUrl, pageUrl, maxKeywords, articleTitle);
+    const result = await analyzeStep1(siteUrl, pageUrl, maxKeywords, articleTitle, selectedKeywords);
 
     const apiTotalTime = Date.now() - apiStartTime;
     console.log(
