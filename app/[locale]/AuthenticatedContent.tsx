@@ -983,21 +983,27 @@ export function AuthenticatedContent() {
                           {/* 記事一覧 */}
                           <div className="space-y-2">
                             {(() => {
-                              const filteredArticles = articles.filter((article) => {
-                                if (!debouncedArticleSearchQuery) return true;
-                                const query = debouncedArticleSearchQuery.toLowerCase();
-                                return (
-                                  article.url.toLowerCase().includes(query) ||
-                                  (article.title && article.title.toLowerCase().includes(query))
-                                );
-                              });
+                              // 検索クエリがある場合はクライアント側でフィルタリング＋ページネーション
+                              // 検索クエリがない場合はAPIから取得した記事をそのまま表示（サーバー側でページネーション済み）
+                              const filteredArticles = debouncedArticleSearchQuery
+                                ? articles.filter((article) => {
+                                    const query = debouncedArticleSearchQuery.toLowerCase();
+                                    return (
+                                      article.url.toLowerCase().includes(query) ||
+                                      (article.title && article.title.toLowerCase().includes(query))
+                                    );
+                                  })
+                                : articles;
                               
-                              const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
-                              const startIndex = (articlePage - 1) * articlesPerPage;
-                              const endIndex = startIndex + articlesPerPage;
-                              const paginatedArticles = filteredArticles.slice(startIndex, endIndex);
+                              const displayArticles = debouncedArticleSearchQuery
+                                ? (() => {
+                                    const startIndex = (articlePage - 1) * articlesPerPage;
+                                    const endIndex = startIndex + articlesPerPage;
+                                    return filteredArticles.slice(startIndex, endIndex);
+                                  })()
+                                : articles; // 検索クエリがない場合はAPIから取得した記事をそのまま表示
                               
-                              return paginatedArticles.map((article, index) => (
+                              return displayArticles.map((article, index) => (
                                 <div
                                   key={index}
                                   className="bg-white border border-gray-200 rounded-lg p-3 hover:border-purple-400 transition-colors"
