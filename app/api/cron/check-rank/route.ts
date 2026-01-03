@@ -10,19 +10,16 @@ import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib
 import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
 import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
-import { isMidnightInTimezone } from "@/lib/timezone-utils";
 
 /**
  * Cronジョブ: 順位下落をチェックして通知キューに保存
- * 実行頻度: 1時間ごと（各タイムゾーンの午前0時に実行）
+ * 実行頻度: 1日1回（UTC 0時、GSC APIのデータは1日単位で更新されるため）
  * 
  * 処理フロー:
  * 1. 監視対象の記事を取得
- * 2. 各記事のユーザーのタイムゾーンを確認
- * 3. 現在時刻がユーザーのタイムゾーンで午前0時の場合のみ処理
- * 4. 各記事に対して通知判定を実行
- * 5. 通知が必要な記事をユーザーごとにまとめる
- * 6. 通知履歴をDBに保存（sent_atはNULL、通知送信cronで送信）
+ * 2. 各記事に対して通知判定を実行
+ * 3. 通知が必要な記事をユーザーごとにまとめる
+ * 4. 通知履歴をDBに保存（sent_atはNULL、通知送信cronで送信）
  * 
  * 注意: 通知送信は別のcronジョブ（/api/cron/send-notifications）で実行される。
  */
@@ -65,19 +62,6 @@ export async function GET(request: NextRequest) {
           console.warn(`[Cron] User not found or email missing for article ${article.id}`);
           continue;
         }
-
-        // ユーザーのタイムゾーンを取得（user_alert_settingsまたはusersテーブルから）
-        const userAlertSettings = await getUserAlertSettings(user.id);
-        const userTimezone = userAlertSettings.timezone || user.timezone || 'UTC';
-
-        // 現在時刻がユーザーのタイムゾーンで午前0時かどうかをチェック
-        // 許容範囲は5分（cronジョブの実行時刻のずれを考慮）
-        if (!isMidnightInTimezone(userTimezone, 5)) {
-          console.log(`[Cron] Skipping article ${article.id} for user ${user.email}: not midnight in timezone ${userTimezone} (current time: ${new Date().toISOString()})`);
-          continue;
-        }
-
-        console.log(`[Cron] Processing article ${article.id} for user ${user.email} (timezone: ${userTimezone}, midnight check passed)`);
 
         // サイト情報を取得
         if (!article.site_id) {
