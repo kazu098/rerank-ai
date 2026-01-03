@@ -90,14 +90,8 @@ export default function ArticleDetailPage({
       const articleData = await response.json();
       setData(articleData);
 
-      // すべての分析結果の詳細データを自動的に取得
-      if (articleData.analysisResults) {
-        articleData.analysisResults.forEach((result: any) => {
-          if (result.detailed_result_storage_key) {
-            fetchDetailedAnalysis(result.id, result.detailed_result_storage_key);
-          }
-        });
-      }
+      // 分析結果の詳細データは遅延読み込み（表示時またはクリック時に取得）
+      // 初期表示時は基本情報のみを取得して高速化
     } catch (err: any) {
       console.error("[Article Detail] Error:", err);
       setError(err.message || "エラーが発生しました");
@@ -619,7 +613,18 @@ export default function ArticleDetailPage({
                 </div>
                 {result.detailed_result_storage_key && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    {loadingDetailed.has(result.id) ? (
+                    {!detailedData[result.id] && !loadingDetailed.has(result.id) ? (
+                      <button
+                        onClick={() => {
+                          if (result.detailed_result_storage_key) {
+                            fetchDetailedAnalysis(result.id, result.detailed_result_storage_key);
+                          }
+                        }}
+                        className="w-full px-4 py-2 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors"
+                      >
+                        詳細を見る
+                      </button>
+                    ) : loadingDetailed.has(result.id) ? (
                       <div className="text-center py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
                         <p className="mt-2 text-sm text-gray-600">詳細データを読み込み中...</p>

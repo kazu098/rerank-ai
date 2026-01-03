@@ -324,6 +324,116 @@ export async function getPreviousAnalysisResult(
 }
 
 /**
+ * 複数の記事IDに紐づく最新の分析結果を一括取得（N+1クエリを回避）
+ * 返り値: Map<articleId, AnalysisResult | null>
+ * 
+ * 実装: RPC（PostgreSQL関数）を使用して、各article_idごとに最新の1件を取得
+ * または、全件取得してJavaScriptでフィルタリング（記事数が少ない場合は有効）
+ */
+export async function getLatestAnalysesByArticleIds(
+  articleIds: string[]
+): Promise<Map<string, AnalysisResult | null>> {
+  if (articleIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = createSupabaseClient();
+
+  // 全記事IDの分析結果を取得（article_id IN (ids)）
+  // その後、JavaScriptで各article_idごとに最新の1件をフィルタリング
+  // 記事数が少ない場合は、この方法で十分効率的
+  const { data: allResults, error } = await supabase
+    .from("analysis_results")
+    .select("*")
+    .in("article_id", articleIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[Analysis Results] Failed to get latest analyses:", error);
+    // エラーが発生した場合、空のMapを返す
+    return new Map();
+  }
+
+  // 各article_idごとに最新の1件のみを抽出
+  const resultMap = new Map<string, AnalysisResult | null>();
+  const seenArticleIds = new Set<string>();
+
+  if (allResults) {
+    for (const result of allResults) {
+      if (!seenArticleIds.has(result.article_id)) {
+        resultMap.set(result.article_id, result as AnalysisResult);
+        seenArticleIds.add(result.article_id);
+      }
+    }
+  }
+
+  // 分析結果がない記事IDに対してnullを設定
+  articleIds.forEach((articleId) => {
+    if (!resultMap.has(articleId)) {
+      resultMap.set(articleId, null);
+    }
+  });
+
+  return resultMap;
+}
+
+/**
+ * 複数の記事IDに紐づく前回の分析結果を一括取得（N+1クエリを回避）
+ * 返り値: Map<articleId, AnalysisResult | null>
+ * 
+ * 実装: 全件取得してJavaScriptでフィルタリング（各article_idごとに2番目に新しい結果を取得）
+ */
+export async function getPreviousAnalysesByArticleIds(
+  articleIds: string[]
+): Promise<Map<string, AnalysisResult | null>> {
+  if (articleIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = createSupabaseClient();
+
+  // 全記事IDの分析結果を取得（各article_idごとに最大2件必要）
+  // 記事IDごとにグループ化して、2番目に新しい結果を取得
+  const { data: allResults, error } = await supabase
+    .from("analysis_results")
+    .select("*")
+    .in("article_id", articleIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[Analysis Results] Failed to get previous analyses:", error);
+    // エラーが発生した場合、空のMapを返す
+    return new Map();
+  }
+
+  // 各article_idごとに最新2件をグループ化
+  const articleResultsMap = new Map<string, AnalysisResult[]>();
+  if (allResults) {
+    for (const result of allResults) {
+      const articleId = result.article_id;
+      if (!articleResultsMap.has(articleId)) {
+        articleResultsMap.set(articleId, []);
+      }
+      const results = articleResultsMap.get(articleId)!;
+      if (results.length < 2) {
+        results.push(result as AnalysisResult);
+      }
+    }
+  }
+
+  // 各article_idごとに2番目に新しい結果を取得
+  const resultMap = new Map<string, AnalysisResult | null>();
+  articleIds.forEach((articleId) => {
+    const results = articleResultsMap.get(articleId);
+    // 2番目に新しい結果を返す（最新が1件目、前回が2件目）
+    const previousResult = results && results.length >= 2 ? results[1] : null;
+    resultMap.set(articleId, previousResult);
+  });
+
+  return resultMap;
+}
+
+/**
  * 分析実行履歴を取得
  */
 export async function getAnalysisRunsByArticleId(
