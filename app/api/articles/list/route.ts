@@ -163,7 +163,14 @@ export async function GET(request: NextRequest) {
     }
 
     // GSCから取得したURL一覧
-    const gscUrls = (gscData.rows || [])
+    type GSCUrlItem = {
+      url: string;
+      impressions: number;
+      clicks: number;
+      position: number;
+    };
+    
+    const gscUrls: GSCUrlItem[] = (gscData.rows || [])
       .map((row: GSCRow) => {
         // keys[0]がページURL
         const pageUrl = row.keys[0];
@@ -189,7 +196,7 @@ export async function GET(request: NextRequest) {
           position: row.position,
         };
       })
-      .filter((gscUrl) => isArticleUrl(gscUrl.url)); // 記事として扱うべきURLのみをフィルタリング
+      .filter((gscUrl: GSCUrlItem) => isArticleUrl(gscUrl.url)); // 記事として扱うべきURLのみをフィルタリング
 
     // 重複を除去：同じURL（正規化後）のデータを統合
     const urlMap = new Map<string, {
