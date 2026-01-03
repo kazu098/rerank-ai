@@ -13,7 +13,7 @@ import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 
 /**
  * Cronジョブ: 順位下落をチェックして通知キューに保存
- * 実行頻度: 1日1回（日本時刻 12:00 = UTC 3:00、GSC APIのデータは1日単位で更新されるため）
+ * 実行頻度: 1日1回（日本時刻 13:00 = UTC 4:00、GSC APIのデータは1日単位で更新されるため）
  * 
  * 処理フロー:
  * 1. 監視対象の記事を取得
@@ -388,26 +388,6 @@ export async function GET(request: NextRequest) {
       try {
         // ユーザーのロケール設定を取得（デフォルト: 'ja'）
         const locale = (user.locale || "ja") as "ja" | "en";
-
-        // ユーザーのアラート設定を取得（通知頻度と通知時刻を確認するため）
-        const userAlertSettings = await getUserAlertSettings(user.id);
-        const notificationFrequency = userAlertSettings.notification_frequency || 'daily';
-
-        // 通知頻度に応じて通知を送信するかどうかを判定
-        if (notificationFrequency === 'none') {
-          console.log(`[Cron] Skipping notification for user ${user.email}: notification_frequency is 'none'`);
-          continue;
-        }
-
-        if (notificationFrequency === 'weekly') {
-          // 週1回通知：月曜日に送信
-          const now = new Date();
-          const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-          if (dayOfWeek !== 1) {
-            console.log(`[Cron] Skipping notification for user ${user.email}: notification_frequency is 'weekly' but today is not Monday (dayOfWeek: ${dayOfWeek})`);
-            continue;
-          }
-        }
 
         // 通知設定を取得（Slack通知の設定を取得するため）
         let notificationSettings = await getNotificationSettings(user.id);
