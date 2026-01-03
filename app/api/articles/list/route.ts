@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getGSCClient } from "@/lib/gsc-api";
+import { getGSCClient, GSCRow } from "@/lib/gsc-api";
 import { getSitesByUserId, getSiteById } from "@/lib/db/sites";
 import { getArticlesBySiteId, getArticleByUrl } from "@/lib/db/articles";
 import { getCache, generateCacheKey } from "@/lib/cache";
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
 
     // GSCから取得したURL一覧
     const gscUrls = (gscData.rows || [])
-      .map((row) => {
+      .map((row: GSCRow) => {
         // keys[0]がページURL
         const pageUrl = row.keys[0];
         // 完全なURLに変換
