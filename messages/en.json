@@ -669,7 +669,20 @@
         "close": "Close Form",
         "loading": "Loading...",
         "linkText": "here",
-        "linkNote": "※ We use Google Forms. To open in a new tab, click"
+        "linkNote": "※ We use Google Forms. To open in a new tab, click",
+        "name": "Name",
+        "namePlaceholder": "John Doe",
+        "emailLabel": "Email Address",
+        "emailPlaceholder": "example@email.com",
+        "subject": "Subject",
+        "subjectPlaceholder": "Enter the subject of your inquiry",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Please describe your inquiry in detail",
+        "submit": "Submit",
+        "sending": "Sending...",
+        "success": "Your inquiry has been sent. A confirmation email has been sent to you.",
+        "error": "Failed to send. Please try again later.",
+        "required": "Required"
       }
     },
     "faq": {

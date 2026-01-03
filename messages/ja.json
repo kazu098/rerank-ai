@@ -679,7 +679,20 @@
         "close": "フォームを閉じる",
         "loading": "読み込んでいます…",
         "linkText": "こちら",
-        "linkNote": "※ Google Formを使用しています。新しいタブで開く場合は"
+        "linkNote": "※ Google Formを使用しています。新しいタブで開く場合は",
+        "name": "お名前",
+        "namePlaceholder": "山田 太郎",
+        "emailLabel": "メールアドレス",
+        "emailPlaceholder": "example@email.com",
+        "subject": "件名",
+        "subjectPlaceholder": "お問い合わせの件名を入力してください",
+        "messageLabel": "メッセージ",
+        "messagePlaceholder": "お問い合わせ内容を詳しくご記入ください",
+        "submit": "送信する",
+        "sending": "送信中...",
+        "success": "お問い合わせを送信しました。確認メールをお送りしました。",
+        "error": "送信に失敗しました。しばらく経ってから再度お試しください。",
+        "required": "必須"
       }
     },
     "faq": {
