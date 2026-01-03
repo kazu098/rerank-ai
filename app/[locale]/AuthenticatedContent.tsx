@@ -1072,73 +1072,49 @@ export function AuthenticatedContent() {
                           </div>
                           
                           {/* ページネーション */}
-                          {(() => {
-                            // 検索クエリがある場合はクライアント側でフィルタリング
-                            const filteredArticles = debouncedArticleSearchQuery
-                              ? articles.filter((article) => {
-                                  const query = debouncedArticleSearchQuery.toLowerCase();
-                                  return (
-                                    article.url.toLowerCase().includes(query) ||
-                                    (article.title && article.title.toLowerCase().includes(query))
-                                  );
-                                })
-                              : articles;
-                            
-                            // 検索クエリがない場合はAPIから取得したtotalPagesを使用
-                            // 検索クエリがある場合はクライアント側でフィルタリングした結果を使用
-                            const displayTotalPages = debouncedArticleSearchQuery
-                              ? Math.ceil(filteredArticles.length / articlesPerPage)
-                              : totalPages;
-                            const displayTotal = debouncedArticleSearchQuery
-                              ? filteredArticles.length
-                              : totalArticles;
-                            const displayedCount = filteredArticles.length;
-                            
-                            // 総ページ数が1より大きい場合のみ表示
-                            if (displayTotalPages > 1) {
-                              return (
-                                <div className="mt-4">
-                                  <p className="text-xs text-gray-500 text-center mb-3">
-                                    {t("article.displayingItems", { displayed: displayedCount, total: displayTotal })}
-                                  </p>
-                                  <div className="flex items-center justify-center gap-2">
-                                    <button
-                                      onClick={() => setArticlePage(1)}
-                                      disabled={articlePage === 1}
-                                      className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      最初
-                                    </button>
-                                    <button
-                                      onClick={() => setArticlePage(articlePage - 1)}
-                                      disabled={articlePage === 1}
-                                      className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      前へ
-                                    </button>
-                                    <span className="text-xs text-gray-700 px-3">
-                                      {articlePage} / {displayTotalPages}
-                                    </span>
-                                    <button
-                                      onClick={() => setArticlePage(articlePage + 1)}
-                                      disabled={articlePage >= displayTotalPages}
-                                      className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      次へ
-                                    </button>
-                                    <button
-                                      onClick={() => setArticlePage(displayTotalPages)}
-                                      disabled={articlePage >= displayTotalPages}
-                                      className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      最後
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
+                          {totalPages > 1 && (
+                            <div className="mt-4">
+                              <p className="text-xs text-gray-500 text-center mb-3">
+                                {t("article.displayingItems", { 
+                                  displayed: articles.length, 
+                                  total: totalArticles 
+                                })}
+                              </p>
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => setArticlePage(1)}
+                                  disabled={articlePage === 1}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  最初
+                                </button>
+                                <button
+                                  onClick={() => setArticlePage(articlePage - 1)}
+                                  disabled={articlePage === 1}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  前へ
+                                </button>
+                                <span className="text-xs text-gray-700 px-3">
+                                  {articlePage} / {totalPages}
+                                </span>
+                                <button
+                                  onClick={() => setArticlePage(articlePage + 1)}
+                                  disabled={articlePage >= totalPages}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  次へ
+                                </button>
+                                <button
+                                  onClick={() => setArticlePage(totalPages)}
+                                  disabled={articlePage >= totalPages}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  最後
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
