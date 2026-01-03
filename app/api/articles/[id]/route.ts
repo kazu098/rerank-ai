@@ -46,11 +46,18 @@ export async function GET(
     const analysisResults = await getAnalysisResultsByArticleId(id);
     const analysisRuns = await getAnalysisRunsByArticleId(id);
 
-    return NextResponse.json({
-      article,
-      analysisResults,
-      analysisRuns,
-    });
+    return NextResponse.json(
+      {
+        article,
+        analysisResults,
+        analysisRuns,
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+        },
+      }
+    );
   } catch (error: any) {
     console.error("[Articles API] Error:", error);
     return NextResponse.json(

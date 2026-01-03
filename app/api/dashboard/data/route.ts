@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getArticlesByUserId } from "@/lib/db/articles";
-import { getLatestAnalysesByArticleIds, getPreviousAnalysesByArticleIds, getAnalysisResultsByArticleId } from "@/lib/db/analysis-results";
+import { getArticlesByUserIdWithPagination, getArticlesStatsByUserId } from "@/lib/db/articles";
+import { getLatestAnalysesByArticleIds, getPreviousAnalysesByArticleIds } from "@/lib/db/analysis-results";
 import { createSupabaseClient } from "@/lib/supabase";
 import { getNotificationSettingsForArticles } from "@/lib/db/notification-settings";
 
@@ -27,69 +27,50 @@ export async function GET(request: NextRequest) {
     const filter = searchParams.get("filter") || "all"; // "monitoring" | "fixed" | "all"
     const sortBy = searchParams.get("sortBy") || "date"; // "date" | "position" | "title"
 
-    // 1. 記事一覧を取得
-    const articles = await getArticlesByUserId(userId);
+    // 1. 記事一覧を取得（データベース側でフィルタリング・ソート・ページネーション）
+    // positionソートの場合は一旦createdで取得し、後でJavaScriptでソート
+    const dbSortBy = sortBy === "position" ? "created" : sortBy === "date" ? "date" : sortBy === "title" ? "title" : "date";
+    const { articles, total, totalPages } = await getArticlesByUserIdWithPagination(userId, {
+      filter: filter as "all" | "monitoring" | "fixed",
+      sortBy: dbSortBy as "date" | "title" | "created",
+      page,
+      pageSize,
+    });
 
-    // 2. 各記事の最新の分析結果と前回の分析結果を一括取得（N+1クエリを回避）
+    // 2. 取得した記事の分析結果のみを取得（必要な記事のみに絞り込む）
     const articleIds = articles.map((a) => a.id);
     const [latestAnalysesMap, previousAnalysesMap] = await Promise.all([
       getLatestAnalysesByArticleIds(articleIds),
       getPreviousAnalysesByArticleIds(articleIds),
     ]);
 
-    const articlesWithAnalysis = articles.map((article) => {
+    // 3. 各記事の通知設定を取得
+    const notificationSettingsMap = await getNotificationSettingsForArticles(userId, articleIds);
+
+    // 4. 記事に分析結果と通知設定を追加
+    let articlesWithData = articles.map((article) => {
+      const notificationStatus = notificationSettingsMap.get(article.id) || { email: null, slack: null };
       return {
         ...article,
         latestAnalysis: latestAnalysesMap.get(article.id) || null,
         previousAnalysis: previousAnalysesMap.get(article.id) || null,
-      };
-    });
-
-    // 2.5. 各記事の通知設定を取得（articleIdsは既に上で定義済み）
-    const notificationSettingsMap = await getNotificationSettingsForArticles(userId, articleIds);
-    
-    // 記事に通知設定を追加
-    let articlesWithNotifications = articlesWithAnalysis.map(article => {
-      const notificationStatus = notificationSettingsMap.get(article.id) || { email: null, slack: null };
-      return {
-        ...article,
         notificationStatus,
       };
     });
 
-    // フィルタリング（サーバーサイド）
-    if (filter === "monitoring") {
-      articlesWithNotifications = articlesWithNotifications.filter((a) => a.is_monitoring);
-    } else if (filter === "fixed") {
-      articlesWithNotifications = articlesWithNotifications.filter((a) => a.is_fixed);
-    }
-
-    // ソート（サーバーサイド）
-    articlesWithNotifications.sort((a, b) => {
-      if (sortBy === "date") {
-        const dateA = a.last_analyzed_at ? new Date(a.last_analyzed_at).getTime() : 0;
-        const dateB = b.last_analyzed_at ? new Date(b.last_analyzed_at).getTime() : 0;
-        return dateB - dateA; // 新しい順
-      } else if (sortBy === "position") {
+    // 5. positionソートの場合はJavaScriptでソート（分析結果が必要なため）
+    if (sortBy === "position") {
+      articlesWithData.sort((a, b) => {
         const posA = a.latestAnalysis?.average_position ?? 999;
         const posB = b.latestAnalysis?.average_position ?? 999;
         return posA - posB; // 順位が良い順
-      } else if (sortBy === "title") {
-        const titleA = a.title || a.url;
-        const titleB = b.title || b.url;
-        return titleA.localeCompare(titleB);
-      }
-      return 0;
-    });
+      });
+    }
 
-    // ページネーション
-    const total = articlesWithNotifications.length;
-    const totalPages = Math.ceil(total / pageSize);
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedArticles = articlesWithNotifications.slice(startIndex, endIndex);
+    // ページネーション済みのデータを使用
+    const paginatedArticles = articlesWithData;
 
-    // 3. 未読通知を取得
+    // 6. 未読通知を取得
     const supabase = createSupabaseClient();
     const { data: unreadNotifications, error: notificationsError } = await supabase
       .from("notifications")
@@ -106,24 +87,30 @@ export async function GET(request: NextRequest) {
       console.error("[Dashboard] Failed to get notifications:", notificationsError);
     }
 
-    // 4. 統計情報を計算（全記事ベース、フィルタリング前）
-    const totalArticles = articles.length;
-    const monitoringArticles = articles.filter((a) => a.is_monitoring).length;
-    const totalAnalyses = articlesWithAnalysis.filter((a) => a.latestAnalysis !== null).length;
+    // 7. 統計情報を取得（全記事ベース、フィルタリング前）
+    const stats = await getArticlesStatsByUserId(userId);
+    const totalAnalyses = articlesWithData.filter((a) => a.latestAnalysis !== null).length;
 
-    return NextResponse.json({
-      articles: paginatedArticles,
-      total,
-      page,
-      pageSize,
-      totalPages,
-      unreadNotifications: unreadNotifications || [],
-      stats: {
-        totalArticles,
-        monitoringArticles,
-        totalAnalyses,
+    return NextResponse.json(
+      {
+        articles: paginatedArticles,
+        total,
+        page,
+        pageSize,
+        totalPages,
+        unreadNotifications: unreadNotifications || [],
+        stats: {
+          totalArticles: stats.totalArticles,
+          monitoringArticles: stats.monitoringArticles,
+          totalAnalyses,
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+        },
+      }
+    );
   } catch (error: any) {
     console.error("[Dashboard] Error:", error);
     return NextResponse.json(

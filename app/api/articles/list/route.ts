@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getGSCClient } from "@/lib/gsc-api";
 import { getSitesByUserId, getSiteById } from "@/lib/db/sites";
 import { getArticlesBySiteId, getArticleByUrl } from "@/lib/db/articles";
+import { getCache, generateCacheKey } from "@/lib/cache";
 
 /**
  * URLからハッシュフラグメント（#以降）を除去して正規化
@@ -145,8 +146,21 @@ export async function GET(request: NextRequest) {
       .toISOString()
       .split("T")[0];
 
-    const gscClient = await getGSCClient();
-    const gscData = await gscClient.getPageUrls(siteUrl, startDate, endDate, 1000);
+    // キャッシュキーを生成
+    const cache = getCache();
+    const cacheKey = generateCacheKey("articles:list", site.id, startDate, endDate);
+    
+    // キャッシュから取得を試みる
+    let gscData = cache.get<any>(cacheKey);
+    
+    if (!gscData) {
+      // キャッシュにない場合はGSC APIから取得
+      const gscClient = await getGSCClient();
+      gscData = await gscClient.getPageUrls(siteUrl, startDate, endDate, 1000);
+      
+      // キャッシュに保存（TTL: 1時間）
+      cache.set(cacheKey, gscData, 3600);
+    }
 
     // GSCから取得したURL一覧
     const gscUrls = (gscData.rows || [])
@@ -205,15 +219,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // DBの記事をURLでインデックス化（高速化のため）
+    const dbArticlesMap = new Map<string, typeof dbArticles[0]>();
+    for (const article of dbArticles) {
+      const normalizedDbUrl = normalizeUrl(article.url);
+      dbArticlesMap.set(normalizedDbUrl, article);
+    }
+
     // DBの記事とGSCのURLをマージ
     // DBにタイトルがある場合はそれを使用、ない場合はnull
     // URLを正規化して比較（ハッシュフラグメントを除去）
     const mergedArticles = Array.from(urlMap.values()).map((gscUrl) => {
       // gscUrl.urlは既に正規化済み
-      const dbArticle = dbArticles.find((a) => {
-        const normalizedDbUrl = normalizeUrl(a.url);
-        return normalizedDbUrl === gscUrl.url;
-      });
+      const dbArticle = dbArticlesMap.get(gscUrl.url);
       return {
         url: gscUrl.url, // 正規化済みのURLを返す
         title: dbArticle?.title || null,
@@ -235,13 +253,20 @@ export async function GET(request: NextRequest) {
     const endIndex = startIndex + pageSize;
     const paginatedArticles = mergedArticles.slice(startIndex, endIndex);
 
-    return NextResponse.json({
-      articles: paginatedArticles,
-      total,
-      page,
-      pageSize,
-      totalPages,
-    });
+    return NextResponse.json(
+      {
+        articles: paginatedArticles,
+        total,
+        page,
+        pageSize,
+        totalPages,
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=300, stale-while-revalidate=600',
+        },
+      }
+    );
   } catch (error: any) {
     console.error("Error fetching article list:", error);
     return NextResponse.json(

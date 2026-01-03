@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useRouter, Link } from "@/src/i18n/routing";
@@ -52,9 +52,19 @@ export function AuthenticatedContent() {
   const [loadingArticles, setLoadingArticles] = useState(false);
   const [showArticleSelection, setShowArticleSelection] = useState(false);
   const [articleSearchQuery, setArticleSearchQuery] = useState("");
+  const [debouncedArticleSearchQuery, setDebouncedArticleSearchQuery] = useState("");
   const [fetchingTitleUrls, setFetchingTitleUrls] = useState<Set<string>>(new Set());
   const [articlePage, setArticlePage] = useState(1);
   const articlesPerPage = 50;
+
+  // 検索クエリのデバウンス（300ms）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedArticleSearchQuery(articleSearchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [articleSearchQuery]);
 
   // 通知設定関連
   const [analyzedArticleId, setAnalyzedArticleId] = useState<string | null>(null);
@@ -938,8 +948,8 @@ export function AuthenticatedContent() {
                           <div className="space-y-2">
                             {(() => {
                               const filteredArticles = articles.filter((article) => {
-                                if (!articleSearchQuery) return true;
-                                const query = articleSearchQuery.toLowerCase();
+                                if (!debouncedArticleSearchQuery) return true;
+                                const query = debouncedArticleSearchQuery.toLowerCase();
                                 return (
                                   article.url.toLowerCase().includes(query) ||
                                   (article.title && article.title.toLowerCase().includes(query))
@@ -1022,8 +1032,8 @@ export function AuthenticatedContent() {
                           {/* ページネーション */}
                           {(() => {
                             const filteredArticles = articles.filter((article) => {
-                              if (!articleSearchQuery) return true;
-                              const query = articleSearchQuery.toLowerCase();
+                              if (!debouncedArticleSearchQuery) return true;
+                              const query = debouncedArticleSearchQuery.toLowerCase();
                               return (
                                 article.url.toLowerCase().includes(query) ||
                                 (article.title && article.title.toLowerCase().includes(query))

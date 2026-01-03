@@ -342,4 +342,136 @@ export async function getArticleByUrl(
   return data as Article;
 }
 
+/**
+ * ユーザーの記事一覧を取得（フィルタリング・ソート・ページネーション対応）
+ * データベース側でフィルタリング・ソート・ページネーションを行うため、大量の記事がある場合でも高速
+ */
+export async function getArticlesByUserIdWithPagination(
+  userId: string,
+  options: {
+    filter?: 'all' | 'monitoring' | 'fixed';
+    sortBy?: 'date' | 'title' | 'created';
+    page?: number;
+    pageSize?: number;
+  } = {}
+): Promise<{
+  articles: Article[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}> {
+  const supabase = createSupabaseClient();
+  const {
+    filter = 'all',
+    sortBy = 'date',
+    page = 1,
+    pageSize = 20,
+  } = options;
+
+  // まず総件数を取得（フィルタリング適用後）
+  let countQuery = supabase
+    .from('articles')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  if (filter === 'monitoring') {
+    countQuery = countQuery.eq('is_monitoring', true);
+  } else if (filter === 'fixed') {
+    countQuery = countQuery.eq('is_fixed', true);
+  }
+
+  const { count, error: countError } = await countQuery;
+
+  if (countError) {
+    throw new Error(`Failed to get article count: ${countError.message}`);
+  }
+
+  const total = count || 0;
+  const totalPages = Math.ceil(total / pageSize);
+
+  // データ取得クエリ
+  let dataQuery = supabase
+    .from('articles')
+    .select('*')
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  // フィルタリング
+  if (filter === 'monitoring') {
+    dataQuery = dataQuery.eq('is_monitoring', true);
+  } else if (filter === 'fixed') {
+    dataQuery = dataQuery.eq('is_fixed', true);
+  }
+
+  // ソート
+  if (sortBy === 'date') {
+    dataQuery = dataQuery.order('last_analyzed_at', { ascending: false, nullsLast: true });
+  } else if (sortBy === 'title') {
+    dataQuery = dataQuery.order('title', { ascending: true, nullsLast: true });
+  } else if (sortBy === 'created') {
+    dataQuery = dataQuery.order('created_at', { ascending: false });
+  }
+
+  // ページネーション
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize - 1;
+  dataQuery = dataQuery.range(startIndex, endIndex);
+
+  const { data, error } = await dataQuery;
+
+  if (error) {
+    throw new Error(`Failed to get articles: ${error.message}`);
+  }
+
+  return {
+    articles: (data || []) as Article[],
+    total,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
+/**
+ * ユーザーの記事の統計情報を取得（フィルタリング前の全記事ベース）
+ */
+export async function getArticlesStatsByUserId(
+  userId: string
+): Promise<{
+  totalArticles: number;
+  monitoringArticles: number;
+}> {
+  const supabase = createSupabaseClient();
+
+  // 全記事数
+  const { count: totalCount, error: totalError } = await supabase
+    .from('articles')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+
+  if (totalError) {
+    throw new Error(`Failed to get total articles count: ${totalError.message}`);
+  }
+
+  // 監視中の記事数
+  const { count: monitoringCount, error: monitoringError } = await supabase
+    .from('articles')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_monitoring', true)
+    .is('deleted_at', null);
+
+  if (monitoringError) {
+    throw new Error(`Failed to get monitoring articles count: ${monitoringError.message}`);
+  }
+
+  return {
+    totalArticles: totalCount || 0,
+    monitoringArticles: monitoringCount || 0,
+  };
+}
+
 
