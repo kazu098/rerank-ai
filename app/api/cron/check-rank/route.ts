@@ -13,7 +13,7 @@ import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 
 /**
  * Cronジョブ: 順位下落をチェックして通知キューに保存
- * 実行頻度: 1日1回（日本時刻 12:00 = UTC 3:00、GSC APIのデータは1日単位で更新されるため）
+ * 実行頻度: 1日1回（日本時刻 13:00 = UTC 4:00、GSC APIのデータは1日単位で更新されるため）
  * 
  * 処理フロー:
  * 1. 監視対象の記事を取得
