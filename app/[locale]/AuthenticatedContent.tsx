@@ -600,7 +600,20 @@ export function AuthenticatedContent() {
         });
 
         if (!step3Response.ok) {
-          const errorData = await step3Response.json();
+          let errorData: any;
+          try {
+            errorData = await step3Response.json();
+          } catch (jsonError) {
+            // JSONパースに失敗した場合（タイムアウトなどでプレーンテキストが返される場合）
+            const errorText = await step3Response.text();
+            console.error("Step 3 failed (non-JSON response):", errorText);
+            errorData = {
+              error: step3Response.status === 504
+                ? "処理がタイムアウトしました。分析に時間がかかりすぎています。"
+                : `Step 3に失敗しました (${step3Response.status})`,
+              timeout: step3Response.status === 504,
+            };
+          }
           console.error("Step 3 failed:", errorData);
           setCompletedSteps(prev => new Set([...Array.from(prev), 5, 6, 7]));
           setCurrentStep(0);
