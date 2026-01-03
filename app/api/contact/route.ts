@@ -8,18 +8,12 @@ interface ContactFormData {
   subject: string;
   message: string;
   locale?: string;
-  files?: Array<{
-    url: string;
-    name: string;
-    type: string;
-    size: number;
-  }>;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: ContactFormData = await request.json();
-    const { name, email, subject, message, locale = 'ja', files = [] } = body;
+    const { name, email, subject, message, locale = 'ja' } = body;
 
     // バリデーション
     if (!name || !email || !subject || !message) {
@@ -106,23 +100,6 @@ ${escapeHtml(message)}
             </div>
           </div>
           
-          ${files.length > 0 ? `
-          <div style="margin-top: 20px;">
-            <h3 style="color: #333; margin-bottom: 10px;">添付ファイル (${files.length}件)</h3>
-            <ul style="list-style: none; padding: 0;">
-              ${files.map((file) => `
-                <li style="margin-bottom: 8px;">
-                  <a href="${escapeHtml(file.url)}" style="color: #4F46E5; text-decoration: none; display: inline-flex; align-items: center;">
-                    <span style="margin-right: 8px;">📎</span>
-                    ${escapeHtml(file.name)}
-                    <span style="color: #666; margin-left: 8px; font-size: 12px;">(${formatFileSize(file.size)})</span>
-                  </a>
-                </li>
-              `).join('')}
-            </ul>
-          </div>
-          ` : ''}
-          
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px;">
             <p>このメールは ReRank AI のお問い合わせフォームから送信されました。</p>
             <p>返信は「返信」ボタンで直接 ${escapeHtml(email)} に送信できます。</p>
@@ -139,7 +116,6 @@ ${escapeHtml(message)}
 メッセージ:
 ${message}
 
-${files.length > 0 ? `\n添付ファイル (${files.length}件):\n${files.map((file) => `- ${file.name} (${formatFileSize(file.size)}): ${file.url}`).join('\n')}\n` : ''}
 ---
 このメールは ReRank AI のお問い合わせフォームから送信されました。
 返信は直接 ${email} に送信してください。
@@ -176,9 +152,6 @@ ${files.length > 0 ? `\n添付ファイル (${files.length}件):\n${files.map((f
                 <p><strong>件名:</strong> ${escapeHtml(subject)}</p>
                 <p><strong>メッセージ:</strong></p>
                 <p style="white-space: pre-wrap;">${escapeHtml(message)}</p>
-                ${files.length > 0 ? `
-                <p style="margin-top: 10px;"><strong>添付ファイル:</strong> ${files.length}件</p>
-                ` : ''}
               </div>
               
               <p>内容を確認の上、担当者よりご連絡いたします。</p>
@@ -201,9 +174,6 @@ ${files.length > 0 ? `\n添付ファイル (${files.length}件):\n${files.map((f
                 <p><strong>Subject:</strong> ${escapeHtml(subject)}</p>
                 <p><strong>Message:</strong></p>
                 <p style="white-space: pre-wrap;">${escapeHtml(message)}</p>
-                ${files.length > 0 ? `
-                <p style="margin-top: 10px;"><strong>Attachments:</strong> ${files.length} file(s)</p>
-                ` : ''}
               </div>
               
               <p>Our team will review your message and get back to you.</p>
@@ -246,12 +216,5 @@ function escapeHtml(text: string): string {
     "'": '&#039;',
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
-}
-
-// ファイルサイズをフォーマット
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
