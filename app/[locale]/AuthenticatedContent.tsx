@@ -964,7 +964,7 @@ export function AuthenticatedContent() {
                   </div>
 
                   {showArticleSelection && (
-                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                       {loadingArticles ? (
                         <div className="text-center py-8">
                           <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
@@ -991,7 +991,7 @@ export function AuthenticatedContent() {
                           </div>
 
                           {/* 記事一覧 */}
-                          <div className="space-y-2">
+                          <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
                             {(() => {
                               // 検索クエリがある場合はクライアント側でフィルタリング＋ページネーション
                               // 検索クエリがない場合はAPIから取得した記事をそのまま表示（サーバー側でページネーション済み）
