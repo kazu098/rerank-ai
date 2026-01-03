@@ -192,10 +192,20 @@ export function AuthenticatedContent() {
       }
 
       const result = await response.json();
+      console.log("[Articles] loadArticles result:", {
+        articlesCount: result.articles?.length,
+        total: result.total,
+        totalPages: result.totalPages,
+        page: result.page
+      });
       // ページネーションでは常に置き換える
       setArticles(result.articles || []);
       setTotalArticles(result.total || 0);
       setTotalPages(result.totalPages || 1);
+      console.log("[Articles] State will be updated:", {
+        totalPages: result.totalPages || 1,
+        totalArticles: result.total || 0
+      });
       setShowArticleSelection(true);
       setArticlePage(page);
     } catch (err: any) {
@@ -1072,7 +1082,15 @@ export function AuthenticatedContent() {
                           </div>
                           
                           {/* ページネーション */}
-                          {totalPages > 1 && (
+                          {(() => {
+                            console.log("[Articles] Pagination render check:", {
+                              totalPages,
+                              totalArticles,
+                              articlesCount: articles.length,
+                              condition: totalPages > 1
+                            });
+                            return totalPages > 1;
+                          })() && (
                             <div className="mt-4">
                               <p className="text-xs text-gray-500 text-center mb-3">
                                 {t("article.displayingItems", { 
