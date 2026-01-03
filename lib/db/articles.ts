@@ -407,9 +407,9 @@ export async function getArticlesByUserIdWithPagination(
 
   // ソート
   if (sortBy === 'date') {
-    dataQuery = dataQuery.order('last_analyzed_at', { ascending: false, nullsLast: true });
+    dataQuery = dataQuery.order('last_analyzed_at', { ascending: false, nullsFirst: false });
   } else if (sortBy === 'title') {
-    dataQuery = dataQuery.order('title', { ascending: true, nullsLast: true });
+    dataQuery = dataQuery.order('title', { ascending: true, nullsFirst: false });
   } else if (sortBy === 'created') {
     dataQuery = dataQuery.order('created_at', { ascending: false });
   }
