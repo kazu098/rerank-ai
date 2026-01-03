@@ -224,37 +224,6 @@ export default function ContactPage() {
               </form>
             </div>
           </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t("hours.title")}</h2>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-              <p className="text-gray-700">
-                <strong>{t("hours.support")}</strong> {t("hours.time")}
-              </p>
-              <p className="text-gray-600 text-sm mt-2">{t("hours.note")}</p>
-            </div>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t("other.title")}</h2>
-            <ul className="list-disc list-inside text-gray-700 space-y-2 ml-4">
-              {t.raw("other.items").map((item: string, index: number) => (
-                <li key={index}>
-                  {item.includes("プライバシーポリシー") || item.includes("Privacy Policy") ? (
-                    <>
-                      {item.split("プライバシーポリシー")[0] || item.split("Privacy Policy")[0]}
-                      <a href={`/${locale}/privacy`} className="text-blue-600 hover:text-blue-800 underline">
-                        {locale === 'ja' ? 'プライバシーポリシー' : 'Privacy Policy'}
-                      </a>
-                      {item.split("プライバシーポリシー")[1] || item.split("Privacy Policy")[1]}
-                    </>
-                  ) : (
-                    item
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
       </main>
       <Footer />
