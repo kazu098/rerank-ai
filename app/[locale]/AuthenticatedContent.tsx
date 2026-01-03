@@ -1082,7 +1082,7 @@ export function AuthenticatedContent() {
                           </div>
                           
                           {/* ページネーション */}
-                          {totalPages > 1 && (
+                          {totalPages > 1 ? (
                             <div className="mt-4">
                               <p className="text-xs text-gray-500 text-center mb-3">
                                 {t("article.displayingItems", { 
