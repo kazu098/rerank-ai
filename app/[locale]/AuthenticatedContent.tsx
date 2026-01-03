@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useRouter, Link } from "@/src/i18n/routing";
@@ -65,6 +65,29 @@ export function AuthenticatedContent() {
 
     return () => clearTimeout(timer);
   }, [articleSearchQuery]);
+
+  // ページ変更時にAPIを再呼び出す（検索クエリがない場合のみ）
+  const prevShowArticleSelectionRef = useRef(false);
+  
+  useEffect(() => {
+    // 記事一覧を開いたとき（showArticleSelectionがfalseからtrueに変わったとき）はスキップ
+    // この場合はloadArticlesが直接呼ばれるため
+    if (!prevShowArticleSelectionRef.current && showArticleSelection) {
+      prevShowArticleSelectionRef.current = true;
+      return;
+    }
+    prevShowArticleSelectionRef.current = showArticleSelection;
+    
+    // 記事一覧が閉じられていない、かつ検索クエリがない場合のみAPIを呼び出す
+    if (
+      selectedSiteUrl &&
+      showArticleSelection &&
+      !debouncedArticleSearchQuery
+    ) {
+      loadArticles(selectedSiteUrl, articlePage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articlePage, selectedSiteUrl, showArticleSelection, debouncedArticleSearchQuery]);
 
   // 通知設定関連
   const [analyzedArticleId, setAnalyzedArticleId] = useState<string | null>(null);
@@ -167,12 +190,8 @@ export function AuthenticatedContent() {
       }
 
       const result = await response.json();
-      // ページ1の場合は置き換え、それ以外は追加（無限スクロール的な動作）
-      if (page === 1) {
-        setArticles(result.articles || []);
-      } else {
-        setArticles((prev) => [...prev, ...(result.articles || [])]);
-      }
+      // ページネーションでは常に置き換える
+      setArticles(result.articles || []);
       setShowArticleSelection(true);
       setArticlePage(page);
     } catch (err: any) {
