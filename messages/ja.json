@@ -690,9 +690,14 @@
         "messagePlaceholder": "お問い合わせ内容を詳しくご記入ください",
         "submit": "送信する",
         "sending": "送信中...",
+        "uploading": "アップロード中...",
         "success": "お問い合わせを送信しました。確認メールをお送りしました。",
         "error": "送信に失敗しました。しばらく経ってから再度お試しください。",
-        "required": "必須"
+        "required": "必須",
+        "attachments": "添付ファイル",
+        "fileHint": "画像（JPG、PNG、GIF）、PDF、テキストファイル（TXT、MD）がアップロードできます",
+        "maxFiles": "最大{{count}}ファイルまで",
+        "maxSize": "1ファイル10MBまで"
       }
     },
     "faq": {

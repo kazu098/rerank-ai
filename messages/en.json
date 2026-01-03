@@ -680,9 +680,14 @@
         "messagePlaceholder": "Please describe your inquiry in detail",
         "submit": "Submit",
         "sending": "Sending...",
+        "uploading": "Uploading...",
         "success": "Your inquiry has been sent. A confirmation email has been sent to you.",
         "error": "Failed to send. Please try again later.",
-        "required": "Required"
+        "required": "Required",
+        "attachments": "Attachments",
+        "fileHint": "You can upload images (JPG, PNG, GIF), PDF, and text files (TXT, MD)",
+        "maxFiles": "Maximum {{count}} files",
+        "maxSize": "10MB per file"
       }
     },
     "faq": {
