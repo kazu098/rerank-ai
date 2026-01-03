@@ -91,23 +91,6 @@ export default function ContactPage() {
           <p className="text-gray-700 mb-6">{t("description")}</p>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t("methods.title")}</h2>
-            
-            {/* メールでのお問い合わせ */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-              <h3 className="text-xl font-semibold text-blue-900 mb-3">{t("methods.email.title")}</h3>
-              <p className="text-gray-700 mb-4">{t("methods.email.description")}</p>
-              <p className="text-lg">
-                <a 
-                  href={`mailto:${t("methods.email.address")}`}
-                  className="text-blue-600 hover:text-blue-800 font-semibold"
-                >
-                  {t("methods.email.address")}
-                </a>
-              </p>
-              <p className="text-sm text-gray-600 mt-2">{t("methods.email.note")}</p>
-            </div>
-
             {/* お問い合わせフォーム */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">{t("methods.form.title")}</h3>
