@@ -51,6 +51,91 @@
    - 公開配布に設定しないと、OAuth認証画面でホームワークスペースしか表示されません
    - 公開配布に設定することで、ユーザーが所属するすべてのワークスペースがOAuth認証画面に表示されます
 
+4. **Display Information（表示情報）を設定** ⚠️ **推奨**
+   
+   ⚠️ **ユーザーがSlack Appをインストールする際に表示される警告を減らし、信頼性を向上させるために重要です。**
+   
+   左メニューから「**Basic Information**」をクリックし、下にスクロールして「**Display Information**」セクションを編集します。
+   
+   ⚠️ **Public Distributionを有効にした場合、以下の項目が必須になります：**
+   
+   **必須項目（Public Distribution時）**:
+   - **Installation landing page（インストールランディングページ）**: 
+     - ユーザーがアプリについて詳しく知り、インストールできるURL
+     - 例: `https://your-domain.com/slack` または `https://your-domain.com/integrations/slack`
+     - アプリの説明ページや、Slack連携の説明ページを用意してください
+   
+   - **Privacy Policy URL（プライバシーポリシーURL）**: 
+     - プライバシーポリシーページのURL（必須）
+     - 例: `https://your-domain.com/privacy` または `https://your-domain.com/en/privacy`
+     - プライバシーポリシーページがない場合は、作成してください
+   
+   - **Support URL（サポートURL）**: 
+     - サポートページまたはお問い合わせページのURL（必須）
+     - 例: `https://your-domain.com/support` または `https://your-domain.com/contact`
+   
+   - **Support email（サポートメールアドレス）**: 
+     - サポートチームに連絡できるメールアドレス（必須）
+     - 例: `support@your-domain.com` または `help@your-domain.com`
+   
+   - **Supported languages（サポート言語）**: 
+     - アプリがサポートする言語を選択（必須）
+     - グローバル展開の場合は「English」を選択
+     - 複数選択可能な場合は、主要な言語を選択
+   
+   - **Pricing（価格設定）**: 
+     - 「Free」を選択（無料の場合）
+     - 有料プランがある場合は適切な設定を選択
+   
+   **Display Informationの必須項目**:
+   - **App Name**: `ReRank AI`（アプリ名）
+   - **Short Description（アプリの説明）**: 英語で記載（グローバル展開を考慮）
+     - 例: `Monitor SEO rankings and get notified in Slack when positions drop`
+   
+   **Display Informationの推奨項目**（警告を減らし、ユーザーの信頼を得るために重要）:
+   - **App Icon（アプリアイコン）**: 
+     - 512x512ピクセルのPNGまたはJPG画像をアップロード
+     - サービスのロゴがあればそれを使用（なければシンプルなアイコンを作成）
+     - アイコンがあるだけで信頼性が大幅に向上します
+   
+   - **Long Description（詳細説明）**: 英語で記載（グローバル展開を考慮）
+     - 例:
+     ```
+     ReRank AIは、Google Search Consoleと連携してSEO順位を監視し、
+     順位が下落した場合にSlackに通知を送信するツールです。
+     
+     主な機能:
+     - Google Search Console APIと連携して順位データを取得
+     - キーワードの順位下落を自動検知
+     - 検知した順位下落をSlackチャンネルまたはDMに通知
+     - 記事ごとに通知設定をカスタマイズ可能
+     
+     このアプリは通知のみを送信し、ワークスペース内のデータを読み取ることはありません。
+     ```
+   
+   
+   - **Background Color（背景色）**: 
+     - アプリアイコンの背景色（16進数カラーコード、例: `#FFFFFF`）
+     - オプションですが、見た目を改善します
+   
+   **設定例（英語版）**:
+   ```
+   Installation landing page: https://your-domain.com/slack
+   Privacy Policy URL: https://your-domain.com/privacy
+   Support URL: https://your-domain.com/contact
+   Support email: support@your-domain.com
+   Supported languages: English (その他の主要言語も選択可)
+   Pricing: Free
+   
+   App Name: ReRank AI
+   Short Description: Monitor SEO rankings and get notified in Slack when positions drop
+   Long Description: [上記の英語の詳細説明]
+   ```
+   
+   ⚠️ **注意**: グローバル展開を考慮し、Display Informationは英語で記載することを推奨します。日本語ユーザー向けに日本語の説明も併記したい場合は、Slack Appの多言語対応機能を使用するか、Long Descriptionに英語と日本語を両方含めることも可能です。
+   
+   ⚠️ **これらの情報を設定することで、ユーザーがSlack Appをインストールする際に表示される警告が軽減され、安心してインストールしてもらいやすくなります。**
+
 ### 2. OAuth設定
 
 1. **OAuth & Permissionsページに移動**

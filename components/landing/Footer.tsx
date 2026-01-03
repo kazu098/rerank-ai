@@ -64,12 +64,12 @@ export function Footer() {
             <h3 className="text-white font-semibold text-sm mb-4">{t("footer.company.title")}</h3>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="text-sm hover:text-white transition-colors">
+                <a href={`/${locale}/contact`} className="text-sm hover:text-white transition-colors">
                   {t("footer.company.contact")}
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm hover:text-white transition-colors">
+                <a href={`/${locale}/privacy`} className="text-sm hover:text-white transition-colors">
                   {t("footer.company.privacyPolicy")}
                 </a>
               </li>

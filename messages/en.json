@@ -571,6 +571,126 @@
       "days": "Notification Cooldown Period",
       "description": "Do not send notifications for the same article within this number of days. If set to 0, the cooldown is disabled"
     }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last Updated",
+    "introduction": {
+      "title": "1. Introduction",
+      "content": "ReRank AI (hereinafter referred to as \"the Service\") respects user privacy and strives to protect personal information. This Privacy Policy explains the information that the Service collects, uses, and protects."
+    },
+    "dataCollection": {
+      "title": "2. Information We Collect",
+      "accountInfo": {
+        "title": "2.1 Account Information",
+        "description": "When you log in with your Google account, the Service obtains the following information:",
+        "items": ["Email address", "Name (display name)", "Profile picture"]
+      },
+      "gscData": {
+        "title": "2.2 Google Search Console Data",
+        "description": "For SEO rank monitoring, the Service accesses the following information through the Google Search Console API with user consent:",
+        "items": ["Search queries and ranking data", "Clicks and impressions", "Page URLs and performance data"]
+      },
+      "usageData": {
+        "title": "2.3 Usage Data",
+        "description": "To improve the service, we may collect the following information:",
+        "items": ["Service usage", "Feature usage frequency", "Error logs"]
+      }
+    },
+    "dataUsage": {
+      "title": "3. How We Use Your Information",
+      "description": "We use the collected information for the following purposes:",
+      "items": [
+        "To provide SEO rank monitoring services",
+        "To send notifications about rank drops",
+        "To improve and develop the service",
+        "To provide customer support",
+        "To prevent fraud and ensure security",
+        "To comply with laws and regulations"
+      ]
+    },
+    "dataSharing": {
+      "title": "4. Information Sharing and Disclosure",
+      "description": "The Service does not share users' personal information with third parties except in the following cases:",
+      "items": [
+        "When there is explicit user consent",
+        "When disclosure is required by law or court order",
+        "Disclosure to necessary service providers (such as cloud service providers) with appropriate safeguards"
+      ]
+    },
+    "dataProtection": {
+      "title": "5. Data Storage and Protection",
+      "content": "The Service takes appropriate security measures to protect personal information. Data is encrypted and stored in secure cloud services."
+    },
+    "userRights": {
+      "title": "6. Your Rights",
+      "description": "Users have the following rights:",
+      "items": ["Access to personal information", "Correction or deletion of personal information", "Suspension of data processing", "Account deletion"],
+      "contact": "If you wish to exercise these rights, please contact us through the contact page."
+    },
+    "cookies": {
+      "title": "7. Cookies and Tracking Technologies",
+      "content": "The Service may use cookies and similar technologies to provide and improve the service. You can restrict cookie usage through your browser settings."
+    },
+    "thirdParty": {
+      "title": "8. Third-Party Service Integration",
+      "description": "The Service integrates with the following third-party services:",
+      "services": [
+        "Google Search Console API (for SEO data retrieval)",
+        "Slack API (for sending notifications, only when user connects)",
+        "Payment processing services (such as Stripe)"
+      ],
+      "note": "Each of these services has its own privacy policy."
+    },
+    "policyChanges": {
+      "title": "9. Changes to Privacy Policy",
+      "content": "The Service may change this Privacy Policy as needed. Users will be notified of significant changes."
+    },
+    "contact": {
+      "title": "10. Contact",
+      "content": "If you have any questions or requests regarding privacy, please contact us through the contact page."
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "description": "For questions, inquiries, or support regarding ReRank AI, please feel free to contact us using the methods below.",
+    "methods": {
+      "title": "Contact Methods",
+      "email": {
+        "title": "📧 Email Contact",
+        "description": "Please contact us at the following email address:",
+        "address": "support@rerank-ai.com",
+        "note": "※ Please note that it may take some time to respond."
+      },
+      "form": {
+        "title": "📝 Contact Form",
+        "description": "You can contact us using the form below:",
+        "open": "Open Contact Form",
+        "close": "Close Form",
+        "loading": "Loading...",
+        "linkText": "here",
+        "linkNote": "※ We use Google Forms. To open in a new tab, click"
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions (FAQ)",
+      "description": "For frequently asked questions, please check the following:",
+      "comingSoon": "FAQ page is coming soon. Please wait for updates."
+    },
+    "hours": {
+      "title": "Business Hours",
+      "support": "Support Hours:",
+      "time": "Weekdays 10:00 - 18:00 (JST)",
+      "note": "※ Inquiries received outside of these hours will be responded to starting from the next business day."
+    },
+    "other": {
+      "title": "Other",
+      "items": [
+        "If you encounter technical issues, including screenshots or error messages in your inquiry will help us respond quickly.",
+        "For account deletion requests, please contact us through the contact form or email.",
+        "For privacy-related inquiries, please also review our Privacy Policy."
+      ]
+    }
   }
 }
 
