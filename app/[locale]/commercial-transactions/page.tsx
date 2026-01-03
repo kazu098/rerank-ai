@@ -41,19 +41,38 @@ export default function CommercialTransactionsPage() {
                   { key: "liability", label: t("items.liability.label"), value: t("items.liability.value") },
                 ].map((item) => {
                   const isEmail = item.key === "email";
+                  const isPricing = item.key === "pricing";
+                  
+                  let cellContent;
+                  if (isEmail) {
+                    cellContent = (
+                      <a href={`mailto:${item.value}`} className="text-blue-600 hover:text-blue-800 underline">
+                        {item.value}
+                      </a>
+                    );
+                  } else if (isPricing) {
+                    const linkText = t("items.pricing.linkText");
+                    const suffix = t("items.pricing.suffix");
+                    cellContent = (
+                      <>
+                        {item.value}
+                        <a href={`/${locale}/#pricing`} className="text-blue-600 hover:text-blue-800 underline">
+                          {linkText}
+                        </a>
+                        {suffix}
+                      </>
+                    );
+                  } else {
+                    cellContent = item.value;
+                  }
+                  
                   return (
                     <tr key={item.key} className="border-b border-gray-300">
                       <td className="border border-gray-300 bg-gray-50 px-4 py-3 font-semibold text-gray-700 align-top w-1/3">
                         {item.label}
                       </td>
                       <td className="border border-gray-300 px-4 py-3 text-gray-700 align-top">
-                        {isEmail ? (
-                          <a href={`mailto:${item.value}`} className="text-blue-600 hover:text-blue-800 underline">
-                            {item.value}
-                          </a>
-                        ) : (
-                          item.value
-                        )}
+                        {cellContent}
                       </td>
                     </tr>
                   );

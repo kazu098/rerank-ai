@@ -817,7 +817,9 @@
       },
       "pricing": {
         "label": "Pricing",
-        "value": "Prices for each service plan are listed on the homepage (prices include tax)"
+        "value": "Prices for each service plan are listed on the ",
+        "linkText": "pricing page",
+        "suffix": " (prices include tax)"
       },
       "additionalFees": {
         "label": "Additional Fees",
