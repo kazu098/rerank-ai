@@ -192,24 +192,10 @@ export function AuthenticatedContent() {
       }
 
       const result = await response.json();
-      console.log("[Articles] API response:", { 
-        articlesCount: result.articles?.length, 
-        total: result.total, 
-        totalPages: result.totalPages,
-        page: result.page,
-        pageSize: result.pageSize,
-        articles: result.articles?.slice(0, 3) // 最初の3件を確認
-      });
-      console.log("[Articles] Setting articles:", result.articles?.length || 0, "articles");
       // ページネーションでは常に置き換える
       setArticles(result.articles || []);
       setTotalArticles(result.total || 0);
       setTotalPages(result.totalPages || 1);
-      console.log("[Articles] State updated:", {
-        articlesLength: result.articles?.length || 0,
-        totalArticles: result.total || 0,
-        totalPages: result.totalPages || 1
-      });
       setShowArticleSelection(true);
       setArticlePage(page);
     } catch (err: any) {
@@ -1089,43 +1075,28 @@ export function AuthenticatedContent() {
                           {(() => {
                             // 検索クエリがない場合はAPIから取得したtotalPagesを使用
                             // 検索クエリがある場合はクライアント側でフィルタリングした結果を使用
-                            const displayTotalPages = debouncedArticleSearchQuery
-                              ? Math.ceil(articles.filter((article) => {
-                                  const query = debouncedArticleSearchQuery.toLowerCase();
-                                  return (
-                                    article.url.toLowerCase().includes(query) ||
-                                    (article.title && article.title.toLowerCase().includes(query))
-                                  );
-                                }).length / articlesPerPage)
-                              : totalPages;
-                            const displayTotal = debouncedArticleSearchQuery
+                            const filteredArticles = debouncedArticleSearchQuery
                               ? articles.filter((article) => {
                                   const query = debouncedArticleSearchQuery.toLowerCase();
                                   return (
                                     article.url.toLowerCase().includes(query) ||
                                     (article.title && article.title.toLowerCase().includes(query))
                                   );
-                                }).length
+                                })
+                              : null;
+                            
+                            const displayTotalPages = filteredArticles
+                              ? Math.ceil(filteredArticles.length / articlesPerPage)
+                              : totalPages;
+                            const displayTotal = filteredArticles
+                              ? filteredArticles.length
                               : totalArticles;
                             const displayedCount = articles.length;
                             
-                            console.log("[Articles] Pagination UI:", {
-                              debouncedArticleSearchQuery,
-                              totalPages,
-                              totalArticles,
-                              articlesCount: articles.length,
-                              displayTotalPages,
-                              displayTotal,
-                              displayedCount
-                            });
-                            
-                            // 総ページ数が1以下の場合は表示しない
-                            if (displayTotalPages <= 1) {
-                              console.log("[Articles] Pagination UI hidden: displayTotalPages =", displayTotalPages);
+                            // 総ページ数が1より大きい場合のみ表示
+                            if (!displayTotalPages || displayTotalPages <= 1) {
                               return null;
                             }
-                            
-                            console.log("[Articles] Pagination UI showing");
                             
                             return (
                               <div className="mt-4">
