@@ -192,20 +192,9 @@ export function AuthenticatedContent() {
       }
 
       const result = await response.json();
-      console.log("[Articles] loadArticles result:", {
-        articlesCount: result.articles?.length,
-        total: result.total,
-        totalPages: result.totalPages,
-        page: result.page
-      });
-      // ページネーションでは常に置き換える
       setArticles(result.articles || []);
       setTotalArticles(result.total || 0);
       setTotalPages(result.totalPages || 1);
-      console.log("[Articles] State will be updated:", {
-        totalPages: result.totalPages || 1,
-        totalArticles: result.total || 0
-      });
       setShowArticleSelection(true);
       setArticlePage(page);
     } catch (err: any) {
@@ -683,7 +672,6 @@ export function AuthenticatedContent() {
 
           if (saveResponse.ok) {
             const saveResult = await saveResponse.json();
-            console.log("[Analysis] Saved to database:", saveResult);
             if (saveResult.articleId) {
               setAnalyzedArticleId(saveResult.articleId);
             }
@@ -1081,8 +1069,8 @@ export function AuthenticatedContent() {
                             })()}
                           </div>
                           
-                          {/* ページネーション - デバッグ用: 強制表示 */}
-                          {true && (
+                          {/* ページネーション */}
+                          {totalPages > 1 && articles.length > 0 && (
                             <div className="mt-4">
                               <p className="text-xs text-gray-500 text-center mb-3">
                                 {t("article.displayingItems", { 
