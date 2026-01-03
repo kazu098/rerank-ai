@@ -1087,42 +1087,45 @@ export function AuthenticatedContent() {
                           
                           {/* ページネーション */}
                           {(() => {
-                            // 検索クエリがある場合はクライアント側でフィルタリング
-                            const filteredArticles = articles.filter((article) => {
-                              if (!debouncedArticleSearchQuery) return true;
-                              const query = debouncedArticleSearchQuery.toLowerCase();
-                              return (
-                                article.url.toLowerCase().includes(query) ||
-                                (article.title && article.title.toLowerCase().includes(query))
-                              );
-                            });
-                            
                             // 検索クエリがない場合はAPIから取得したtotalPagesを使用
                             // 検索クエリがある場合はクライアント側でフィルタリングした結果を使用
                             const displayTotalPages = debouncedArticleSearchQuery
-                              ? Math.ceil(filteredArticles.length / articlesPerPage)
+                              ? Math.ceil(articles.filter((article) => {
+                                  const query = debouncedArticleSearchQuery.toLowerCase();
+                                  return (
+                                    article.url.toLowerCase().includes(query) ||
+                                    (article.title && article.title.toLowerCase().includes(query))
+                                  );
+                                }).length / articlesPerPage)
                               : totalPages;
                             const displayTotal = debouncedArticleSearchQuery
-                              ? filteredArticles.length
+                              ? articles.filter((article) => {
+                                  const query = debouncedArticleSearchQuery.toLowerCase();
+                                  return (
+                                    article.url.toLowerCase().includes(query) ||
+                                    (article.title && article.title.toLowerCase().includes(query))
+                                  );
+                                }).length
                               : totalArticles;
-                            const displayedCount = debouncedArticleSearchQuery
-                              ? filteredArticles.length
-                              : articles.length;
+                            const displayedCount = articles.length;
                             
                             console.log("[Articles] Pagination UI:", {
                               debouncedArticleSearchQuery,
                               totalPages,
                               totalArticles,
                               articlesCount: articles.length,
-                              filteredArticlesCount: filteredArticles.length,
                               displayTotalPages,
                               displayTotal,
                               displayedCount
                             });
                             
+                            // 総ページ数が1以下の場合は表示しない
                             if (displayTotalPages <= 1) {
+                              console.log("[Articles] Pagination UI hidden: displayTotalPages =", displayTotalPages);
                               return null;
                             }
+                            
+                            console.log("[Articles] Pagination UI showing");
                             
                             return (
                               <div className="mt-4">
