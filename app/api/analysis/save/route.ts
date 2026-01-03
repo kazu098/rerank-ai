@@ -81,34 +81,14 @@ export async function POST(request: NextRequest) {
     // 記事を取得または作成
     let article = await getArticleByUrl(session.userId, articleUrl);
     
-    if (!article) {
-      // 記事が存在しない場合は作成（siteIdを設定、監視を開始）
-      article = await saveOrUpdateArticle(
-        session.userId,
-        articleUrl,
-        site.id, // siteIdを設定
-        undefined, // titleは後で取得可能
-        analysisResult.prioritizedKeywords.map((kw: { keyword: string; priority: number; impressions: number; clicks: number; position: number }) => kw.keyword)
-      );
-    } else {
-      // 既存の記事の場合、監視を開始（is_monitoringをtrueに設定）
-      const supabase = createSupabaseClient();
-      const { data: updatedArticle, error: updateError } = await supabase
-        .from('articles')
-        .update({
-          is_monitoring: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', article.id)
-        .select()
-        .single();
-      
-      if (updateError) {
-        console.error("[Analysis Save] Failed to update monitoring status:", updateError);
-      } else if (updatedArticle) {
-        article = updatedArticle as any;
-      }
-    }
+    // 記事が存在しない場合は作成、既存の場合はsite_idを更新（site_idが設定されていない場合や変更された場合）
+    article = await saveOrUpdateArticle(
+      session.userId,
+      articleUrl,
+      site.id, // siteIdを設定（既存記事の場合も更新）
+      article?.title ?? undefined, // 既存のtitleを保持、新規の場合はundefined
+      analysisResult.prioritizedKeywords.map((kw: { keyword: string; priority: number; impressions: number; clicks: number; position: number }) => kw.keyword)
+    );
 
     // articleがnullの場合はエラー
     if (!article) {
@@ -128,10 +108,9 @@ export async function POST(request: NextRequest) {
       analysisDurationSeconds
     );
 
-    // 記事の最終分析日時とキーワードを更新
+    // 記事の最終分析日時、キーワード、監視ステータスを更新
     // 注意: saveOrUpdateArticle は last_analyzed_at を自動更新しないため、
     // 直接更新する必要がある
-    // また、監視を開始する（is_monitoringをtrueに設定）
     const supabase = createSupabaseClient();
     await supabase
       .from('articles')

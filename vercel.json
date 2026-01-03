@@ -10,6 +10,9 @@
     "app/api/competitors/analyze/route.ts": {
       "maxDuration": 60
     },
+    "app/api/competitors/analyze-step3/route.ts": {
+      "maxDuration": 300
+    },
     "app/api/cron/check-rank/route.ts": {
       "maxDuration": 300
     }

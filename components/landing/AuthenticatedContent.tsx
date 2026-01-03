@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useRouter, Link } from "@/src/i18n/routing";
@@ -52,9 +52,44 @@ export function AuthenticatedContent() {
   const [loadingArticles, setLoadingArticles] = useState(false);
   const [showArticleSelection, setShowArticleSelection] = useState(false);
   const [articleSearchQuery, setArticleSearchQuery] = useState("");
+  const [debouncedArticleSearchQuery, setDebouncedArticleSearchQuery] = useState("");
   const [fetchingTitleUrls, setFetchingTitleUrls] = useState<Set<string>>(new Set());
   const [articlePage, setArticlePage] = useState(1);
+  const [totalArticles, setTotalArticles] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const articlesPerPage = 50;
+
+  // 検索クエリのデバウンス（300ms）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedArticleSearchQuery(articleSearchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [articleSearchQuery]);
+
+  // ページ変更時にAPIを再呼び出す（検索クエリがない場合のみ）
+  const prevShowArticleSelectionRef = useRef(false);
+  
+  useEffect(() => {
+    // 記事一覧を開いたとき（showArticleSelectionがfalseからtrueに変わったとき）はスキップ
+    // この場合はloadArticlesが直接呼ばれるため
+    if (!prevShowArticleSelectionRef.current && showArticleSelection) {
+      prevShowArticleSelectionRef.current = true;
+      return;
+    }
+    prevShowArticleSelectionRef.current = showArticleSelection;
+    
+    // 記事一覧が閉じられていない、かつ検索クエリがない場合のみAPIを呼び出す
+    if (
+      selectedSiteUrl &&
+      showArticleSelection &&
+      !debouncedArticleSearchQuery
+    ) {
+      loadArticles(selectedSiteUrl, articlePage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articlePage, selectedSiteUrl, showArticleSelection, debouncedArticleSearchQuery]);
 
   // 通知設定関連
   const [analyzedArticleId, setAnalyzedArticleId] = useState<string | null>(null);
@@ -152,11 +187,11 @@ export function AuthenticatedContent() {
     }
   };
 
-  const loadArticles = async (siteUrl: string) => {
+  const loadArticles = async (siteUrl: string, page: number = 1) => {
     setLoadingArticles(true);
     setError(null);
     try {
-      const response = await fetch(`/api/articles/list?siteUrl=${encodeURIComponent(siteUrl)}`);
+      const response = await fetch(`/api/articles/list?siteUrl=${encodeURIComponent(siteUrl)}&page=${page}&pageSize=50`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -165,8 +200,10 @@ export function AuthenticatedContent() {
 
       const result = await response.json();
       setArticles(result.articles || []);
+      setTotalArticles(result.total || 0);
+      setTotalPages(result.totalPages || 1);
       setShowArticleSelection(true);
-      setArticlePage(1);
+      setArticlePage(page);
     } catch (err: any) {
       console.error("[Articles] Error loading articles:", err);
       setError(err.message || t("errors.articleListLoadFailed"));
@@ -593,7 +630,20 @@ export function AuthenticatedContent() {
         });
 
         if (!step3Response.ok) {
-          const errorData = await step3Response.json();
+          let errorData: any;
+          try {
+            errorData = await step3Response.json();
+          } catch (jsonError) {
+            // JSONパースに失敗した場合（タイムアウトなどでプレーンテキストが返される場合）
+            const errorText = await step3Response.text();
+            console.error("Step 3 failed (non-JSON response):", errorText);
+            errorData = {
+              error: step3Response.status === 504
+                ? "処理がタイムアウトしました。分析に時間がかかりすぎています。"
+                : `Step 3に失敗しました (${step3Response.status})`,
+              timeout: step3Response.status === 504,
+            };
+          }
           console.error("Step 3 failed:", errorData);
           setCompletedSteps(prev => new Set([...Array.from(prev), 5, 6, 7]));
           setCurrentStep(0);
@@ -630,7 +680,6 @@ export function AuthenticatedContent() {
 
           if (saveResponse.ok) {
             const saveResult = await saveResponse.json();
-            console.log("[Analysis] Saved to database:", saveResult);
             if (saveResult.articleId) {
               setAnalyzedArticleId(saveResult.articleId);
             }
@@ -954,7 +1003,7 @@ export function AuthenticatedContent() {
                   </div>
 
                   {showArticleSelection && (
-                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                       {loadingArticles ? (
                         <div className="text-center py-8">
                           <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
@@ -981,23 +1030,29 @@ export function AuthenticatedContent() {
                           </div>
 
                           {/* 記事一覧 */}
-                          <div className="space-y-2">
+                          <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
                             {(() => {
-                              const filteredArticles = articles.filter((article) => {
-                                if (!articleSearchQuery) return true;
-                                const query = articleSearchQuery.toLowerCase();
-                                return (
-                                  article.url.toLowerCase().includes(query) ||
-                                  (article.title && article.title.toLowerCase().includes(query))
-                                );
-                              });
+                              // 検索クエリがある場合はクライアント側でフィルタリング＋ページネーション
+                              // 検索クエリがない場合はAPIから取得した記事をそのまま表示（サーバー側でページネーション済み）
+                              const filteredArticles = debouncedArticleSearchQuery
+                                ? articles.filter((article) => {
+                                    const query = debouncedArticleSearchQuery.toLowerCase();
+                                    return (
+                                      article.url.toLowerCase().includes(query) ||
+                                      (article.title && article.title.toLowerCase().includes(query))
+                                    );
+                                  })
+                                : articles;
                               
-                              const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
-                              const startIndex = (articlePage - 1) * articlesPerPage;
-                              const endIndex = startIndex + articlesPerPage;
-                              const paginatedArticles = filteredArticles.slice(startIndex, endIndex);
+                              const displayArticles = debouncedArticleSearchQuery
+                                ? (() => {
+                                    const startIndex = (articlePage - 1) * articlesPerPage;
+                                    const endIndex = startIndex + articlesPerPage;
+                                    return filteredArticles.slice(startIndex, endIndex);
+                                  })()
+                                : articles; // 検索クエリがない場合はAPIから取得した記事をそのまま表示
                               
-                              return paginatedArticles.map((article, index) => (
+                              return displayArticles.map((article, index) => (
                                 <div
                                   key={index}
                                   className="bg-white border border-gray-200 rounded-lg p-3 hover:border-purple-400 transition-colors"
@@ -1066,65 +1121,49 @@ export function AuthenticatedContent() {
                           </div>
                           
                           {/* ページネーション */}
-                          {(() => {
-                            const filteredArticles = articles.filter((article) => {
-                              if (!articleSearchQuery) return true;
-                              const query = articleSearchQuery.toLowerCase();
-                              return (
-                                article.url.toLowerCase().includes(query) ||
-                                (article.title && article.title.toLowerCase().includes(query))
-                              );
-                            });
-                            
-                            const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
-                            const startIndex = (articlePage - 1) * articlesPerPage;
-                            const endIndex = Math.min(startIndex + articlesPerPage, filteredArticles.length);
-                            
-                            if (filteredArticles.length <= articlesPerPage) {
-                              return null;
-                            }
-                            
-                            return (
-                              <div className="mt-4">
-                                <p className="text-xs text-gray-500 text-center mb-3">
-                                  {t("article.displayingItems", { displayed: endIndex, total: filteredArticles.length })}
-                                </p>
-                                <div className="flex items-center justify-center gap-2">
-                                  <button
-                                    onClick={() => setArticlePage(1)}
-                                    disabled={articlePage === 1}
-                                    className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    最初
-                                  </button>
-                                  <button
-                                    onClick={() => setArticlePage(articlePage - 1)}
-                                    disabled={articlePage === 1}
-                                    className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    前へ
-                                  </button>
-                                  <span className="text-xs text-gray-700 px-3">
-                                    {articlePage} / {totalPages}
-                                  </span>
-                                  <button
-                                    onClick={() => setArticlePage(articlePage + 1)}
-                                    disabled={articlePage >= totalPages}
-                                    className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    次へ
-                                  </button>
-                                  <button
-                                    onClick={() => setArticlePage(totalPages)}
-                                    disabled={articlePage >= totalPages}
-                                    className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    最後
-                                  </button>
-                                </div>
+                          {totalPages > 1 && articles.length > 0 && (
+                            <div className="mt-4">
+                              <p className="text-xs text-gray-500 text-center mb-3">
+                                {t("article.displayingItems", { 
+                                  displayed: articles.length, 
+                                  total: totalArticles 
+                                })}
+                              </p>
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => setArticlePage(1)}
+                                  disabled={articlePage === 1}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  最初
+                                </button>
+                                <button
+                                  onClick={() => setArticlePage(articlePage - 1)}
+                                  disabled={articlePage === 1}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  前へ
+                                </button>
+                                <span className="text-xs text-gray-700 px-3">
+                                  {articlePage} / {totalPages}
+                                </span>
+                                <button
+                                  onClick={() => setArticlePage(articlePage + 1)}
+                                  disabled={articlePage >= totalPages}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  次へ
+                                </button>
+                                <button
+                                  onClick={() => setArticlePage(totalPages)}
+                                  disabled={articlePage >= totalPages}
+                                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  最後
+                                </button>
                               </div>
-                            );
-                          })()}
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
