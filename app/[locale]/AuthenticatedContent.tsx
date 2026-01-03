@@ -55,6 +55,8 @@ export function AuthenticatedContent() {
   const [debouncedArticleSearchQuery, setDebouncedArticleSearchQuery] = useState("");
   const [fetchingTitleUrls, setFetchingTitleUrls] = useState<Set<string>>(new Set());
   const [articlePage, setArticlePage] = useState(1);
+  const [totalArticles, setTotalArticles] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const articlesPerPage = 50;
 
   // 検索クエリのデバウンス（300ms）
@@ -192,6 +194,8 @@ export function AuthenticatedContent() {
       const result = await response.json();
       // ページネーションでは常に置き換える
       setArticles(result.articles || []);
+      setTotalArticles(result.total || 0);
+      setTotalPages(result.totalPages || 1);
       setShowArticleSelection(true);
       setArticlePage(page);
     } catch (err: any) {
@@ -1063,6 +1067,7 @@ export function AuthenticatedContent() {
                           
                           {/* ページネーション */}
                           {(() => {
+                            // 検索クエリがある場合はクライアント側でフィルタリング
                             const filteredArticles = articles.filter((article) => {
                               if (!debouncedArticleSearchQuery) return true;
                               const query = debouncedArticleSearchQuery.toLowerCase();
@@ -1072,18 +1077,26 @@ export function AuthenticatedContent() {
                               );
                             });
                             
-                            const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
-                            const startIndex = (articlePage - 1) * articlesPerPage;
-                            const endIndex = Math.min(startIndex + articlesPerPage, filteredArticles.length);
+                            // 検索クエリがない場合はAPIから取得したtotalPagesを使用
+                            // 検索クエリがある場合はクライアント側でフィルタリングした結果を使用
+                            const displayTotalPages = debouncedArticleSearchQuery
+                              ? Math.ceil(filteredArticles.length / articlesPerPage)
+                              : totalPages;
+                            const displayTotal = debouncedArticleSearchQuery
+                              ? filteredArticles.length
+                              : totalArticles;
+                            const displayedCount = debouncedArticleSearchQuery
+                              ? filteredArticles.length
+                              : articles.length;
                             
-                            if (filteredArticles.length <= articlesPerPage) {
+                            if (displayTotalPages <= 1) {
                               return null;
                             }
                             
                             return (
                               <div className="mt-4">
                                 <p className="text-xs text-gray-500 text-center mb-3">
-                                  {t("article.displayingItems", { displayed: endIndex, total: filteredArticles.length })}
+                                  {t("article.displayingItems", { displayed: displayedCount, total: displayTotal })}
                                 </p>
                                 <div className="flex items-center justify-center gap-2">
                                   <button
@@ -1101,18 +1114,18 @@ export function AuthenticatedContent() {
                                     前へ
                                   </button>
                                   <span className="text-xs text-gray-700 px-3">
-                                    {articlePage} / {totalPages}
+                                    {articlePage} / {displayTotalPages}
                                   </span>
                                   <button
                                     onClick={() => setArticlePage(articlePage + 1)}
-                                    disabled={articlePage >= totalPages}
+                                    disabled={articlePage >= displayTotalPages}
                                     className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     次へ
                                   </button>
                                   <button
-                                    onClick={() => setArticlePage(totalPages)}
-                                    disabled={articlePage >= totalPages}
+                                    onClick={() => setArticlePage(displayTotalPages)}
+                                    disabled={articlePage >= displayTotalPages}
                                     className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     最後
