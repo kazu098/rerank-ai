@@ -704,6 +704,85 @@
         "For privacy-related inquiries, please also review our Privacy Policy."
       ]
     }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last Updated",
+    "introduction": {
+      "title": "1. Introduction",
+      "content": "These Terms of Service (\"Terms\") govern your use of ReRank AI (\"the Service\"). Please read these Terms carefully before using the Service."
+    },
+    "acceptance": {
+      "title": "2. Acceptance of Terms",
+      "content": "By using the Service, you agree to be bound by these Terms. If you do not agree to these Terms, please discontinue use of the Service."
+    },
+    "service": {
+      "title": "3. Service Description",
+      "description": "The Service monitors SEO rankings by connecting to Google Search Console and sends notifications when rank drops are detected. Main features include:",
+      "features": [
+        "Integration with Google Search Console API to fetch ranking data",
+        "Automatic detection of keyword ranking drops",
+        "Notifications for rank drops (email, Slack, etc.)",
+        "AI-generated article improvement suggestions",
+        "Competitor analysis and rewrite suggestions"
+      ]
+    },
+    "account": {
+      "title": "4. Account",
+      "description": "To use the Service, you must create an account. The following applies to accounts:",
+      "items": [
+        "Accounts are created through Google account authentication",
+        "Users are responsible for ensuring the accuracy of account information",
+        "Users must promptly update account information if it changes",
+        "Users are responsible for managing their accounts",
+        "The Service may suspend or delete accounts if unauthorized use is suspected"
+      ]
+    },
+    "payment": {
+      "title": "5. Fees and Payment",
+      "description": "The following fees apply to the use of the Service:",
+      "items": [
+        "Free and paid plans are available",
+        "Paid plans are processed through Stripe",
+        "Fees are charged monthly or annually based on the selected plan",
+        "Refunds are only available before service begins",
+        "Fees may be changed without prior notice"
+      ]
+    },
+    "userConduct": {
+      "title": "6. User Conduct",
+      "description": "Users must not engage in the following activities:",
+      "prohibited": [
+        "Activities that violate laws or public order and morals",
+        "Activities that cause damage to the Service or third parties",
+        "Activities that interfere with the Service's servers or networks",
+        "Activities to obtain or use other users' account information",
+        "Activities that infringe on the Service's intellectual property rights",
+        "Activities to disassemble, decompile, or reverse engineer the Service's features",
+        "Activities to resell or redistribute the Service for commercial purposes",
+        "Other activities deemed inappropriate by the Service"
+      ]
+    },
+    "intellectualProperty": {
+      "title": "7. Intellectual Property",
+      "content": "All intellectual property rights (copyrights, trademarks, patents, etc.) related to the Service belong to the Service or its licensors. Users may not copy, modify, distribute, or commercially use the Service's content."
+    },
+    "limitation": {
+      "title": "8. Disclaimer",
+      "content": "The Service makes no warranties to users regarding the provision of services. The Service shall not be liable for any damages, including direct, indirect, consequential, or lost profits, arising from the provision of services."
+    },
+    "termination": {
+      "title": "9. Service Suspension and Termination",
+      "content": "The Service may suspend or delete user accounts and terminate service provision without prior notice if users violate these Terms or if the Service otherwise deems it necessary."
+    },
+    "changes": {
+      "title": "10. Changes to Terms",
+      "content": "The Service may change these Terms as necessary. Users will be notified of significant changes. Changes to the Terms take effect when posted on the Service's website."
+    },
+    "contact": {
+      "title": "11. Contact",
+      "content": "If you have any questions about these Terms, please contact us through the contact page."
+    }
   }
 }
 
