@@ -29,7 +29,8 @@
       "title": "Company",
       "contact": "Contact",
       "privacyPolicy": "Privacy Policy",
-      "termsOfService": "Terms of Service"
+      "termsOfService": "Terms of Service",
+      "commercialTransactions": "Commercial Transactions Law Disclosure"
     },
     "social": {
       "title": "Social",
@@ -788,6 +789,87 @@
     "contact": {
       "title": "11. Contact",
       "content": "If you have any questions about these Terms, please contact us through the contact page."
+    }
+  },
+  "commercialTransactions": {
+    "title": "Commercial Transactions Law Disclosure",
+    "lastUpdated": "Last Updated",
+    "business": {
+      "title": "Business Information",
+      "businessName": {
+        "label": "Business Name",
+        "value": "ReRank AI"
+      },
+      "representative": {
+        "label": "Representative",
+        "value": "※ Please provide representative name"
+      },
+      "address": {
+        "label": "Address",
+        "value": "※ Please provide business address"
+      },
+      "contact": {
+        "label": "Contact",
+        "email": "support@rerank-ai.com"
+      }
+    },
+    "pricing": {
+      "title": "Pricing",
+      "description": "Pricing for each plan is as stated on the pricing page.",
+      "items": [
+        "Free Plan: Free",
+        "Starter Plan: $20/month (or equivalent in local currency)",
+        "Pro Plan: $50/month (or equivalent in local currency)",
+        "Enterprise Plan: Contact us for pricing",
+        "Annual plans are charged at 10 months of the monthly rate (2 months free)"
+      ],
+      "note": "※ Prices are subject to change without notice. Please check the pricing page for the latest rates."
+    },
+    "payment": {
+      "title": "Payment",
+      "method": {
+        "label": "Payment Method",
+        "value": "Credit card payment (via Stripe) and other electronic payment methods"
+      },
+      "timing": {
+        "label": "Payment Timing",
+        "value": "At the time of service activation. For monthly plans, automatic billing occurs on the renewal date each month."
+      }
+    },
+    "service": {
+      "title": "Service Provision",
+      "provision": {
+        "label": "Service Provision Timing",
+        "value": "Service is provided immediately after payment completion."
+      },
+      "method": {
+        "label": "Service Provision Method",
+        "value": "Provided via web application. Users can access the service by logging into their created account."
+      }
+    },
+    "cancellation": {
+      "title": "Cancellation & Refunds",
+      "description": "Cancellations and refunds are accepted under the following conditions:",
+      "items": [
+        "Cancellation before service provision: Full refund",
+        "Cancellation after service provision: Pro-rated refund (excluding fees) is available",
+        "To request a refund, please contact us through the contact form or email (support@rerank-ai.com)",
+        "Refund processing may take 1-2 weeks depending on the payment method",
+        "Refund fees may vary depending on the payment method"
+      ]
+    },
+    "returns": {
+      "title": "Returns",
+      "description": "As our service provides digital content, we generally do not accept returns. However, if you cancel before service provision, we will provide a refund according to the \"Cancellation & Refunds\" section above."
+    },
+    "disputes": {
+      "title": "Complaints & Dispute Resolution",
+      "description": "Any complaints or disputes arising between customers and our service will be resolved through good faith negotiation. If a resolution cannot be reached, the dispute shall be subject to the exclusive jurisdiction of the district court or summary court with jurisdiction over the customer's place of residence as the court of first instance."
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "If you have any questions regarding this Commercial Transactions Law Disclosure, please contact us:",
+      "link": "Contact Page"
     }
   }
 }

@@ -78,6 +78,11 @@ export function Footer() {
                   {t("footer.company.termsOfService")}
                 </a>
               </li>
+              <li>
+                <a href={`/${locale}/commercial-transactions`} className="text-sm hover:text-white transition-colors">
+                  {t("footer.company.commercialTransactions")}
+                </a>
+              </li>
             </ul>
           </div>
         </div>
