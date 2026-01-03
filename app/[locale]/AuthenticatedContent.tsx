@@ -192,10 +192,24 @@ export function AuthenticatedContent() {
       }
 
       const result = await response.json();
+      console.log("[Articles] API response:", { 
+        articlesCount: result.articles?.length, 
+        total: result.total, 
+        totalPages: result.totalPages,
+        page: result.page,
+        pageSize: result.pageSize,
+        articles: result.articles?.slice(0, 3) // 最初の3件を確認
+      });
+      console.log("[Articles] Setting articles:", result.articles?.length || 0, "articles");
       // ページネーションでは常に置き換える
       setArticles(result.articles || []);
       setTotalArticles(result.total || 0);
       setTotalPages(result.totalPages || 1);
+      console.log("[Articles] State updated:", {
+        articlesLength: result.articles?.length || 0,
+        totalArticles: result.total || 0,
+        totalPages: result.totalPages || 1
+      });
       setShowArticleSelection(true);
       setArticlePage(page);
     } catch (err: any) {
@@ -1094,6 +1108,17 @@ export function AuthenticatedContent() {
                             const displayedCount = debouncedArticleSearchQuery
                               ? filteredArticles.length
                               : articles.length;
+                            
+                            console.log("[Articles] Pagination UI:", {
+                              debouncedArticleSearchQuery,
+                              totalPages,
+                              totalArticles,
+                              articlesCount: articles.length,
+                              filteredArticlesCount: filteredArticles.length,
+                              displayTotalPages,
+                              displayTotal,
+                              displayedCount
+                            });
                             
                             if (displayTotalPages <= 1) {
                               return null;

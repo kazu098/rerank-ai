@@ -155,11 +155,17 @@ export async function GET(request: NextRequest) {
     
     if (!gscData) {
       // キャッシュにない場合はGSC APIから取得
+      console.log("[Articles List API] Fetching from GSC API (not cached)");
       const gscClient = await getGSCClient();
       gscData = await gscClient.getPageUrls(siteUrl, startDate, endDate, 1000);
+      console.log("[Articles List API] GSC API response:", {
+        rowsCount: gscData.rows?.length || 0
+      });
       
       // キャッシュに保存（TTL: 1時間）
       cache.set(cacheKey, gscData, 3600);
+    } else {
+      console.log("[Articles List API] Using cached data, rowsCount:", gscData.rows?.length || 0);
     }
 
     // GSCから取得したURL一覧
@@ -250,6 +256,12 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    console.log("[Articles List API] Merged articles:", {
+      mergedArticlesCount: mergedArticles.length,
+      urlMapSize: urlMap.size,
+      dbArticlesCount: dbArticles.length
+    });
+
     // インプレッション数でソート（多い順）
     mergedArticles.sort((a, b) => b.impressions - a.impressions);
 
@@ -259,6 +271,17 @@ export async function GET(request: NextRequest) {
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const paginatedArticles = mergedArticles.slice(startIndex, endIndex);
+
+    console.log("[Articles List API] Response:", {
+      total,
+      totalPages,
+      page,
+      pageSize,
+      startIndex,
+      endIndex,
+      paginatedArticlesCount: paginatedArticles.length,
+      mergedArticlesCount: mergedArticles.length
+    });
 
     return NextResponse.json(
       {
