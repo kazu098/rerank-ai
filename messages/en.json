@@ -29,7 +29,8 @@
       "title": "Company",
       "contact": "Contact",
       "privacyPolicy": "Privacy Policy",
-      "termsOfService": "Terms of Service"
+      "termsOfService": "Terms of Service",
+      "commercialTransactions": "Commercial Transactions Law Disclosure"
     },
     "social": {
       "title": "Social",
@@ -447,7 +448,8 @@
       "articleSuggestions": "Article Suggestions",
       "notifications": "Notifications",
       "settings": "Settings",
-      "billing": "Billing"
+      "billing": "Billing",
+      "contact": "Contact"
     },
     "articleSuggestions": {
       "title": "Article Suggestions",
@@ -570,6 +572,291 @@
       "title": "Notification Cooldown",
       "days": "Notification Cooldown Period",
       "description": "Do not send notifications for the same article within this number of days. If set to 0, the cooldown is disabled"
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last Updated",
+    "introduction": {
+      "title": "1. Introduction",
+      "content": "ReRank AI (hereinafter referred to as \"the Service\") respects user privacy and strives to protect personal information. This Privacy Policy explains the information that the Service collects, uses, and protects."
+    },
+    "dataCollection": {
+      "title": "2. Information We Collect",
+      "accountInfo": {
+        "title": "2.1 Account Information",
+        "description": "When you log in with your Google account, the Service obtains the following information:",
+        "items": ["Email address", "Name (display name)", "Profile picture"]
+      },
+      "gscData": {
+        "title": "2.2 Google Search Console Data",
+        "description": "For SEO rank monitoring, the Service accesses the following information through the Google Search Console API with user consent:",
+        "items": ["Search queries and ranking data", "Clicks and impressions", "Page URLs and performance data"]
+      },
+      "usageData": {
+        "title": "2.3 Usage Data",
+        "description": "To improve the service, we may collect the following information:",
+        "items": ["Service usage", "Feature usage frequency", "Error logs"]
+      }
+    },
+    "dataUsage": {
+      "title": "3. How We Use Your Information",
+      "description": "We use the collected information for the following purposes:",
+      "items": [
+        "To provide SEO rank monitoring services",
+        "To send notifications about rank drops",
+        "To improve and develop the service",
+        "To provide customer support",
+        "To prevent fraud and ensure security",
+        "To comply with laws and regulations"
+      ]
+    },
+    "dataSharing": {
+      "title": "4. Information Sharing and Disclosure",
+      "description": "The Service does not share users' personal information with third parties except in the following cases:",
+      "items": [
+        "When there is explicit user consent",
+        "When disclosure is required by law or court order",
+        "Disclosure to necessary service providers (such as cloud service providers) with appropriate safeguards"
+      ]
+    },
+    "dataProtection": {
+      "title": "5. Data Storage and Protection",
+      "content": "The Service takes appropriate security measures to protect personal information. Data is encrypted and stored in secure cloud services."
+    },
+    "userRights": {
+      "title": "6. Your Rights",
+      "description": "Users have the following rights:",
+      "items": ["Access to personal information", "Correction or deletion of personal information", "Suspension of data processing", "Account deletion"],
+      "contact": "If you wish to exercise these rights, please contact us through the contact page."
+    },
+    "cookies": {
+      "title": "7. Cookies and Tracking Technologies",
+      "content": "The Service may use cookies and similar technologies to provide and improve the service. You can restrict cookie usage through your browser settings."
+    },
+    "thirdParty": {
+      "title": "8. Third-Party Service Integration",
+      "description": "The Service integrates with the following third-party services:",
+      "services": [
+        "Google Search Console API (for SEO data retrieval)",
+        "Slack API (for sending notifications, only when user connects)",
+        "Payment processing services (such as Stripe)"
+      ],
+      "note": "Each of these services has its own privacy policy."
+    },
+    "policyChanges": {
+      "title": "9. Changes to Privacy Policy",
+      "content": "The Service may change this Privacy Policy as needed. Users will be notified of significant changes."
+    },
+    "contact": {
+      "title": "10. Contact",
+      "content": "If you have any questions or requests regarding privacy, please contact us through the contact page."
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "description": "For questions, inquiries, or support regarding ReRank AI, please feel free to contact us. We typically respond within 2-3 business days.",
+    "methods": {
+      "title": "Contact Methods",
+      "email": {
+        "title": "📧 Email Contact",
+        "description": "Please contact us at the following email address:",
+        "address": "support@rerank-ai.com",
+        "note": "※ Please note that it may take some time to respond."
+      },
+      "form": {
+        "title": "📝 Contact Form",
+        "description": "You can contact us using the form below:",
+        "open": "Open Contact Form",
+        "close": "Close Form",
+        "loading": "Loading...",
+        "linkText": "here",
+        "linkNote": "※ We use Google Forms. To open in a new tab, click",
+        "name": "Name",
+        "namePlaceholder": "John Doe",
+        "emailLabel": "Email Address",
+        "emailPlaceholder": "example@email.com",
+        "subject": "Subject",
+        "subjectPlaceholder": "Enter the subject of your inquiry",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Please describe your inquiry in detail",
+        "submit": "Submit",
+        "sending": "Sending...",
+        "uploading": "Uploading...",
+        "success": "Your inquiry has been sent. A confirmation email has been sent to you.",
+        "error": "Failed to send. Please try again later.",
+        "required": "Required",
+        "attachments": "Attachments",
+        "fileHint": "You can upload images (JPG, PNG, GIF), PDF, and text files (TXT, MD)",
+        "maxFiles": "Maximum {{count}} files",
+        "maxSize": "10MB per file"
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions (FAQ)",
+      "description": "For frequently asked questions, please check the following:",
+      "comingSoon": "FAQ page is coming soon. Please wait for updates."
+    },
+    "hours": {
+      "title": "Business Hours",
+      "support": "Support Hours:",
+      "time": "Weekdays 10:00 - 18:00 (JST)",
+      "note": "※ Inquiries received outside of these hours will be responded to starting from the next business day."
+    },
+    "other": {
+      "title": "Other",
+      "items": [
+        "If you encounter technical issues, including screenshots or error messages in your inquiry will help us respond quickly.",
+        "For account deletion requests, please contact us through the contact form or email.",
+        "For privacy-related inquiries, please also review our Privacy Policy."
+      ]
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last Updated",
+    "introduction": {
+      "title": "1. Introduction",
+      "content": "These Terms of Service (\"Terms\") govern your use of ReRank AI (\"the Service\"). Please read these Terms carefully before using the Service."
+    },
+    "acceptance": {
+      "title": "2. Acceptance of Terms",
+      "content": "By using the Service, you agree to be bound by these Terms. If you do not agree to these Terms, please discontinue use of the Service."
+    },
+    "service": {
+      "title": "3. Service Description",
+      "description": "The Service monitors SEO rankings by connecting to Google Search Console and sends notifications when rank drops are detected. Main features include:",
+      "features": [
+        "Integration with Google Search Console API to fetch ranking data",
+        "Automatic detection of keyword ranking drops",
+        "Notifications for rank drops (email, Slack, etc.)",
+        "AI-generated article improvement suggestions",
+        "Competitor analysis and rewrite suggestions"
+      ]
+    },
+    "account": {
+      "title": "4. Account",
+      "description": "To use the Service, you must create an account. The following applies to accounts:",
+      "items": [
+        "Accounts are created through Google account authentication",
+        "Users are responsible for ensuring the accuracy of account information",
+        "Users must promptly update account information if it changes",
+        "Users are responsible for managing their accounts",
+        "The Service may suspend or delete accounts if unauthorized use is suspected"
+      ]
+    },
+    "payment": {
+      "title": "5. Fees and Payment",
+      "description": "The following fees apply to the use of the Service:",
+      "items": [
+        "Free and paid plans are available",
+        "Paid plans are processed through Stripe",
+        "Fees are charged monthly or annually based on the selected plan",
+        "Refunds are only available before service begins",
+        "Fees may be changed without prior notice"
+      ]
+    },
+    "userConduct": {
+      "title": "6. User Conduct",
+      "description": "Users must not engage in the following activities:",
+      "prohibited": [
+        "Activities that violate laws or public order and morals",
+        "Activities that cause damage to the Service or third parties",
+        "Activities that interfere with the Service's servers or networks",
+        "Activities to obtain or use other users' account information",
+        "Activities that infringe on the Service's intellectual property rights",
+        "Activities to disassemble, decompile, or reverse engineer the Service's features",
+        "Activities to resell or redistribute the Service for commercial purposes",
+        "Other activities deemed inappropriate by the Service"
+      ]
+    },
+    "intellectualProperty": {
+      "title": "7. Intellectual Property",
+      "content": "All intellectual property rights (copyrights, trademarks, patents, etc.) related to the Service belong to the Service or its licensors. Users may not copy, modify, distribute, or commercially use the Service's content."
+    },
+    "limitation": {
+      "title": "8. Disclaimer",
+      "content": "The Service makes no warranties to users regarding the provision of services. The Service shall not be liable for any damages, including direct, indirect, consequential, or lost profits, arising from the provision of services."
+    },
+    "termination": {
+      "title": "9. Service Suspension and Termination",
+      "content": "The Service may suspend or delete user accounts and terminate service provision without prior notice if users violate these Terms or if the Service otherwise deems it necessary."
+    },
+    "changes": {
+      "title": "10. Changes to Terms",
+      "content": "The Service may change these Terms as necessary. Users will be notified of significant changes. Changes to the Terms take effect when posted on the Service's website."
+    },
+    "contact": {
+      "title": "11. Contact",
+      "content": "If you have any questions about these Terms, please contact us through the contact page."
+    }
+  },
+  "commercialTransactions": {
+    "title": "Commercial Transactions Law Disclosure",
+    "lastUpdated": "Last Updated",
+    "items": {
+      "businessName": {
+        "label": "Business Name",
+        "value": "Kazutaka Yoshinaga"
+      },
+      "address": {
+        "label": "Address",
+        "value": "4-21-3-303 Midori, Sumida-ku, Tokyo, Japan"
+      },
+      "contact": {
+        "label": "Contact",
+        "value": "Please contact us by email"
+      },
+      "email": {
+        "label": "Email Address",
+        "value": "support@rerank-ai.com"
+      },
+      "businessHours": {
+        "label": "Business Hours",
+        "value": "10:00-18:00 (excluding weekends and holidays)"
+      },
+      "pricing": {
+        "label": "Pricing",
+        "value": "Prices for each service plan are listed on the ",
+        "linkText": "pricing page",
+        "suffix": " (prices include tax)"
+      },
+      "additionalFees": {
+        "label": "Additional Fees",
+        "value": "Consumption tax (included in price), communication fees (internet connection fees are borne by the customer)"
+      },
+      "paymentMethod": {
+        "label": "Payment Method",
+        "value": "Credit card payment (via Stripe)"
+      },
+      "paymentTiming": {
+        "label": "Payment Timing",
+        "value": "Immediate payment at time of service purchase"
+      },
+      "delivery": {
+        "label": "Delivery Time",
+        "value": "Service is available immediately after payment processing is completed"
+      },
+      "returns": {
+        "label": "Returns & Cancellations",
+        "value": "Returns and cancellations after purchase are not accepted as this is a digital content and online service"
+      },
+      "cancellation": {
+        "label": "Cancellation Terms",
+        "value": "Cancellation is available at any time from your account page. Service remains available for the duration of the paid period even after cancellation. No pro-rated refunds"
+      },
+      "systemRequirements": {
+        "label": "System Requirements",
+        "value": "Internet connection required. Latest browser recommended"
+      },
+      "specialConditions": {
+        "label": "Special Sales Conditions",
+        "value": "None"
+      },
+      "liability": {
+        "label": "Liability Disclaimer",
+        "value": "We are not responsible for any damages resulting from temporary suspension of service due to system failures or other reasons"
+      }
     }
   }
 }

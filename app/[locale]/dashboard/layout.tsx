@@ -11,6 +11,8 @@ interface SidebarItem {
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  external?: boolean; // 外部リンクかどうか
+  onClick?: () => void; // カスタムクリックハンドラ
 }
 
 export default function DashboardLayout({
@@ -73,6 +75,18 @@ export default function DashboardLayout({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
+    },
+    {
+      href: locale === 'ja' 
+        ? "https://forms.gle/os5gSjcLymm5ncXH9"
+        : "https://forms.gle/ykCAFHzPhCC6qzQr8",
+      label: t("dashboard.sidebar.contact"),
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      ),
+      external: true,
     },
   ];
 
@@ -191,7 +205,31 @@ export default function DashboardLayout({
             {/* スクロール可能なナビゲーション部分 */}
             <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 min-h-0">
               {sidebarItems.map((item) => {
-                const active = isActive(item.href);
+                const active = !item.external && isActive(item.href);
+                
+                // 外部リンクの場合は通常のaタグを使用
+                if (item.external) {
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setSidebarOpen(false)}
+                      className="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    >
+                      <span className="mr-3 text-gray-400">
+                        {item.icon}
+                      </span>
+                      {item.label}
+                      <svg className="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  );
+                }
+                
+                // 内部リンクの場合はLinkコンポーネントを使用
                 return (
                   <Link
                     key={item.href}
