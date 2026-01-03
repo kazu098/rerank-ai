@@ -80,6 +80,19 @@ export function getCurrentTimeInTimezone(timezone: string): string {
 }
 
 /**
+ * 指定されたタイムゾーンで現在時刻が午前0時（00:00）かどうかをチェック
+ * @param timezone タイムゾーン（例: 'Asia/Tokyo'）
+ * @param toleranceMinutes 許容範囲（分）。デフォルトは0分（正確に午前0時のみ）
+ * @returns 午前0時の場合true
+ */
+export function isMidnightInTimezone(
+  timezone: string,
+  toleranceMinutes: number = 0
+): boolean {
+  return isNotificationTime(timezone, '00:00', toleranceMinutes);
+}
+
+/**
  * ブラウザのタイムゾーンを取得
  * @returns タイムゾーン（例: 'Asia/Tokyo'）
  */
@@ -91,5 +104,3 @@ export function getBrowserTimezone(): string {
     return 'UTC';
   }
 }
-
-
