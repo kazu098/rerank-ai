@@ -473,6 +473,7 @@ export default function SettingsPage() {
                         setSlackChannelId(selectedValue);
                         setSuccess(t("notification.settings.saved"));
                         setTimeout(() => setSuccess(null), 3000);
+                        await fetchNotificationSettings();
                       }
                     }
                   }}

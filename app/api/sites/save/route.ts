@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getToken } from "next-auth/jwt";
-import { saveOrUpdateSite, getSitesByUserId } from "@/lib/db/sites";
-import { checkUserPlanLimit, isTrialActive } from "@/lib/billing/plan-limits";
+import { saveOrUpdateSite } from "@/lib/db/sites";
 
 /**
  * GSC連携情報を保存
@@ -33,43 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 既存のサイトを確認（更新の場合は制限チェックをスキップ）
-    const existingSites = await getSitesByUserId(session.userId);
-    const isUpdate = existingSites.some(s => s.site_url === siteUrl);
-
-    // 新規追加の場合のみ制限チェック
-    if (!isUpdate) {
-      // プラン制限をチェック（サイト数）
-      const limitCheck = await checkUserPlanLimit(session.userId, "sites");
-      if (!limitCheck.allowed) {
-        return NextResponse.json(
-          { 
-            error: limitCheck.reason || "errors.sitesLimitExceeded",
-            errorKey: limitCheck.reason || "errors.sitesLimitExceeded",
-            limitExceeded: true,
-            limitType: "sites",
-            currentUsage: limitCheck.currentUsage,
-            limit: limitCheck.limit,
-            upgradeRequired: true
-          },
-          { status: 403 }
-        );
-      }
-
-      // トライアル期間のチェック
-      const isTrial = await isTrialActive(session.userId);
-      if (!isTrial && !limitCheck.allowed) {
-        return NextResponse.json(
-          { 
-            error: "errors.trialExpired",
-            errorKey: "errors.trialExpired",
-            trialExpired: true,
-            upgradeRequired: true
-          },
-          { status: 403 }
-        );
-      }
-    }
+    // 連携サイト数はプラン制限の対象外（分析回数と監視記事数で実質的に制限される）
 
     // JWTトークンからリフレッシュトークンを取得
     const token = await getToken({

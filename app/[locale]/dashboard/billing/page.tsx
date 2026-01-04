@@ -33,7 +33,6 @@ interface UserPlan {
 interface Usage {
   articles: number;
   analyses_this_month: number;
-  sites: number;
   article_suggestions_this_month: number;
 }
 
@@ -65,6 +64,7 @@ export default function BillingPage() {
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(() => getCurrencyFromLocale(locale));
   const [currencyDetected, setCurrencyDetected] = useState(false);
   const [verifyingSession, setVerifyingSession] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "invoices">("overview");
 
   useEffect(() => {
     if (session?.userId) {
@@ -303,6 +303,43 @@ export default function BillingPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">{t("title")}</h1>
 
+        {/* タブ */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "overview"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {t("tabPlan")}
+            </button>
+            {invoices.length > 0 && (
+              <button
+                onClick={() => setActiveTab("invoices")}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors relative ${
+                  activeTab === "invoices"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                {t("tabInvoiceHistory")}
+                {invoices.length > 0 && (
+                  <span className="ml-2 py-0.5 px-2 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                    {invoices.length}
+                  </span>
+                )}
+              </button>
+            )}
+          </nav>
+        </div>
+
+        {/* タブコンテンツ */}
+        {activeTab === "overview" && (
+          <>
+
         {/* 現在のプラン */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("currentPlan")}</h2>
@@ -369,26 +406,6 @@ export default function BillingPage() {
                     )}`}
                     style={{
                       width: `${getUsagePercentage(usage.articles, currentPlan.max_articles)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 連携サイト数 */}
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">{t("sites")}</span>
-                  <span className="text-gray-900 font-semibold">
-                    {usage.sites} / {formatLimit(currentPlan.max_sites)}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
-                      getUsagePercentage(usage.sites, currentPlan.max_sites)
-                    )}`}
-                    style={{
-                      width: `${getUsagePercentage(usage.sites, currentPlan.max_sites)}%`,
                     }}
                   />
                 </div>
@@ -466,10 +483,6 @@ export default function BillingPage() {
                             <span className="text-gray-400">•</span>
                             <span>{t("articles")}: {formatLimit(plan.max_articles)}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-400">•</span>
-                            <span>{t("sites")}: {formatLimit(plan.max_sites)}</span>
-                          </div>
                           {plan.max_article_suggestions_per_month !== null && (
                             <div className="flex items-center gap-2">
                               <span className="text-gray-400">•</span>
@@ -541,12 +554,14 @@ export default function BillingPage() {
             </div>
           </div>
         )}
+          </>
+        )}
 
-        {/* 請求履歴 */}
-        {invoices.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mt-8">
+        {/* 請求履歴タブ */}
+        {activeTab === "invoices" && invoices.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("invoiceHistory")}</h2>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
               {invoices.map((invoice) => (
                 <div
                   key={invoice.id}

@@ -58,7 +58,6 @@ interface UserPlan {
 interface Usage {
   articles: number;
   analyses_this_month: number;
-  sites: number;
   article_suggestions_this_month: number;
 }
 

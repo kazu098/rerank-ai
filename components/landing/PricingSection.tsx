@@ -189,12 +189,6 @@ export function PricingSection() {
                       <li className="flex items-start">
                         <CheckIcon className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
                         <span className="text-gray-700">
-                          {t("home.pricing.features.sites")}: <strong>{plan.max_sites === null ? t("billing.unlimited") : `${plan.max_sites}${t("home.pricing.features.siteUnit")}`}</strong>
-                        </span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckIcon className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                        <span className="text-gray-700">
                           {t("home.pricing.features.suggestions")}: <strong>{plan.max_article_suggestions_per_month === null ? t("billing.unlimited") : `${plan.max_article_suggestions_per_month}${t("home.pricing.features.timesPerMonth")}`}</strong>
                         </span>
                       </li>
