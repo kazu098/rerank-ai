@@ -19,12 +19,12 @@ export interface UserAlertSettings {
  * デフォルトのアラート設定
  */
 export const DEFAULT_ALERT_SETTINGS: Omit<UserAlertSettings, 'user_id' | 'created_at' | 'updated_at'> = {
-  position_drop_threshold: 2.0,
-  keyword_drop_threshold: 10,
+  position_drop_threshold: 0.1,  // 0.1位以上の変動で通知（より敏感に）
+  keyword_drop_threshold: 1,     // 1位以上の転落で通知（より敏感に）
   comparison_days: 7,
-  consecutive_drop_days: 3,
-  min_impressions: 100,
-  notification_cooldown_days: 7,
+  consecutive_drop_days: 1,      // 連続1日でも通知（より敏感に）
+  min_impressions: 1,             // インプレッション1以上で通知（より敏感に）
+  notification_cooldown_days: 0,  // クールダウンなし（常に通知）
   notification_frequency: 'daily',
   notification_time: '09:00:00',
   timezone: null,
