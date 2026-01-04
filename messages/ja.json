@@ -176,6 +176,7 @@
     "selectButton": "選択",
     "fetchingTitle": "タイトル確認",
     "fetchingTitleInProgress": "取得中...",
+    "title": "タイトル/URL",
     "impressions": "インプレッション",
     "clicks": "クリック",
     "avgPosition": "平均順位",
