@@ -5,6 +5,7 @@ import { getArticleById } from "@/lib/db/articles";
 import { getDetailedAnalysisData } from "@/lib/db/analysis-results";
 import { ArticleImprovementGenerator } from "@/lib/article-improvement";
 import { ArticleScraper } from "@/lib/article-scraper";
+import { AISEOAnalyzer } from "@/lib/ai-seo-analyzer";
 
 /**
  * 記事改善案を生成
@@ -99,13 +100,48 @@ export async function POST(request: NextRequest) {
     try {
       const ownArticleContent = await scraper.scrapeArticle(article.url, false);
 
+      // AI検索最適化（AIO対応）のチェック
+      const aiSEOAnalyzer = new AISEOAnalyzer();
+      const aiSEOCheckResult = aiSEOAnalyzer.checkAISEO(ownArticleContent);
+      
+      // 不足しているAIO対応要素を特定
+      const missingAIOElements: string[] = [];
+      if (!aiSEOCheckResult.hasFAQ) {
+        missingAIOElements.push("FAQセクション（よくある質問）");
+      }
+      if (!aiSEOCheckResult.hasSummary) {
+        missingAIOElements.push("要約セクション（主なポイント、まとめ）");
+      }
+      if (!aiSEOCheckResult.hasUpdateDate) {
+        missingAIOElements.push("更新日の表示");
+      }
+      if (!aiSEOCheckResult.hasAuthorInfo) {
+        missingAIOElements.push("著者情報の明記");
+      }
+      if (!aiSEOCheckResult.hasDataOrStats) {
+        missingAIOElements.push("データ・統計の提示");
+      }
+      if (!aiSEOCheckResult.hasStructuredData) {
+        missingAIOElements.push("構造化データ（JSON-LD）");
+      }
+      if (!aiSEOCheckResult.hasQuestionHeadings) {
+        missingAIOElements.push("質問形式の見出し（例：〇〇とは？）");
+      }
+      if (!aiSEOCheckResult.hasBulletPoints) {
+        missingAIOElements.push("箇条書きの活用");
+      }
+      if (!aiSEOCheckResult.hasTables) {
+        missingAIOElements.push("表の活用");
+      }
+
       // 記事改善案を生成
       const generator = new ArticleImprovementGenerator();
       const improvement = await generator.generateImprovement(
         article.url,
         ownArticleContent,
         whyCompetitorsRankHigher,
-        recommendedAdditions
+        recommendedAdditions,
+        missingAIOElements
       );
 
       return NextResponse.json({

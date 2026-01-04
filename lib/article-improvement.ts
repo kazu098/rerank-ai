@@ -59,12 +59,14 @@ export class ArticleImprovementGenerator {
    * @param ownArticle 自社記事の全文
    * @param whyCompetitorsRankHigher なぜ競合が上位なのか
    * @param recommendedAdditions 追加すべき項目
+   * @param missingAIOElements AI検索最適化（AIO対応）で不足している要素
    */
   async generateImprovement(
     articleUrl: string,
     ownArticle: ArticleContent,
     whyCompetitorsRankHigher: string,
-    recommendedAdditions: RecommendedAddition[]
+    recommendedAdditions: RecommendedAddition[],
+    missingAIOElements: string[] = []
   ): Promise<ArticleImprovementResult> {
     if (!this.genAI) {
       throw new Error("GEMINI_API_KEY is not set");
@@ -79,7 +81,8 @@ export class ArticleImprovementGenerator {
       articleUrl,
       ownArticle,
       whyCompetitorsRankHigher,
-      recommendedAdditions
+      recommendedAdditions,
+      missingAIOElements
     );
 
     try {
@@ -104,7 +107,8 @@ export class ArticleImprovementGenerator {
     articleUrl: string,
     ownArticle: ArticleContent,
     whyCompetitorsRankHigher: string,
-    recommendedAdditions: RecommendedAddition[]
+    recommendedAdditions: RecommendedAddition[],
+    missingAIOElements: string[] = []
   ): string {
     // 既存記事の見出し一覧
     const ownHeadingsList = ownArticle.headings
@@ -143,14 +147,22 @@ ${whyCompetitorsRankHigher}
 【追加すべき項目（分析結果）】
 ${additionsList}
 
-【要件】
+${missingAIOElements.length > 0 ? `【AI検索最適化（AIO対応）で不足している要素】
+以下の要素が不足しています。これらはLLM（AI Overview）に引用されやすいページの特徴です：
+${missingAIOElements.map((elem, i) => `${i + 1}. ${elem}`).join('\n')}
+
+これらの要素を追加することで、AI検索結果に表示されやすくなります。特にFAQセクション、要約セクション、データ・統計の提示は重要です。
+
+` : ''}【要件】
 1. 既存記事の見出し構造を確認し、適切な位置（既存の見出しの前後）に新しいセクションを追加する形で提案してください
 2. 「追加すべき項目」の各項目について、分析結果の「理由」と「内容概要」を元に、既存記事のスタイルやトーンに合わせた具体的で実用的な文章を生成してください
-3. 見出し（## または ###）を含む完全なMarkdown形式で出力してください
-4. 各項目は独立したセクションとして、そのまま記事に挿入できる形式にしてください
-5. 既存記事の内容と自然に統合できるよう、既存の文章スタイルや語調を参考にしてください
-6. 自然で読みやすく、検索意図に応える具体的な内容を含めてください
-7. 実際にコピペして使用できる完全なMarkdown形式で出力してください
+${missingAIOElements.length > 0 ? `3. AI検索最適化（AIO対応）で不足している要素がある場合は、それらも改善提案に含めてください。特にFAQセクション、要約セクション、データ・統計の提示は優先的に追加してください。
+4. ` : '3. '}見出し（## または ###）を含む完全なMarkdown形式で出力してください
+${missingAIOElements.length > 0 ? '5. ' : '4. '}各項目は独立したセクションとして、そのまま記事に挿入できる形式にしてください
+${missingAIOElements.length > 0 ? '6. ' : '5. '}既存記事の内容と自然に統合できるよう、既存の文章スタイルや語調を参考にしてください
+${missingAIOElements.length > 0 ? '7. ' : '6. '}自然で読みやすく、検索意図に応える具体的な内容を含めてください
+${missingAIOElements.length > 0 ? '8. ' : '7. '}実際にコピペして使用できる完全なMarkdown形式で出力してください
+${missingAIOElements.length > 0 ? '9. FAQセクションを追加する場合は、記事の内容に関連する具体的な質問と回答を含めてください\n10. 要約セクションを追加する場合は、記事の主要なポイントを簡潔にまとめてください' : ''}
 
 【出力形式】
 以下のJSON形式で変更点を出力してください：
