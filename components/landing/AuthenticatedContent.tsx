@@ -58,6 +58,10 @@ export function AuthenticatedContent() {
   const [totalArticles, setTotalArticles] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const articlesPerPage = 50;
+  
+  // ソート関連
+  const [articleSortBy, setArticleSortBy] = useState<"impressions" | "clicks" | "position" | "title">("impressions");
+  const [articleSortOrder, setArticleSortOrder] = useState<"asc" | "desc">("desc");
 
   // 検索クエリのデバウンス（300ms）
   useEffect(() => {
@@ -1030,10 +1034,9 @@ export function AuthenticatedContent() {
                           </div>
 
                           {/* 記事一覧 */}
-                          <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
+                          <div className="max-h-96 overflow-y-auto mb-4">
                             {(() => {
-                              // 検索クエリがある場合はクライアント側でフィルタリング＋ページネーション
-                              // 検索クエリがない場合はAPIから取得した記事をそのまま表示（サーバー側でページネーション済み）
+                              // 検索クエリがある場合はクライアント側でフィルタリング
                               const filteredArticles = debouncedArticleSearchQuery
                                 ? articles.filter((article) => {
                                     const query = debouncedArticleSearchQuery.toLowerCase();
@@ -1044,79 +1047,207 @@ export function AuthenticatedContent() {
                                   })
                                 : articles;
                               
+                              // ソート処理
+                              const sortedArticles = [...filteredArticles].sort((a, b) => {
+                                let aValue: number | string;
+                                let bValue: number | string;
+                                
+                                switch (articleSortBy) {
+                                  case "impressions":
+                                    aValue = a.impressions || 0;
+                                    bValue = b.impressions || 0;
+                                    break;
+                                  case "clicks":
+                                    aValue = a.clicks || 0;
+                                    bValue = b.clicks || 0;
+                                    break;
+                                  case "position":
+                                    aValue = a.position || 999;
+                                    bValue = b.position || 999;
+                                    break;
+                                  case "title":
+                                    aValue = (a.title || a.url || "").toLowerCase();
+                                    bValue = (b.title || b.url || "").toLowerCase();
+                                    break;
+                                  default:
+                                    return 0;
+                                }
+                                
+                                if (typeof aValue === "number" && typeof bValue === "number") {
+                                  return articleSortOrder === "asc" ? aValue - bValue : bValue - aValue;
+                                } else {
+                                  if (aValue < bValue) return articleSortOrder === "asc" ? -1 : 1;
+                                  if (aValue > bValue) return articleSortOrder === "asc" ? 1 : -1;
+                                  return 0;
+                                }
+                              });
+                              
+                              // ページネーション
+                              // 検索クエリがある場合はクライアント側でページネーション
+                              // 検索クエリがない場合はAPIから取得した記事（既にページネーション済み）をソートして表示
                               const displayArticles = debouncedArticleSearchQuery
                                 ? (() => {
                                     const startIndex = (articlePage - 1) * articlesPerPage;
                                     const endIndex = startIndex + articlesPerPage;
-                                    return filteredArticles.slice(startIndex, endIndex);
+                                    return sortedArticles.slice(startIndex, endIndex);
                                   })()
-                                : articles; // 検索クエリがない場合はAPIから取得した記事をそのまま表示
+                                : sortedArticles; // 検索クエリがない場合もソート済みの記事を表示
                               
-                              return displayArticles.map((article, index) => (
-                                <div
-                                  key={index}
-                                  className="bg-white border border-gray-200 rounded-lg p-3 hover:border-purple-400 transition-colors"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                      {article.title ? (
-                                        <div>
-                                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                                            <p className="font-semibold text-sm text-gray-900 line-clamp-1">
-                                              {article.title}
-                                            </p>
-                                            {article.last_analyzed_at && (
-                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                                {t("dashboard.articles.analyzed")}
-                                              </span>
-                                            )}
-                                          </div>
-                                          <p className="text-xs text-gray-500 truncate">
-                                            {article.url}
-                                          </p>
-                                        </div>
-                                      ) : (
-                                        <div>
-                                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                                            <p className="text-sm text-gray-700 truncate">
-                                              {article.url}
-                                            </p>
-                                            {article.last_analyzed_at && (
-                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                                {t("dashboard.articles.analyzed")}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      )}
-                                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                                        <span>{t("article.impressions")}: {article.impressions.toLocaleString()}</span>
-                                        <span>{t("article.clicks")}: {article.clicks.toLocaleString()}</span>
-                                        {article.position && (
-                                          <span>{t("article.avgPosition")}: {formatPosition(article.position)}{t("results.rankSuffix")}</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                      {!article.title && (
-                                        <button
-                                          onClick={() => fetchArticleTitle(article.url, selectedSiteUrl)}
-                                          disabled={fetchingTitleUrls.has(article.url)}
-                                          className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              // ソートアイコンの表示関数
+                              const getSortIcon = (column: typeof articleSortBy) => {
+                                if (articleSortBy !== column) {
+                                  return (
+                                    <span className="ml-1 text-gray-400">↕</span>
+                                  );
+                                }
+                                return articleSortOrder === "asc" ? (
+                                  <span className="ml-1 text-purple-600">↑</span>
+                                ) : (
+                                  <span className="ml-1 text-purple-600">↓</span>
+                                );
+                              };
+                              
+                              // ソート切り替え関数
+                              const handleSort = (column: typeof articleSortBy) => {
+                                if (articleSortBy === column) {
+                                  // 同じカラムの場合は昇順/降順を切り替え
+                                  setArticleSortOrder(articleSortOrder === "asc" ? "desc" : "asc");
+                                } else {
+                                  // 異なるカラムの場合はそのカラムで降順にソート
+                                  setArticleSortBy(column);
+                                  setArticleSortOrder("desc");
+                                }
+                                setArticlePage(1); // ソート変更時は1ページ目に戻す
+                              };
+                              
+                              return (
+                                <table className="w-full border-collapse table-fixed">
+                                    <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                                      <tr>
+                                        <th
+                                          className="px-2 py-2 text-left text-xs font-medium text-gray-700 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                                          style={{ width: '45%' }}
+                                          onClick={() => handleSort("title")}
                                         >
-                                          {fetchingTitleUrls.has(article.url) ? t("article.fetchingTitleInProgress") : t("article.fetchingTitle")}
-                                        </button>
+                                          <div className="flex items-center">
+                                            {t("article.title") || "タイトル/URL"}
+                                            {getSortIcon("title")}
+                                          </div>
+                                        </th>
+                                        <th
+                                          className="px-2 py-2 text-right text-xs font-medium text-gray-700 uppercase cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                                          style={{ width: '15%' }}
+                                          onClick={() => handleSort("impressions")}
+                                        >
+                                          <div className="flex items-center justify-end">
+                                            {t("article.impressionsShort") || "インプ"}
+                                            {getSortIcon("impressions")}
+                                          </div>
+                                        </th>
+                                        <th
+                                          className="px-2 py-2 text-right text-xs font-medium text-gray-700 uppercase cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                                          style={{ width: '15%' }}
+                                          onClick={() => handleSort("clicks")}
+                                        >
+                                          <div className="flex items-center justify-end">
+                                            {t("article.clicks")}
+                                            {getSortIcon("clicks")}
+                                          </div>
+                                        </th>
+                                        <th
+                                          className="px-2 py-2 text-right text-xs font-medium text-gray-700 uppercase cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                                          style={{ width: '15%' }}
+                                          onClick={() => handleSort("position")}
+                                        >
+                                          <div className="flex items-center justify-end">
+                                            {t("article.avgPosition")}
+                                            {getSortIcon("position")}
+                                          </div>
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {displayArticles.length === 0 ? (
+                                        <tr>
+                                          <td colSpan={4} className="px-2 py-4 text-center text-sm text-gray-500">
+                                            {t("article.noArticlesFound")}
+                                          </td>
+                                        </tr>
+                                      ) : (
+                                        displayArticles.map((article, index) => (
+                                          <tr
+                                            key={index}
+                                            className="bg-white hover:bg-gray-50 transition-colors"
+                                          >
+                                            <td className="px-2 py-2">
+                                              <div className="space-y-2">
+                                                {article.title ? (
+                                                  <>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                      <p className="font-semibold text-sm text-gray-900 line-clamp-1">
+                                                        {article.title}
+                                                      </p>
+                                                      {article.last_analyzed_at && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                          {t("dashboard.articles.analyzed")}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 truncate">
+                                                      {article.url}
+                                                    </p>
+                                                  </>
+                                                ) : (
+                                                  <p className="text-sm text-gray-700 truncate">
+                                                    {article.url}
+                                                  </p>
+                                                )}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                  {!article.title && (
+                                                    <button
+                                                      onClick={() => fetchArticleTitle(article.url, selectedSiteUrl || "")}
+                                                      disabled={fetchingTitleUrls.has(article.url)}
+                                                      className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                      {fetchingTitleUrls.has(article.url) ? t("article.fetchingTitleInProgress") : t("article.fetchingTitle")}
+                                                    </button>
+                                                  )}
+                                                  <button
+                                                    onClick={() => handleSelectArticle(article.url)}
+                                                    className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                                                  >
+                                                    {t("article.selectButton")}
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </td>
+                                            <td className="px-2 py-2 text-right text-sm text-gray-700 whitespace-nowrap">
+                                              {article.impressions ? (() => {
+                                                const num = article.impressions;
+                                                if (num >= 1000000) {
+                                                  return (num / 1000000).toFixed(1) + 'M';
+                                                } else if (num >= 1000) {
+                                                  return (num / 1000).toFixed(1) + 'K';
+                                                }
+                                                return num.toLocaleString();
+                                              })() : "0"}
+                                            </td>
+                                            <td className="px-2 py-2 text-right text-sm text-gray-700 whitespace-nowrap">
+                                              {article.clicks ? article.clicks.toLocaleString() : "0"}
+                                            </td>
+                                            <td className="px-2 py-2 text-right text-sm text-gray-700 whitespace-nowrap">
+                                              {article.position ? (
+                                                <span>{formatPosition(article.position)}{t("results.rankSuffix")}</span>
+                                              ) : (
+                                                <span className="text-gray-400">-</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))
                                       )}
-                                      <button
-                                        onClick={() => handleSelectArticle(article.url)}
-                                        className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-                                      >
-                                        {t("article.selectButton")}
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ));
+                                    </tbody>
+                                  </table>
+                              );
                             })()}
                           </div>
                           
