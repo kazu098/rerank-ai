@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "@/src/i18n/routing";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { Currency, getCurrencyFromLocale, formatPrice as formatCurrencyPrice, isValidCurrency } from "@/lib/billing/currency";
@@ -53,6 +53,7 @@ interface Invoice {
 export default function BillingPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const locale = useLocale();
   const t = useTranslations("dashboard.billing");
   const [userPlan, setUserPlan] = useState<UserPlan | null>(null);
@@ -63,12 +64,52 @@ export default function BillingPage() {
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(() => getCurrencyFromLocale(locale));
   const [currencyDetected, setCurrencyDetected] = useState(false);
+  const [verifyingSession, setVerifyingSession] = useState(false);
 
   useEffect(() => {
     if (session?.userId) {
       fetchBillingData();
     }
   }, [session]);
+
+  // チェックアウト完了後のセッション検証
+  useEffect(() => {
+    const verifyCheckoutSession = async () => {
+      const success = searchParams?.get('success');
+      const sessionId = searchParams?.get('session_id');
+
+      if (success === 'true' && sessionId && session?.userId) {
+        setVerifyingSession(true);
+        try {
+          const response = await fetch('/api/billing/verify-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[Billing Page] Session verified, plan updated:', data);
+            // URLからクエリパラメータを削除
+            router.replace(`/${locale}/dashboard/billing`);
+            // プランデータを再取得
+            await fetchBillingData();
+          } else {
+            const error = await response.json();
+            console.error('[Billing Page] Failed to verify session:', error);
+          }
+        } catch (error) {
+          console.error('[Billing Page] Error verifying session:', error);
+        } finally {
+          setVerifyingSession(false);
+        }
+      }
+    };
+
+    verifyCheckoutSession();
+  }, [searchParams, session, locale, router]);
 
   // 初回マウント時に通貨を自動判定
   useEffect(() => {

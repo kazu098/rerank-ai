@@ -444,20 +444,28 @@ export async function updateUserPlan(
     updated_at: new Date().toISOString(),
   };
 
-  if (planStartedAt) {
-    updateData.plan_started_at = planStartedAt.toISOString();
+  // planStartedAtが指定されている場合は必ず設定（undefinedの場合は設定しない）
+  if (planStartedAt !== undefined) {
+    updateData.plan_started_at = planStartedAt ? planStartedAt.toISOString() : null;
   }
 
+  // planEndsAtが指定されている場合は必ず設定（undefinedの場合は設定しない）
   if (planEndsAt !== undefined) {
     updateData.plan_ends_at = planEndsAt ? planEndsAt.toISOString() : null;
   }
 
-  const { error } = await supabase
+  console.log(`[updateUserPlan] Updating user plan - userId: ${userId}, updateData:`, JSON.stringify(updateData, null, 2));
+
+  const { data, error } = await supabase
     .from('users')
     .update(updateData)
-    .eq('id', userId);
+    .eq('id', userId)
+    .select();
 
   if (error) {
+    console.error(`[updateUserPlan] Error updating user plan:`, error);
     throw new Error(`Failed to update user plan: ${error.message}`);
   }
+
+  console.log(`[updateUserPlan] User plan updated successfully - userId: ${userId}, updated:`, data);
 }

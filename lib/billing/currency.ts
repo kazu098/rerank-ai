@@ -69,20 +69,11 @@ export function getStripePriceId(
   currency: Currency
 ): string | null {
   if (!priceIds) {
-    console.error(`[getStripePriceId] priceIds is null for currency: ${currency}`);
     return null;
   }
 
   const key = currency.toLowerCase() as keyof StripePriceIds;
-  const priceId = priceIds[key] || null;
-  
-  if (!priceId) {
-    console.error(`[getStripePriceId] Price ID not found for currency: ${currency} (key: ${key})`);
-    console.error(`[getStripePriceId] Available keys:`, Object.keys(priceIds));
-    console.error(`[getStripePriceId] Full priceIds object:`, JSON.stringify(priceIds, null, 2));
-  }
-  
-  return priceId;
+  return priceIds[key] || null;
 }
 
 /**

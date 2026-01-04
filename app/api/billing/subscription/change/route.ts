@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getPlanByName, getPlanStripePriceId, getPlanPrice, findPlanByStripePriceId } from "@/lib/db/plans";
-import { getUserById, updateStripeCustomerId } from "@/lib/db/users";
+import { getUserById, updateStripeCustomerId, updateUserPlan } from "@/lib/db/users";
 import { Currency, detectCurrencyFromLocale, isValidCurrency } from "@/lib/billing/currency";
 import Stripe from "stripe";
 
@@ -238,6 +238,26 @@ export async function POST(request: NextRequest) {
 
     // Stripe型定義の互換性のため
     const subscriptionData = updatedSubscription as any;
+
+    // サブスクリプション更新後、即座にプランを更新（Webhookが届かない場合のフォールバック）
+    // Webhookでも更新されるが、即座に反映させるため
+    const currentPeriodStart = subscriptionData.current_period_start;
+    const currentPeriodEnd = subscriptionData.current_period_end;
+    
+    const planStartedAt = currentPeriodStart
+      ? new Date(currentPeriodStart * 1000)
+      : new Date();
+    const planEndsAt = currentPeriodEnd
+      ? new Date(currentPeriodEnd * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    try {
+      await updateUserPlan(user.id, newPlan.id, planStartedAt, planEndsAt);
+      console.log(`[Plan Change API] Plan updated immediately - userId: ${user.id}, planId: ${newPlan.id}, planName: ${planName}`);
+    } catch (error: any) {
+      console.error(`[Plan Change API] Failed to update user plan immediately:`, error.message);
+      // エラーが発生しても、Stripeの更新は完了しているので続行
+    }
 
     return NextResponse.json({
       success: true,
