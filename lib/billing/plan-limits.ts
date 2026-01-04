@@ -1,7 +1,6 @@
 import { getUserById } from "@/lib/db/users";
 import { getPlanById, isPlanLimitExceeded, checkPlanLimit } from "@/lib/db/plans";
 import { getArticlesByUserId } from "@/lib/db/articles";
-import { getSitesByUserId } from "@/lib/db/sites";
 import { createSupabaseClient } from "@/lib/supabase";
 
 export interface PlanLimitCheckResult {
@@ -17,7 +16,7 @@ export interface PlanLimitCheckResult {
  */
 export async function checkUserPlanLimit(
   userId: string,
-  limitType: "articles" | "analyses" | "sites" | "concurrent_analyses" | "article_suggestions"
+  limitType: "articles" | "analyses" | "concurrent_analyses" | "article_suggestions"
 ): Promise<PlanLimitCheckResult> {
   // プラン制限を一時的に無効化（リリース前の開発用）
   // 環境変数 ENABLE_PLAN_LIMITS=true で有効化可能（デフォルトは無効）
@@ -56,11 +55,6 @@ export async function checkUserPlanLimit(
     case "articles": {
       const articles = await getArticlesByUserId(userId);
       currentUsage = articles.filter((article) => article.is_monitoring).length;
-      break;
-    }
-    case "sites": {
-      const sites = await getSitesByUserId(userId);
-      currentUsage = sites.length;
       break;
     }
     case "analyses": {

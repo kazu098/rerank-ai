@@ -1,6 +1,29 @@
 import { createSupabaseClient } from '@/lib/supabase';
 
 /**
+ * サイトURLからドメインを抽出
+ * @param siteUrl - サイトURL（https://example.com/, sc-domain:example.com など）
+ * @returns ドメイン名（www.は除去）
+ */
+function extractDomainFromSiteUrl(siteUrl: string): string {
+  try {
+    // sc-domain:形式の場合
+    if (siteUrl.startsWith("sc-domain:")) {
+      const domain = siteUrl.replace("sc-domain:", "");
+      return domain.replace(/^www\./, ""); // www.を除去
+    }
+    
+    // URL形式の場合
+    const url = siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`;
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace(/^www\./, ""); // www.を除去
+  } catch {
+    // URLパースに失敗した場合、そのまま返す
+    return siteUrl.replace(/^www\./, "");
+  }
+}
+
+/**
  * サイトURLを正規化（https://形式に統一）
  * sc-domain:形式をhttps://形式に変換
  */
@@ -257,6 +280,95 @@ export async function updateSiteAuthError(siteId: string): Promise<void> {
   if (error) {
     throw new Error(`Failed to update site auth error: ${error.message}`);
   }
+}
+
+/**
+ * ユーザーが実際に分析を実行したドメイン数を取得
+ * analysis_runs → articles → sites を経由してドメインを集計
+ */
+export async function getAnalyzedDomainCountByUserId(userId: string): Promise<number> {
+  const supabase = createSupabaseClient();
+
+  // まず、ユーザーの記事でsite_idが設定されているものを取得
+  const { data: userArticles, error: articlesError } = await supabase
+    .from('articles')
+    .select('id, site_id')
+    .eq('user_id', userId)
+    .not('site_id', 'is', null)
+    .is('deleted_at', null);
+
+  if (articlesError) {
+    console.error('[getAnalyzedDomainCountByUserId] Error fetching articles:', articlesError);
+    throw new Error(`Failed to get analyzed domain count: ${articlesError.message}`);
+  }
+
+  if (!userArticles || userArticles.length === 0) {
+    return 0;
+  }
+
+  const articleIds = userArticles.map((a) => a.id);
+
+  // これらの記事に関連するanalysis_runsを取得
+  const { data: analyses, error: analysesError } = await supabase
+    .from('analysis_runs')
+    .select('article_id')
+    .in('article_id', articleIds);
+
+  if (analysesError) {
+    console.error('[getAnalyzedDomainCountByUserId] Error fetching analyses:', analysesError);
+    throw new Error(`Failed to get analyzed domain count: ${analysesError.message}`);
+  }
+
+  if (!analyses || analyses.length === 0) {
+    return 0;
+  }
+
+  // 分析が実行された記事のsite_idを取得
+  const analyzedSiteIds = new Set<string>();
+  for (const analysis of analyses) {
+    const article = userArticles.find((a) => a.id === analysis.article_id);
+    if (article?.site_id) {
+      analyzedSiteIds.add(article.site_id);
+    }
+  }
+
+  if (analyzedSiteIds.size === 0) {
+    return 0;
+  }
+
+  // site_idからsite_urlを取得
+  const { data: sites, error: sitesError } = await supabase
+    .from('sites')
+    .select('site_url')
+    .in('id', Array.from(analyzedSiteIds));
+
+  if (sitesError) {
+    console.error('[getAnalyzedDomainCountByUserId] Error fetching sites:', sitesError);
+    throw new Error(`Failed to get analyzed domain count: ${sitesError.message}`);
+  }
+
+  if (!sites || sites.length === 0) {
+    return 0;
+  }
+
+  // ドメインを抽出してユニークにする
+  const domains = new Set<string>();
+  for (const site of sites) {
+    if (site.site_url) {
+      const domain = extractDomainFromSiteUrl(site.site_url);
+      domains.add(domain);
+    }
+  }
+
+  console.log('[getAnalyzedDomainCountByUserId] Result:', {
+    userId,
+    analyzedSiteIds: analyzedSiteIds.size,
+    sitesCount: sites.length,
+    uniqueDomains: domains.size,
+    domains: Array.from(domains),
+  });
+
+  return domains.size;
 }
 
 

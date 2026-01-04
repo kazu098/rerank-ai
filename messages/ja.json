@@ -91,11 +91,9 @@
       "features": {
         "analyses": "月間分析回数",
         "articles": "監視記事数",
-        "sites": "連携サイト数",
         "suggestions": "新規記事提案",
         "times": "回",
         "articleUnit": "記事",
-        "siteUnit": "サイト",
         "timesPerMonth": "回/月"
       }
     },
@@ -284,11 +282,9 @@
     "limitExceeded": "{limitType}の制限（{limit}）に達しています。プランをアップグレードしてください。",
     "limitTypeArticles": "監視記事数",
     "limitTypeAnalyses": "月間分析回数",
-    "limitTypeSites": "サイト数",
     "trialExpired": "トライアル期間が終了しています。プランをアップグレードしてください。",
     "articlesLimitExceeded": "監視記事数の制限に達しています",
     "analysesLimitExceeded": "月間分析回数の制限に達しています",
-    "sitesLimitExceeded": "サイト数の制限に達しています",
     "checkoutFailed": "チェックアウト処理に失敗しました"
   },
   "billing": {
@@ -324,7 +320,6 @@
       "nextRenewalDate": "次回更新日: {date}",
       "analyses": "月間分析回数",
       "articles": "監視記事数",
-      "sites": "連携サイト数",
       "articleSuggestions": "新規記事提案（今月）",
       "articleSuggestionsCount": "新規記事提案回数",
       "articleSuggestionsPerTime": "1回あたり10記事タイトルを提案",
@@ -354,6 +349,8 @@
       "limitWarning": "使用量が制限に近づいています。プランをアップグレードすることをお勧めします。",
       "invoiceHistory": "請求履歴",
       "viewInvoice": "請求書を表示",
+      "tabPlan": "プラン",
+      "tabInvoiceHistory": "請求履歴",
       "invoiceStatus": {
         "paid": "支払済み",
         "open": "未払い",

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getArticlesByUserId } from "@/lib/db/articles";
-import { getSitesByUserId } from "@/lib/db/sites";
 import { createSupabaseClient } from "@/lib/supabase";
 
 /**
@@ -23,9 +22,6 @@ export async function GET(request: NextRequest) {
     // 監視中の記事数を取得
     const articles = await getArticlesByUserId(session.userId);
     const monitoringArticles = articles.filter((article) => article.is_monitoring);
-
-    // GSC連携サイト数を取得
-    const sites = await getSitesByUserId(session.userId);
 
     // 今月の分析回数を取得
     const now = new Date();
@@ -66,7 +62,6 @@ export async function GET(request: NextRequest) {
     const usage = {
       articles: monitoringArticles.length,
       analyses_this_month: userAnalyses.length,
-      sites: sites.length,
       article_suggestions_this_month: suggestions?.length || 0,
     };
 

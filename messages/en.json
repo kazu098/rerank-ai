@@ -91,11 +91,9 @@
       "features": {
         "analyses": "Monthly Analyses",
         "articles": "Monitored Articles",
-        "sites": "Connected Sites",
         "suggestions": "Article Suggestions",
         "times": " times",
         "articleUnit": " articles",
-        "siteUnit": " sites",
         "timesPerMonth": "/month"
       }
     },
@@ -281,11 +279,9 @@
     "limitExceeded": "Limit for {limitType} ({limit}) has been reached. Please upgrade your plan.",
     "limitTypeArticles": "Article monitoring",
     "limitTypeAnalyses": "Monthly analyses",
-    "limitTypeSites": "Sites",
     "trialExpired": "Trial period has ended. Please upgrade your plan.",
     "articlesLimitExceeded": "Article monitoring limit reached",
     "analysesLimitExceeded": "Monthly analysis limit reached",
-    "sitesLimitExceeded": "Site limit reached",
     "checkoutFailed": "Checkout failed"
   },
   "billing": {
@@ -321,7 +317,6 @@
       "nextRenewalDate": "Next renewal: {date}",
       "analyses": "Monthly Analyses",
       "articles": "Monitored Articles",
-      "sites": "Connected Sites",
       "articleSuggestions": "Article Suggestions (This Month)",
       "usage": "Usage",
       "changePlan": "Change Plan",
@@ -340,6 +335,8 @@
       "limitWarning": "Usage is approaching the limit. We recommend upgrading your plan.",
       "invoiceHistory": "Invoice History",
       "viewInvoice": "View Invoice",
+      "tabPlan": "Plan",
+      "tabInvoiceHistory": "Invoice History",
       "invoiceStatus": {
         "paid": "Paid",
         "open": "Open",
