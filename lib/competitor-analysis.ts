@@ -97,6 +97,8 @@ export interface Step3Result {
   diffAnalysis?: DiffAnalysisResult;
   semanticDiffAnalysis?: LLMDiffAnalysisResult;
   aiSEOAnalysis?: AISEOAnalysisResult;
+  partialResults?: boolean; // タイムアウトなどで中間結果を返した場合
+  timeoutError?: string; // タイムアウトエラーメッセージ
 }
 
 /**

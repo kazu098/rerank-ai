@@ -623,15 +623,16 @@ export function AuthenticatedContent() {
 
         if (!step3Response.ok) {
           let errorData: any;
+          // Response body streamは一度しか読み取れないため、先にテキストとして取得
+          const responseText = await step3Response.text();
           try {
-            errorData = await step3Response.json();
+            errorData = JSON.parse(responseText);
           } catch (jsonError) {
             // JSONパースに失敗した場合（タイムアウトなどでプレーンテキストが返される場合）
-            const errorText = await step3Response.text();
-            console.error("Step 3 failed (non-JSON response):", errorText);
+            console.error("Step 3 failed (non-JSON response):", responseText);
             errorData = {
               error: step3Response.status === 504
-                ? "処理がタイムアウトしました。分析に時間がかかりすぎています。"
+                ? "処理がタイムアウトしました。分析に時間がかかりすぎています。LLM分析をスキップするか、競合URLの数を減らしてください。"
                 : `Step 3に失敗しました (${step3Response.status})`,
               timeout: step3Response.status === 504,
             };
@@ -639,6 +640,7 @@ export function AuthenticatedContent() {
           console.error("Step 3 failed:", errorData);
           setCompletedSteps(prev => new Set([...Array.from(prev), 5, 6, 7]));
           setCurrentStep(0);
+          alert(errorData.error || "Step 3の処理に失敗しました。");
         } else {
           const step3Result = await step3Response.json();
           currentAnalysisResult = {
@@ -646,6 +648,12 @@ export function AuthenticatedContent() {
             ...step3Result,
           };
           setData(currentAnalysisResult);
+          
+          // 部分結果の場合は警告を表示
+          if (step3Result.partialResults) {
+            alert(`分析がタイムアウトに近づいたため、中間結果を返しました。${step3Result.timeoutError || ""}`);
+          }
+          
           setCompletedSteps(prev => new Set([...Array.from(prev), 6, 7]));
           setCurrentStep(0);
         }

@@ -16,7 +16,16 @@ export async function analyzeStep3(
   skipLLMAnalysis: boolean = false
 ): Promise<Step3Result> {
   const startTime = Date.now();
+  const MAX_EXECUTION_TIME = 58000; // 58秒（60秒タイムアウトの前に安全に終了）
   console.log(`[CompetitorAnalysis] ⏱️ Step 3 starting at ${new Date().toISOString()}`);
+  
+  // タイムアウトチェック関数
+  const checkTimeout = () => {
+    const elapsed = Date.now() - startTime;
+    if (elapsed > MAX_EXECUTION_TIME) {
+      throw new Error(`処理がタイムアウトに近づいています（${(elapsed / 1000).toFixed(1)}秒経過）。中間結果を返します。`);
+    }
+  };
 
   const articleScraper = new ArticleScraper();
   const diffAnalyzer = new DiffAnalyzer();
@@ -87,6 +96,9 @@ export async function analyzeStep3(
       }
 
       if (competitorArticles.length > 0) {
+        // タイムアウトチェック
+        checkTimeout();
+        
         // 基本的な差分分析
         diffAnalysis = diffAnalyzer.analyze(ownArticleContent, competitorArticles);
         console.log(
@@ -96,6 +108,7 @@ export async function analyzeStep3(
         // AI SEO対策分析
         const step3_1_5Start = Date.now();
         try {
+          checkTimeout(); // タイムアウトチェック
           console.log(`[CompetitorAnalysis] ⏱️ Step 3.1.5 (AI SEO analysis) starting`);
           aiSEOAnalysis = aiSEOAnalyzer.analyzeAISEO(ownArticleContent, competitorArticles);
           console.log(
@@ -109,16 +122,27 @@ export async function analyzeStep3(
         // 意味レベルの差分分析（LLM APIが利用可能な場合、かつスキップフラグがfalseの場合）
         const step3_2Start = Date.now();
         if (!skipLLMAnalysis && LLMDiffAnalyzer.isAvailable() && prioritizedKeywords.length > 0) {
+          checkTimeout(); // タイムアウトチェック
           try {
             const providerType = process.env.LLM_PROVIDER || "groq";
             console.log(`[CompetitorAnalysis] ⏱️ Step 3.2 (LLM analysis) starting with ${providerType.toUpperCase()}`);
             
-            // 各キーワードごとに分析を実行（並列化して処理時間を短縮）
+            // 各キーワードごとに分析を実行（順次実行でタイムアウト対策）
             const keywordSpecificAnalyses: LLMDiffAnalysisResult["keywordSpecificAnalysis"] = [];
             let firstSemanticAnalysis: LLMDiffAnalysisResult["semanticAnalysis"] | undefined;
 
-            // すべてのキーワードの競合記事を並列で取得（処理時間を短縮）
-            const keywordAnalysisPromises = prioritizedKeywords.map(async (prioritizedKeyword) => {
+            // キーワード数を制限（タイムアウト対策）
+            const maxKeywordsForAnalysis = 3; // 最大3キーワードまで
+            const keywordsToAnalyze = prioritizedKeywords.slice(0, maxKeywordsForAnalysis);
+            
+            if (prioritizedKeywords.length > maxKeywordsForAnalysis) {
+              console.log(
+                `[CompetitorAnalysis] Limiting keyword analysis to ${maxKeywordsForAnalysis} keywords (from ${prioritizedKeywords.length}) to prevent timeout`
+              );
+            }
+
+            // キーワード分析関数
+            const analyzeKeyword = async (prioritizedKeyword: typeof prioritizedKeywords[0]) => {
               try {
                 console.log(
                   `[CompetitorAnalysis] Starting semantic diff analysis with ${providerType.toUpperCase()} API for keyword: "${prioritizedKeyword.keyword}"`
@@ -198,11 +222,55 @@ export async function analyzeStep3(
                   error: error.message || "Unknown error",
                 };
               }
-            });
-
-            // すべてのキーワード分析を並列で実行（処理時間を大幅に短縮）
-            console.log(`[CompetitorAnalysis] Running ${prioritizedKeywords.length} keyword analyses in parallel...`);
-            const keywordAnalysisResults = await Promise.allSettled(keywordAnalysisPromises);
+            };
+            
+            // タイムアウトチェック
+            checkTimeout();
+            
+            // キーワード分析を順次実行（タイムアウト対策：並列ではなく順次で処理時間を制御）
+            console.log(`[CompetitorAnalysis] Running ${keywordsToAnalyze.length} keyword analyses sequentially to prevent timeout...`);
+            const keywordAnalysisResults = [];
+            
+            // 順次実行してタイムアウトチェックを挿入
+            for (const keyword of keywordsToAnalyze) {
+              checkTimeout(); // 各キーワード分析前にタイムアウトチェック
+              
+              try {
+                // 各キーワード分析に15秒のタイムアウトを設定
+                const result = await Promise.race([
+                  analyzeKeyword(keyword),
+                  new Promise<never>((_, reject) => 
+                    setTimeout(() => reject(new Error(`Keyword analysis timeout: ${keyword.keyword}`)), 15000)
+                  )
+                ]);
+                
+                keywordAnalysisResults.push({ status: 'fulfilled' as const, value: result });
+              } catch (error: any) {
+                console.warn(`[CompetitorAnalysis] Keyword analysis failed or timed out for "${keyword.keyword}":`, error);
+                keywordAnalysisResults.push({ 
+                  status: 'fulfilled' as const,
+                  value: {
+                    keyword: keyword.keyword,
+                    analysis: null,
+                    error: error.message || "Unknown error",
+                  }
+                });
+              }
+            }
+            
+            // 残りのキーワードはスキップされたことを記録
+            const skippedKeywords = prioritizedKeywords.slice(maxKeywordsForAnalysis);
+            for (const kw of skippedKeywords) {
+              keywordAnalysisResults.push({
+                status: 'fulfilled' as const,
+                value: {
+                  keyword: kw.keyword,
+                  analysis: null,
+                  skipped: true,
+                  reason: 'タイムアウト対策のため分析をスキップしました',
+                }
+              });
+            }
 
             // 結果を処理
             for (const result of keywordAnalysisResults) {
@@ -279,7 +347,19 @@ export async function analyzeStep3(
       }
     } catch (error: any) {
       console.error("[CompetitorAnalysis] Diff analysis failed:", error);
-      // 差分分析が失敗しても続行
+      // タイムアウトエラーの場合は中間結果を返す
+      if (error.message?.includes("タイムアウト")) {
+        console.warn("[CompetitorAnalysis] Timeout detected, returning partial results");
+        await articleScraper.close();
+        return {
+          diffAnalysis,
+          semanticDiffAnalysis,
+          aiSEOAnalysis,
+          partialResults: true,
+          timeoutError: error.message,
+        };
+      }
+      // その他のエラーは続行
     }
   }
 
