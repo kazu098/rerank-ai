@@ -229,7 +229,15 @@ export async function analyzeStep3(
             
             // キーワード分析を順次実行（タイムアウト対策：並列ではなく順次で処理時間を制御）
             console.log(`[CompetitorAnalysis] Running ${keywordsToAnalyze.length} keyword analyses sequentially to prevent timeout...`);
-            const keywordAnalysisResults = [];
+            type KeywordAnalysisResult = PromiseSettledResult<{
+              keyword: string;
+              analysis: LLMDiffAnalysisResult | null;
+              firstSemanticAnalysis?: LLMDiffAnalysisResult["semanticAnalysis"];
+              error?: string;
+              skipped?: boolean;
+              reason?: string;
+            }>;
+            const keywordAnalysisResults: KeywordAnalysisResult[] = [];
             
             // 順次実行してタイムアウトチェックを挿入
             for (const keyword of keywordsToAnalyze) {
@@ -309,8 +317,19 @@ export async function analyzeStep3(
                   });
                 }
               } else {
-                // Promiseがrejectedされた場合
+                // Promiseがrejectedされた場合（通常は発生しないが、型安全性のため）
                 console.error(`[CompetitorAnalysis] Promise rejected for keyword analysis:`, result.reason);
+                // エラー情報を含むプレースホルダーを追加
+                const keyword = prioritizedKeywords.find(kw => 
+                  keywordAnalysisResults.findIndex(r => 
+                    r.status === 'fulfilled' && r.value.keyword === kw.keyword
+                  ) === -1
+                )?.keyword || "unknown";
+                keywordSpecificAnalyses.push({
+                  keyword,
+                  whyRankingDropped: `分析中にエラーが発生しました: ${result.reason}`,
+                  whatToAdd: [],
+                });
               }
             }
 
