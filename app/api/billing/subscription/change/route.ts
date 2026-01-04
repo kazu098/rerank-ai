@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe/client";
-import { getPlanByName, getPlanStripePriceId } from "@/lib/db/plans";
+import { getPlanByName, getPlanStripePriceId, getPlanPrice, findPlanByStripePriceId } from "@/lib/db/plans";
 import { getUserById, updateStripeCustomerId } from "@/lib/db/users";
 import { Currency, getCurrencyFromLocale, isValidCurrency } from "@/lib/billing/currency";
 import Stripe from "stripe";
@@ -165,6 +165,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 現在のプランを取得（価格比較のため）
+    const currentPlanFromPrice = await findPlanByStripePriceId(currentPriceId);
+    if (!currentPlanFromPrice) {
+      return NextResponse.json(
+        { error: "Current plan not found from price ID" },
+        { status: 400 }
+      );
+    }
+
+    // プランの価格を比較してアップグレードかダウングレードかを判定
+    let effectiveProrationBehavior: 'always_invoice' | 'none';
+    let changeType: 'upgrade' | 'downgrade' | 'same';
+    
+    if (currentPlanFromPrice.id === newPlan.id) {
+      changeType = 'same';
+      effectiveProrationBehavior = 'none';
+    } else {
+      // 現在のプランと新しいプランの価格を比較
+      const currentPlanPrice = getPlanPrice(currentPlanFromPrice, currentCurrency);
+      const newPlanPrice = getPlanPrice(newPlan, currentCurrency);
+      
+      if (newPlanPrice > currentPlanPrice) {
+        // アップグレード: 即座に変更（比例計算で差額を請求）
+        changeType = 'upgrade';
+        effectiveProrationBehavior = 'always_invoice';
+      } else if (newPlanPrice < currentPlanPrice) {
+        // ダウングレード: 期間終了時に変更（差額を返金しない）
+        changeType = 'downgrade';
+        effectiveProrationBehavior = 'none';
+      } else {
+        // 同じ価格: 期間終了時に変更
+        changeType = 'same';
+        effectiveProrationBehavior = 'none';
+      }
+    }
+
+    // ユーザーが明示的にprorationBehaviorを指定した場合は、それを使用（オプション）
+    // ただし、ベストプラクティスに基づいた自動判定を優先
+    const finalProrationBehavior = prorationBehavior === 'always' ? 'always_invoice' : effectiveProrationBehavior;
+
     // サブスクリプションアイテムIDを取得
     const subscriptionItemId = subscription.items.data[0]?.id;
     if (!subscriptionItemId) {
@@ -174,7 +214,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // サブスクリプションを更新（デフォルトで期間終了時に変更）
+    // サブスクリプションを更新
     const updatedSubscription = await stripe.subscriptions.update(
       user.stripe_subscription_id,
       {
@@ -184,7 +224,7 @@ export async function POST(request: NextRequest) {
             price: stripePriceIdForChange,
           },
         ],
-        proration_behavior: prorationBehavior === 'always' ? 'always_invoice' : 'none',
+        proration_behavior: finalProrationBehavior,
         metadata: {
           userId: user.id,
           planName: planName,
@@ -202,6 +242,8 @@ export async function POST(request: NextRequest) {
         status: updatedSubscription.status,
         currentPeriodEnd: subscriptionData.current_period_end,
       },
+      changeType, // 'upgrade' | 'downgrade' | 'same'
+      prorationBehavior: finalProrationBehavior, // 'always_invoice' | 'none'
     });
   } catch (error: any) {
     console.error("[Plan Change API] Error:", error);

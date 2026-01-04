@@ -101,33 +101,6 @@ export default function BillingPage() {
     }
   };
 
-  const handleManageSubscription = async () => {
-    if (!userPlan?.stripe_customer_id) {
-      alert(t("stripeCustomerIdNotFound"));
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/billing/customer-portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.url) {
-          window.location.href = data.url;
-        }
-      } else {
-        const error = await response.json();
-        alert(error.message || t("customerPortalFailed"));
-      }
-    } catch (error) {
-      console.error("Failed to get customer portal:", error);
-      alert(t("customerPortalFailed"));
-    }
-  };
-
   const handleCancelSubscription = async () => {
     if (!confirm(t("confirmCancelSubscription"))) {
       return;
@@ -164,7 +137,7 @@ export default function BillingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planName,
-          prorationBehavior: 'none', // デフォルトで期間終了時に変更
+          // prorationBehaviorは省略（API側で自動判定: アップグレード=即時、ダウングレード=期間終了時）
         }),
       });
 
@@ -276,14 +249,6 @@ export default function BillingPage() {
                 </div>
               )}
             </div>
-            {userPlan.stripe_subscription_id && (
-              <button
-                onClick={handleManageSubscription}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-              >
-                {t("managePlan")}
-              </button>
-            )}
           </div>
         </div>
 
@@ -443,6 +408,20 @@ export default function BillingPage() {
                             </div>
                           )}
                         </div>
+                        {/* プラン変更の注釈 */}
+                        {!isCurrentPlan && currentPlan.name !== "free" && plan.price_monthly && currentPlan.price_monthly && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            {plan.price_monthly > currentPlan.price_monthly ? (
+                              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                                {t("planChangeUpgradeNote")}
+                              </div>
+                            ) : plan.price_monthly < currentPlan.price_monthly ? (
+                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                {t("planChangeDowngradeNote")}
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {!isCurrentPlan && (

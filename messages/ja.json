@@ -329,6 +329,8 @@
       "usage": "使用状況",
       "changePlan": "プランを変更",
       "changePlanButton": "プランを変更",
+      "planChangeUpgradeNote": "※ プランアップグレード時は、差額が比例計算で請求され、すぐに新しいプランの機能を使用できます。",
+      "planChangeDowngradeNote": "※ プランダウングレード時は、現在のプランが期間終了まで継続します。次回更新日から新しいプランに変更されます。",
       "changing": "変更中...",
       "changeAtPeriodEnd": "期間終了時に変更（差額なし）",
       "changeAtPeriodEndShort": "期間終了時に変更",
