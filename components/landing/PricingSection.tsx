@@ -16,15 +16,16 @@ export function PricingSection() {
   const { data: session, status } = useSession();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
+  // ロケールから直接通貨を判定（API呼び出しを待たずに即座に設定）
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(() => getCurrencyFromLocale(locale));
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [currencyDetected, setCurrencyDetected] = useState(false);
 
-  // 初回マウント時に通貨を自動判定
+  // 初回マウント時に通貨を自動判定（URLロケールを優先）
   useEffect(() => {
     const detectCurrency = async () => {
       try {
-        const response = await fetch("/api/currency/detect");
+        const response = await fetch(`/api/currency/detect?locale=${locale}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && isValidCurrency(data.currency)) {
@@ -34,12 +35,11 @@ export function PricingSection() {
         }
       } catch (error) {
         console.error("Failed to detect currency:", error);
-        // エラー時はロケールベースの判定を使用（既に設定済み）
       }
     };
 
     detectCurrency();
-  }, []); // 初回のみ実行
+  }, [locale]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -71,6 +71,12 @@ export function PricingSection() {
       router.push(`/${locale}?signin=true`);
       return;
     }
+    
+    const requestBody = {
+      planName,
+      currency: selectedCurrency,
+      locale: locale,
+    };
 
     setProcessingPlan(planName);
     try {
@@ -79,10 +85,7 @@ export function PricingSection() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          planName,
-          currency: selectedCurrency,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

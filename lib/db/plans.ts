@@ -79,6 +79,7 @@ export function getPlanStripePriceId(plan: Plan, currency: Currency): string | n
     : plan.stripe_price_ids_test;
   
   if (!priceIds) {
+    console.error(`[getPlanStripePriceId] No price IDs found for mode=${mode}, plan=${plan.name}`);
     return null;
   }
 
@@ -93,7 +94,7 @@ export async function getPlanByName(planName: string): Promise<Plan | null> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*, prices, stripe_price_ids_test, stripe_price_ids_live')
+    .select('id, name, display_name, price_monthly, prices, max_articles, max_analyses_per_month, max_sites, max_concurrent_analyses, max_article_suggestions_per_month, analysis_history_days, features, stripe_price_ids_test, stripe_price_ids_live, created_at')
     .eq('name', planName)
     .single();
 
@@ -115,7 +116,7 @@ export async function getPlanById(planId: string): Promise<Plan | null> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*, prices')
+    .select('id, name, display_name, price_monthly, prices, max_articles, max_analyses_per_month, max_sites, max_concurrent_analyses, max_article_suggestions_per_month, analysis_history_days, features, stripe_price_ids_test, stripe_price_ids_live, created_at')
     .eq('id', planId)
     .single();
 
@@ -137,7 +138,7 @@ export async function getAllPlans(): Promise<Plan[]> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*, prices, stripe_price_ids_test, stripe_price_ids_live')
+    .select('id, name, display_name, price_monthly, prices, max_articles, max_analyses_per_month, max_sites, max_concurrent_analyses, max_article_suggestions_per_month, analysis_history_days, features, stripe_price_ids_test, stripe_price_ids_live, created_at')
     .order('price_monthly', { ascending: true });
 
   if (error) {
@@ -157,7 +158,7 @@ export async function findPlanByStripePriceId(stripePriceId: string): Promise<Pl
   // 全プランを取得
   const { data: plans, error } = await supabase
     .from('plans')
-    .select('*, prices, stripe_price_ids_test, stripe_price_ids_live');
+    .select('id, name, display_name, price_monthly, prices, max_articles, max_analyses_per_month, max_sites, max_concurrent_analyses, max_article_suggestions_per_month, analysis_history_days, features, stripe_price_ids_test, stripe_price_ids_live, created_at');
 
   if (error) {
     throw new Error(`Failed to get plans: ${error.message}`);

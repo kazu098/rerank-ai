@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planName, currency } = body;
+    const { planName, currency, locale: requestLocale } = body;
 
     if (!planName) {
       return NextResponse.json(
@@ -51,27 +51,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 通貨を自動判定（ロケールベース）
+    // ロケールを決定（優先順位: リクエストのロケール > Refererのロケール > ユーザーロケール > Accept-Language）
+    let urlLocale: string | null = requestLocale || null;
+    
+    // RefererヘッダーからURLロケールを取得（リクエストにロケールが含まれていない場合）
+    if (!urlLocale) {
+      const referer = request.headers.get('referer');
+      if (referer) {
+        try {
+          const refererUrl = new URL(referer);
+          const pathSegments = refererUrl.pathname.split('/').filter(Boolean);
+          if (pathSegments.length > 0 && (pathSegments[0] === 'ja' || pathSegments[0] === 'en')) {
+            urlLocale = pathSegments[0];
+          }
+        } catch (e) {
+          // URL解析に失敗した場合は無視
+        }
+      }
+    }
+    
     const acceptLanguage = request.headers.get('accept-language');
     
-    const selectedCurrency = detectCurrencyFromLocale({
-      explicitCurrency: currency || null,
-      userLocale: user.locale || null,
-      acceptLanguage: acceptLanguage || null,
-    });
+    // ロケールを決定（優先順位: リクエストロケール > Refererロケール > ユーザーロケール > Accept-Language）
+    const finalLocale = urlLocale || user.locale || null;
+    
+    // 通貨を決定（優先順位: クライアントから明示的に指定された通貨 > ロケールから判定）
+    let selectedCurrency: Currency;
+    if (currency && isValidCurrency(currency)) {
+      selectedCurrency = currency;
+    } else {
+      selectedCurrency = detectCurrencyFromLocale({
+        explicitCurrency: null,
+        userLocale: finalLocale,
+        acceptLanguage: acceptLanguage || null,
+      });
+    }
 
     // プランのStripe Price IDを取得（通貨指定）
     const stripePriceId = getPlanStripePriceId(plan, selectedCurrency);
+    
     if (!stripePriceId) {
+      console.error(`[Checkout API] Price ID not found: plan=${planName}, currency=${selectedCurrency}`);
+      console.error(`[Checkout API] Available price IDs:`, {
+        test: plan.stripe_price_ids_test,
+        live: plan.stripe_price_ids_live,
+      });
       return NextResponse.json(
-        { error: `Stripe Price ID not found for currency: ${selectedCurrency}. Please configure Stripe Price IDs in the database.` },
+        { 
+          error: `Stripe Price ID not found for currency: ${selectedCurrency}. Please configure Stripe Price IDs in the database.`,
+          debug: {
+            planName,
+            currency: selectedCurrency,
+            priceIds: {
+              test: plan.stripe_price_ids_test,
+              live: plan.stripe_price_ids_live,
+            },
+          },
+        },
         { status: 400 }
       );
     }
-
+    
     const stripe = getStripeClient();
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const locale = user.locale || "ja";
+    const locale = finalLocale || user.locale || "ja";
 
     // Stripe Customerを作成または取得
     let customerId = user.stripe_customer_id;
@@ -91,12 +134,15 @@ export async function POST(request: NextRequest) {
     }
 
     // チェックアウトセッションを作成
+    // Stripe公式ドキュメント: https://stripe.com/docs/api/checkout/sessions/create
+    // - price: 通貨を含むPrice IDを指定（各通貨ごとに異なるPrice ID）
+    // - locale: 決済ページの言語設定（"ja", "en", "auto"など）
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
       line_items: [
         {
-          price: stripePriceId,
+          price: stripePriceId, // 通貨が含まれたPrice ID（例: JPY用price_xxx, USD用price_yyy）
           quantity: 1,
         },
       ],
@@ -106,15 +152,19 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         planName: planName,
         currency: selectedCurrency,
+        priceId: stripePriceId, // デバッグ用: 使用したPrice IDを保存
       },
       subscription_data: {
         metadata: {
           userId: user.id,
           planName: planName,
+          currency: selectedCurrency, // 通貨情報も保存
         },
       },
-      // 日本語対応
-      locale: locale === "ja" ? "ja" : "en",
+      // Stripe Checkoutのロケール設定
+      // https://stripe.com/docs/api/checkout/sessions/create#create_checkout_session-locale
+      // "auto"でStripeがブラウザ言語を自動判定、"ja"で日本語固定
+      locale: locale === "ja" ? "ja" : "auto",
     });
 
     return NextResponse.json({

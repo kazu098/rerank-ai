@@ -5,12 +5,14 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "@/src/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Currency, getCurrencyFromLocale, formatPrice as formatCurrencyPrice, isValidCurrency } from "@/lib/billing/currency";
 
 interface Plan {
   id: string;
   name: string;
   display_name: string;
   price_monthly: number;
+  prices: Record<string, number> | null; // 各通貨ごとの価格
   max_articles: number | null;
   max_analyses_per_month: number | null;
   max_sites: number | null;
@@ -59,12 +61,35 @@ export default function BillingPage() {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(() => getCurrencyFromLocale(locale));
+  const [currencyDetected, setCurrencyDetected] = useState(false);
 
   useEffect(() => {
     if (session?.userId) {
       fetchBillingData();
     }
   }, [session]);
+
+  // 初回マウント時に通貨を自動判定
+  useEffect(() => {
+    const detectCurrency = async () => {
+      try {
+        const response = await fetch("/api/currency/detect");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && isValidCurrency(data.currency)) {
+            setSelectedCurrency(data.currency);
+            setCurrencyDetected(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to detect currency:", error);
+        // エラー時はロケールベースの判定を使用（既に設定済み）
+      }
+    };
+
+    detectCurrency();
+  }, []); // 初回のみ実行
 
   const fetchBillingData = async () => {
     try {
@@ -137,6 +162,7 @@ export default function BillingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planName,
+          currency: selectedCurrency, // 選択された通貨を渡す
           // prorationBehaviorは省略（API側で自動判定: アップグレード=即時、ダウングレード=期間終了時）
         }),
       });
@@ -174,11 +200,18 @@ export default function BillingPage() {
     return limit.toString();
   };
 
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("ja-JP", {
-      style: "currency",
-      currency: "JPY",
-    }).format(price);
+  // プランの価格を取得（通貨対応）
+  const getPlanPriceWithCurrency = (plan: Plan, currency: Currency): number => {
+    if (!plan.prices) {
+      // pricesが設定されていない場合は、price_monthlyを使用（後方互換性）
+      return plan.price_monthly;
+    }
+    const price = plan.prices[currency];
+    if (price === undefined || price === null) {
+      // 通貨が存在しない場合は、price_monthlyを使用
+      return plan.price_monthly;
+    }
+    return price;
   };
 
   const getUsagePercentage = (current: number, limit: number | null): number => {
@@ -236,7 +269,7 @@ export default function BillingPage() {
             <div>
               <div className="text-2xl font-bold text-gray-900">{currentPlan.display_name}</div>
               <div className="text-gray-600 mt-1">
-                {formatPrice(currentPlan.price_monthly)}/月
+                {formatCurrencyPrice(getPlanPriceWithCurrency(currentPlan, selectedCurrency), selectedCurrency)}/月
               </div>
               {isTrial && userPlan.trial_ends_at && currentPlan.name === "free" && (
                 <div className="text-yellow-600 mt-2">
@@ -373,7 +406,7 @@ export default function BillingPage() {
                           <div>
                             <div className="font-semibold text-gray-900">{plan.display_name}</div>
                             <div className="text-gray-600 text-sm">
-                              {formatPrice(plan.price_monthly)}/月
+                              {formatCurrencyPrice(getPlanPriceWithCurrency(plan, selectedCurrency), selectedCurrency)}/月
                             </div>
                           </div>
                           {isCurrentPlan && (
@@ -409,19 +442,25 @@ export default function BillingPage() {
                           )}
                         </div>
                         {/* プラン変更の注釈 */}
-                        {!isCurrentPlan && currentPlan.name !== "free" && plan.price_monthly && currentPlan.price_monthly && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            {plan.price_monthly > currentPlan.price_monthly ? (
-                              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                                {t("planChangeUpgradeNote")}
-                              </div>
-                            ) : plan.price_monthly < currentPlan.price_monthly ? (
-                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                {t("planChangeDowngradeNote")}
-                              </div>
-                            ) : null}
-                          </div>
-                        )}
+                        {!isCurrentPlan && currentPlan.name !== "free" && (() => {
+                          const planPrice = getPlanPriceWithCurrency(plan, selectedCurrency);
+                          const currentPlanPrice = getPlanPriceWithCurrency(currentPlan, selectedCurrency);
+                          if (!planPrice || !currentPlanPrice) return null;
+                          
+                          return (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              {planPrice > currentPlanPrice ? (
+                                <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                                  {t("planChangeUpgradeNote")}
+                                </div>
+                              ) : planPrice < currentPlanPrice ? (
+                                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                  {t("planChangeDowngradeNote")}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-2">
                         {!isCurrentPlan && (
@@ -475,7 +514,14 @@ export default function BillingPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <span className="font-semibold text-gray-900">
-                        {formatPrice(invoice.amount / 100)} {invoice.currency.toUpperCase()}
+                        {(() => {
+                          const invoiceCurrency = invoice.currency.toUpperCase() as Currency;
+                          if (isValidCurrency(invoiceCurrency)) {
+                            return formatCurrencyPrice(invoice.amount, invoiceCurrency);
+                          }
+                          // 無効な通貨の場合はフォールバック
+                          return `${invoice.amount / 100} ${invoice.currency.toUpperCase()}`;
+                        })()}
                       </span>
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${
