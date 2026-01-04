@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getPlanByName, getPlanStripePriceId, getPlanPrice, findPlanByStripePriceId } from "@/lib/db/plans";
 import { getUserById, updateStripeCustomerId } from "@/lib/db/users";
-import { Currency, getCurrencyFromLocale, isValidCurrency } from "@/lib/billing/currency";
+import { Currency, detectCurrencyFromLocale, isValidCurrency } from "@/lib/billing/currency";
 import Stripe from "stripe";
 
 /**
@@ -70,10 +70,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 通貨を判定
-    const selectedCurrency: Currency = currency && isValidCurrency(currency)
-      ? currency
-      : getCurrencyFromLocale(user.locale || "ja");
+    // 通貨を自動判定（ロケールベース）
+    const acceptLanguage = request.headers.get('accept-language');
+    
+    const selectedCurrency = detectCurrencyFromLocale({
+      explicitCurrency: currency || null,
+      userLocale: user.locale || null,
+      acceptLanguage: acceptLanguage || null,
+    });
 
     // 新しいプランのStripe Price IDを取得
     const newStripePriceId = getPlanStripePriceId(newPlan, selectedCurrency);
