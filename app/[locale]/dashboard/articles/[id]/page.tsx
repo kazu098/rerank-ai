@@ -300,7 +300,22 @@ export default function ArticleDetailPage({
   };
 
   const handleMarkAsFixed = async () => {
-    if (!articleId) return;
+    if (!articleId || !data) return;
+
+    // 楽観的更新: 即座にUIを更新
+    const previousIsFixed = data.article.is_fixed;
+    const previousFixedAt = data.article.fixed_at;
+    setData((prevData) => {
+      if (!prevData) return prevData;
+      return {
+        ...prevData,
+        article: {
+          ...prevData.article,
+          is_fixed: true,
+          fixed_at: new Date().toISOString(),
+        },
+      };
+    });
 
     try {
       const response = await fetch(`/api/articles/${articleId}/mark-as-fixed`, {
@@ -308,13 +323,37 @@ export default function ArticleDetailPage({
       });
 
       if (!response.ok) {
+        // エラーの場合、元の状態に戻す
+        setData((prevData) => {
+          if (!prevData) return prevData;
+          return {
+            ...prevData,
+            article: {
+              ...prevData.article,
+              is_fixed: previousIsFixed,
+              fixed_at: previousFixedAt,
+            },
+          };
+        });
         const errorData = await response.json();
         throw new Error(errorData.error || "修正済みフラグの更新に失敗しました");
       }
 
-      // データを再取得
-      fetchArticleDetail();
+      // データを再取得して確実に最新の状態にする
+      await fetchArticleDetail();
     } catch (err: any) {
+      // エラーの場合、元の状態に戻す（楽観的更新で既に戻しているが、念のため）
+      setData((prevData) => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          article: {
+            ...prevData.article,
+            is_fixed: previousIsFixed,
+            fixed_at: previousFixedAt,
+          },
+        };
+      });
       alert(err.message || "修正済みフラグの更新に失敗しました");
     }
   };
