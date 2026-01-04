@@ -18,6 +18,28 @@ export function PricingSection() {
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(() => getCurrencyFromLocale(locale));
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const [currencyDetected, setCurrencyDetected] = useState(false);
+
+  // 初回マウント時に通貨を自動判定
+  useEffect(() => {
+    const detectCurrency = async () => {
+      try {
+        const response = await fetch("/api/currency/detect");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && isValidCurrency(data.currency)) {
+            setSelectedCurrency(data.currency);
+            setCurrencyDetected(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to detect currency:", error);
+        // エラー時はロケールベースの判定を使用（既に設定済み）
+      }
+    };
+
+    detectCurrency();
+  }, []); // 初回のみ実行
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -36,6 +58,12 @@ export function PricingSection() {
     };
     fetchPlans();
   }, []);
+
+  const handleCurrencyChange = (newCurrency: Currency) => {
+    setSelectedCurrency(newCurrency);
+    // 通貨はロケールから自動判定されるため、個別に保存する必要はありません
+    // ユーザーが通貨を変更したい場合は、ロケール設定を変更してください
+  };
 
   const handlePlanSelect = async (planName: string) => {
     // 未ログイン時はログインに誘導
@@ -92,7 +120,7 @@ export function PricingSection() {
               value={selectedCurrency}
               onChange={(e) => {
                 if (isValidCurrency(e.target.value)) {
-                  setSelectedCurrency(e.target.value);
+                  handleCurrencyChange(e.target.value);
                 }
               }}
               className="bg-white text-gray-900 px-4 py-2 rounded-lg border border-gray-300 shadow-sm"
