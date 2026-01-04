@@ -4,6 +4,9 @@
 
 export type Currency = 'USD' | 'JPY' | 'EUR' | 'GBP';
 
+/**
+ * Stripe Price IDの構造（環境ごとに別カラムで管理）
+ */
 export interface StripePriceIds {
   usd?: string;
   jpy?: string;

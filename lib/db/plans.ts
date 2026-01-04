@@ -15,7 +15,8 @@ export interface Plan {
   max_article_suggestions_per_month: number | null; // NULLは無制限
   analysis_history_days: number | null; // NULLは無制限
   features: Record<string, any> | null;
-  stripe_price_ids: StripePriceIds | null; // 各通貨ごとのStripe Price ID
+  stripe_price_ids_test: StripePriceIds | null; // テスト環境用のStripe Price ID
+  stripe_price_ids_live: StripePriceIds | null; // 本番環境用のStripe Price ID
   created_at: string;
 }
 
@@ -44,14 +45,44 @@ export function getPlanPrice(plan: Plan, currency: Currency): number {
 }
 
 /**
- * プランのStripe Price IDを取得（通貨指定）
+ * Stripeモードを取得（lib/stripe/client.tsと同じロジック）
+ */
+function getStripeMode(): 'test' | 'live' {
+  // 明示的にモードが指定されている場合
+  const mode = process.env.STRIPE_MODE;
+  if (mode === 'test' || mode === 'live') {
+    return mode;
+  }
+
+  // STRIPE_SECRET_KEYから判定（後方互換性のため）
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (secretKey) {
+    if (secretKey.startsWith('sk_test_')) {
+      return 'test';
+    }
+    if (secretKey.startsWith('sk_live_')) {
+      return 'live';
+    }
+  }
+
+  // デフォルトはtestモード（安全側に倒す）
+  return 'test';
+}
+
+/**
+ * プランのStripe Price IDを取得（通貨指定、環境を考慮）
  */
 export function getPlanStripePriceId(plan: Plan, currency: Currency): string | null {
-  if (!plan.stripe_price_ids) {
+  const mode = getStripeMode();
+  const priceIds = mode === 'live' 
+    ? plan.stripe_price_ids_live 
+    : plan.stripe_price_ids_test;
+  
+  if (!priceIds) {
     return null;
   }
 
-  return getStripePriceId(plan.stripe_price_ids, currency);
+  return getStripePriceId(priceIds, currency);
 }
 
 /**
@@ -62,7 +93,7 @@ export async function getPlanByName(planName: string): Promise<Plan | null> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*, prices')
+    .select('*, prices, stripe_price_ids_test, stripe_price_ids_live')
     .eq('name', planName)
     .single();
 
@@ -106,7 +137,7 @@ export async function getAllPlans(): Promise<Plan[]> {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*, prices')
+    .select('*, prices, stripe_price_ids_test, stripe_price_ids_live')
     .order('price_monthly', { ascending: true });
 
   if (error) {
@@ -118,6 +149,7 @@ export async function getAllPlans(): Promise<Plan[]> {
 
 /**
  * Stripe Price IDからプランを検索
+ * 環境分離対応: 新しい形式と後方互換形式の両方をサポート
  */
 export async function findPlanByStripePriceId(stripePriceId: string): Promise<Plan | null> {
   const supabase = createSupabaseClient();
@@ -125,7 +157,7 @@ export async function findPlanByStripePriceId(stripePriceId: string): Promise<Pl
   // 全プランを取得
   const { data: plans, error } = await supabase
     .from('plans')
-    .select('*, prices');
+    .select('*, prices, stripe_price_ids_test, stripe_price_ids_live');
 
   if (error) {
     throw new Error(`Failed to get plans: ${error.message}`);
@@ -135,15 +167,30 @@ export async function findPlanByStripePriceId(stripePriceId: string): Promise<Pl
     return null;
   }
 
-  // stripe_price_ids JSONBから該当するPrice IDを検索
+  // stripe_price_ids_testとstripe_price_ids_liveから該当するPrice IDを検索
   for (const plan of plans) {
-    if (plan.stripe_price_ids) {
-      const priceIds = plan.stripe_price_ids as StripePriceIds;
+    const testPriceIds = plan.stripe_price_ids_test as StripePriceIds | null;
+    const livePriceIds = plan.stripe_price_ids_live as StripePriceIds | null;
+    
+    // テスト環境のPrice IDを検索
+    if (testPriceIds) {
       if (
-        priceIds.usd === stripePriceId ||
-        priceIds.jpy === stripePriceId ||
-        priceIds.eur === stripePriceId ||
-        priceIds.gbp === stripePriceId
+        testPriceIds.usd === stripePriceId ||
+        testPriceIds.jpy === stripePriceId ||
+        testPriceIds.eur === stripePriceId ||
+        testPriceIds.gbp === stripePriceId
+      ) {
+        return plan as Plan;
+      }
+    }
+    
+    // 本番環境のPrice IDを検索
+    if (livePriceIds) {
+      if (
+        livePriceIds.usd === stripePriceId ||
+        livePriceIds.jpy === stripePriceId ||
+        livePriceIds.eur === stripePriceId ||
+        livePriceIds.gbp === stripePriceId
       ) {
         return plan as Plan;
       }
