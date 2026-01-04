@@ -23,12 +23,12 @@ export default function AlertSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<AlertSettings>({
-    position_drop_threshold: 2.0,
-    keyword_drop_threshold: 10,
+    position_drop_threshold: 0.1,
+    keyword_drop_threshold: 1,
     comparison_days: 7,
-    consecutive_drop_days: 3,
-    min_impressions: 100,
-    notification_cooldown_days: 7,
+    consecutive_drop_days: 1,
+    min_impressions: 1,
+    notification_cooldown_days: 0,
     notification_frequency: 'daily',
   });
   const [error, setError] = useState<string | null>(null);
@@ -45,12 +45,12 @@ export default function AlertSettingsPage() {
       console.log("[Alert Settings] Fetched data:", data);
       // APIから取得したデータを設定に反映（不足しているフィールドはデフォルト値を使用）
       setSettings({
-        position_drop_threshold: data.position_drop_threshold ?? 2.0,
-        keyword_drop_threshold: data.keyword_drop_threshold ?? 10,
+        position_drop_threshold: data.position_drop_threshold ?? 0.1,
+        keyword_drop_threshold: data.keyword_drop_threshold ?? 1,
         comparison_days: data.comparison_days ?? 7,
-        consecutive_drop_days: data.consecutive_drop_days ?? 3,
-        min_impressions: data.min_impressions ?? 100,
-        notification_cooldown_days: data.notification_cooldown_days ?? 7,
+        consecutive_drop_days: data.consecutive_drop_days ?? 1,
+        min_impressions: data.min_impressions ?? 1,
+        notification_cooldown_days: data.notification_cooldown_days ?? 0,
         notification_frequency: data.notification_frequency ?? 'daily',
       });
     } catch (err: any) {
