@@ -141,34 +141,40 @@ export async function GET(request: NextRequest) {
         // 通知設定を取得（Slack通知を取得するため）
         let notificationSettings = await getNotificationSettings(user.id);
         
-        // notification_settingsテーブルにレコードがない場合、またはslack_bot_tokenがnullの場合、slack_integrationsテーブルから直接取得
-        if (!notificationSettings || !notificationSettings.slack_bot_token) {
+        // Slack通知を送信する場合は、常にslack_integrationsテーブルから最新の情報を取得
+        // （チャンネル切り替えが反映されていない問題を解決するため）
+        const slackIntegration = await getSlackIntegrationByUserId(user.id);
+        if (slackIntegration) {
+          // NotificationSettings形式に変換（最新のslack_integrationsの情報を使用）
+          notificationSettings = {
+            id: notificationSettings?.id || '',
+            user_id: user.id,
+            article_id: notificationSettings?.article_id || null,
+            notification_type: notificationSettings?.notification_type || 'rank_drop',
+            channel: notificationSettings?.channel || 'slack',
+            recipient: slackIntegration.slack_notification_type === 'dm' 
+              ? (slackIntegration.slack_user_id || '')
+              : (slackIntegration.slack_channel_id || ''),
+            is_enabled: notificationSettings?.is_enabled ?? true,
+            slack_integration_id: slackIntegration.id,
+            slack_bot_token: slackIntegration.slack_bot_token,
+            slack_user_id: slackIntegration.slack_user_id,
+            slack_team_id: slackIntegration.slack_team_id,
+            slack_channel_id: slackIntegration.slack_channel_id,
+            slack_notification_type: slackIntegration.slack_notification_type,
+            created_at: notificationSettings?.created_at || slackIntegration.created_at,
+            updated_at: notificationSettings?.updated_at || slackIntegration.updated_at,
+          };
+          console.log(`[Send Notifications Cron] Using latest Slack integration from slack_integrations table for user ${user.email}:`, {
+            notificationType: slackIntegration.slack_notification_type,
+            channelId: slackIntegration.slack_channel_id,
+            userId: slackIntegration.slack_user_id,
+          });
+        } else if (!notificationSettings || !notificationSettings.slack_bot_token) {
           if (!notificationSettings) {
-            console.log(`[Send Notifications Cron] No notification_settings found for user ${user.email}, trying to get Slack integration directly...`);
+            console.log(`[Send Notifications Cron] No notification_settings found for user ${user.email}, and no Slack integration found`);
           } else {
-            console.log(`[Send Notifications Cron] notification_settings found but slack_bot_token is null for user ${user.email}, trying to get Slack integration directly...`);
-          }
-          const slackIntegration = await getSlackIntegrationByUserId(user.id);
-          if (slackIntegration) {
-            // NotificationSettings形式に変換
-            notificationSettings = {
-              id: notificationSettings?.id || '',
-              user_id: user.id,
-              article_id: notificationSettings?.article_id || null,
-              notification_type: notificationSettings?.notification_type || 'rank_drop',
-              channel: notificationSettings?.channel || 'slack',
-              recipient: slackIntegration.slack_channel_id || '',
-              is_enabled: notificationSettings?.is_enabled ?? true,
-              slack_integration_id: slackIntegration.id,
-              slack_bot_token: slackIntegration.slack_bot_token,
-              slack_user_id: slackIntegration.slack_user_id,
-              slack_team_id: slackIntegration.slack_team_id,
-              slack_channel_id: slackIntegration.slack_channel_id,
-              slack_notification_type: slackIntegration.slack_notification_type,
-              created_at: notificationSettings?.created_at || slackIntegration.created_at,
-              updated_at: notificationSettings?.updated_at || slackIntegration.updated_at,
-            };
-            console.log(`[Send Notifications Cron] Found Slack integration directly from slack_integrations table for user ${user.email}`);
+            console.log(`[Send Notifications Cron] notification_settings found but slack_bot_token is null for user ${user.email}, and no Slack integration found`);
           }
         }
 
@@ -242,7 +248,13 @@ export async function GET(request: NextRequest) {
         }
 
         // Slack通知を送信
-        if (slackNotifications.length > 0 && notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
+        // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idが必要
+        const hasSlackBotToken = notificationSettings?.slack_bot_token;
+        const hasSlackRecipient = notificationSettings?.slack_notification_type === 'dm'
+          ? !!notificationSettings?.slack_user_id
+          : !!notificationSettings?.slack_channel_id;
+        
+        if (slackNotifications.length > 0 && hasSlackBotToken && hasSlackRecipient) {
           try {
             // notification_dataからBulkNotificationItemに変換
             const items: BulkNotificationItem[] = slackNotifications
@@ -300,12 +312,20 @@ export async function GET(request: NextRequest) {
               locale
             );
 
+            // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idを使用
+            const recipientId = notificationSettings.slack_notification_type === 'dm'
+              ? notificationSettings.slack_user_id!
+              : notificationSettings.slack_channel_id!;
+
             await sendSlackNotificationWithBot(
-              notificationSettings.slack_bot_token,
-              notificationSettings.slack_channel_id,
+              notificationSettings.slack_bot_token!,
+              recipientId,
               slackPayload
             );
-            console.log(`[Send Notifications Cron] Slack notification sent via OAuth to user ${user.email}`);
+            console.log(`[Send Notifications Cron] Slack notification sent via OAuth to user ${user.email}:`, {
+              notificationType: notificationSettings.slack_notification_type,
+              recipientId,
+            });
 
             // sent_atを更新
             const sentAt = new Date().toISOString();
@@ -331,10 +351,28 @@ export async function GET(request: NextRequest) {
             console.error(`[Send Notifications Cron] Failed to send Slack notification to user ${user.email}:`, {
               error: slackError.message,
               stack: slackError.stack,
-              channelId: notificationSettings.slack_channel_id,
+              notificationType: notificationSettings?.slack_notification_type,
+              channelId: notificationSettings?.slack_channel_id,
+              userId: notificationSettings?.slack_user_id,
             });
             // Slack通知のエラーはメール通知の送信を妨げない
           }
+        } else if (slackNotifications.length > 0) {
+          console.warn(`[Send Notifications Cron] Skipping Slack notification for user ${user.email}:`, {
+            hasSlackBotToken,
+            hasSlackRecipient,
+            notificationType: notificationSettings?.slack_notification_type,
+            hasChannelId: !!notificationSettings?.slack_channel_id,
+            hasUserId: !!notificationSettings?.slack_user_id,
+          });
+        } else if (slackNotifications.length > 0) {
+          console.warn(`[Send Notifications Cron] Skipping Slack notification for user ${user.email}:`, {
+            hasSlackBotToken,
+            hasSlackRecipient,
+            notificationType: notificationSettings?.slack_notification_type,
+            hasChannelId: !!notificationSettings?.slack_channel_id,
+            hasUserId: !!notificationSettings?.slack_user_id,
+          });
         }
 
         sentCount++;
