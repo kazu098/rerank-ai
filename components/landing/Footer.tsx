@@ -42,17 +42,17 @@ export function Footer() {
             <h3 className="text-white font-semibold text-sm mb-4">{t("footer.resources.title")}</h3>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="text-sm hover:text-white transition-colors">
+                <a href={`/${locale}/blog`} className="text-sm hover:text-white transition-colors">
                   {t("footer.resources.blog")}
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm hover:text-white transition-colors">
+                <a href={`/${locale}/docs`} className="text-sm hover:text-white transition-colors">
                   {t("footer.resources.documentation")}
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm hover:text-white transition-colors">
+                <a href={`/${locale}/docs/troubleshooting/faq`} className="text-sm hover:text-white transition-colors">
                   {t("footer.resources.faq")}
                 </a>
               </li>
