@@ -114,6 +114,7 @@ async function handleRequest(request: NextRequest) {
     }> = [];
 
     for (const article of articles) {
+      const articleStartTime = Date.now();
       try {
         console.log(`[Test Cron] Processing article ${article.id} (${article.url})...`);
 
