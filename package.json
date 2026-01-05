@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "npx playwright install chromium --with-deps || true"
+    "postinstall": "npx playwright install chromium --with-deps || true",
+    "optimize-images": "node scripts/optimize-images.js",
+    "insert-images": "node scripts/insert-images.js"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
@@ -33,6 +35,7 @@
     "remark": "^15.0.1",
     "remark-html": "^16.0.1",
     "resend": "^6.6.0",
+    "sharp": "^0.33.0",
     "stripe": "^20.1.0"
   },
   "devDependencies": {

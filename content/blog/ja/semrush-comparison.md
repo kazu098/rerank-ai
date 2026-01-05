@@ -47,6 +47,8 @@ SEMrushは、包括的なデジタルマーケティングツールです。世�
 
 ![SEMrushのダッシュボード画面](blog-images/semrush-dashboard.png)
 *画像の内容: SEMrushのダッシュボード画面（キーワード調査、競合分析、広告分析などの機能が表示されている）*
+*画像ファイル名: semrush-comparison-semrush.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 主要な機能（キーワード調査、競合分析、広告分析）を赤い枠で囲む*
 
@@ -76,6 +78,8 @@ ReRank AIは、AIを活用したSEO自動化ツールです。Google Search Cons
 
 ![ReRank AIのダッシュボード画面](blog-images/rerank-ai-dashboard-semrush.png)
 *画像の内容: ReRank AIのダッシュボード画面（順位監視、改善案の表示など）*
+*画像ファイル名: semrush-comparison-rerank-ai.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 改善案の表示部分を赤い枠で囲む*
 
@@ -100,6 +104,8 @@ ReRank AIの最大の強みは、順位が下がった際に自動で競合分�
 
 ![機能比較表のスクリーンショット](blog-images/semrush-vs-rerank-comparison.png)
 *画像の内容: SEMrushとReRank AIの機能比較表（表形式で各機能を比較）*
+*画像ファイル名: semrush-comparison-semrushrerank-ai.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 重要な違い（自動改善案提案、価格）を赤い枠で囲む*
 
@@ -188,6 +194,8 @@ ReRank AIの最大の強みは、順位が下がった際に自動で競合分�
 
 ![併用のワークフロー図](blog-images/semrush-rerank-workflow.png)
 *画像の内容: SEMrushとReRank AIを併用するワークフローの図解（4つのステップを矢印でつなぐ）*
+*画像ファイル名: semrush-comparison-semrushrerank-ai4.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 各ステップを番号で表示し、矢印でつなぐ*
 
@@ -219,6 +227,8 @@ ReRank AIを使用しているユーザーの実際のデータ（匿名化）�
 
 ![コストパフォーマンス比較グラフ](blog-images/cost-comparison-chart-semrush.png)
 *画像の内容: SEMrushとReRank AIのコストパフォーマンスを比較するグラフ（月額費用とROIを棒グラフで表示）*
+*画像ファイル名: semrush-comparison-semrushrerank-airoi.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: ReRank AIのROI部分を緑色で強調*
 
@@ -250,6 +260,8 @@ ReRank AIを使用しているユーザーの実際の改善事例（匿名化�
 
 ![改善事例のグラフ](blog-images/improvement-case-study-semrush.png)
 *画像の内容: 改善事例のグラフ（改善前後の順位を比較する棒グラフ）*
+*画像ファイル名: semrush-comparison-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 改善後の順位を緑色で強調*
 

@@ -34,6 +34,8 @@ ReRank AIが2024年10月から12月にかけて分析したデータによると
 
 ![順位下落の影響グラフ](blog-images/ranking-drop-impact.png)
 *画像の内容: 順位下落がトラフィックに与える影響を表すグラフ（10位、20位、30位でのクリック数の比較）*
+*画像ファイル名: ranking-drop-causes-102030.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 順位が下がるほどクリック数が減少することを矢印で示す*
 
@@ -60,6 +62,8 @@ ReRank AIの分析データをもとに、順位下落の主な原因を詳し�
 
 ![競合サイトの改善要素の円グラフ](blog-images/competitor-improvements.png)
 *画像の内容: 競合サイトが追加した要素の割合を表す円グラフ（価格比較表、手順の説明、FAQ、関連リンク）*
+*画像ファイル名: ranking-drop-causes-faq.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 各要素の割合をパーセンテージで表示*
 
@@ -114,6 +118,8 @@ Googleは定期的に検索アルゴリズムを更新します。これらの�
 
 ![順位下落の原因の割合グラフ](blog-images/ranking-drop-causes-chart.png)
 *画像の内容: 順位下落の原因の割合を表す棒グラフ（競合サイトの改善、アルゴリズム更新、バックリンク減少など）*
+*画像ファイル名: ranking-drop-causes-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 競合サイトの改善が60%で最も多いことを強調*
 
@@ -134,6 +140,8 @@ Googleは定期的に検索アルゴリズムを更新します。これらの�
 
 ![競合分析の効果グラフ](blog-images/competitor-analysis-impact.png)
 *画像の内容: 競合分析を行っているサイトと行っていないサイトの順位改善率を比較する棒グラフ*
+*画像ファイル名: ranking-drop-causes-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 競合分析を行っているサイトの改善率が高いことを緑色で強調*
 
@@ -151,6 +159,8 @@ Google Search Consoleと連携することで、順位の変化を自動監視�
 
 ![自動監視の画面](blog-images/auto-monitoring-screen.png)
 *画像の内容: ReRank AIの自動監視画面（順位の推移グラフ、通知一覧など）*
+*画像ファイル名: ranking-drop-causes-rerank-ai.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 順位が下がった記事を赤色で表示*
 
@@ -164,6 +174,8 @@ Google Search Consoleと連携することで、順位の変化を自動監視�
 
 ![競合分析の画面](blog-images/competitor-analysis-screen.png)
 *画像の内容: ReRank AIの競合分析画面（競合サイトのリスト、追加された要素の一覧など）*
+*画像ファイル名: ranking-drop-causes-rerank-ai.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 不足している要素を赤色で表示*
 
@@ -177,6 +189,8 @@ AIが分析結果をもとに、具体的な改善案を箇条書きで提示し
 
 ![改善案の画面](blog-images/improvement-suggestions-screen.png)
 *画像の内容: ReRank AIの改善案画面（改善すべき項目の箇条書きリスト）*
+*画像ファイル名: ranking-drop-causes-rerank-ai.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 優先度の高い改善案を赤色で強調*
 
@@ -208,6 +222,8 @@ ReRank AIを使用しているユーザーの実際の改善事例（匿名化�
 
 ![改善事例1のグラフ](blog-images/case-study-1-chart.png)
 *画像の内容: 事例1の改善前後の順位を比較するグラフ（18位→7位に改善）*
+*画像ファイル名: ranking-drop-causes-1187.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 改善後の順位を緑色で強調*
 
@@ -235,6 +251,8 @@ ReRank AIを使用しているユーザーの実際の改善事例（匿名化�
 
 ![改善事例2のグラフ](blog-images/case-study-2-chart.png)
 *画像の内容: 事例2の改善前後の順位を比較するグラフ（複数記事の平均順位改善）*
+*画像ファイル名: ranking-drop-causes-2.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 改善後の順位を緑色で強調*
 

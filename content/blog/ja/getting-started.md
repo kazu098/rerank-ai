@@ -32,8 +32,8 @@ ReRank AIのアカウント作成は、無料で簡単に行えます。
    - **メールアドレス**: メールアドレスとパスワードを入力
    - **Googleアカウント**: Googleアカウントでログイン（推奨・1クリックで登録可能）
 
-![ReRank AIのトップページ](blog-images/getting-started-top-page.png)
 *画像の内容: ReRank AIのトップページで「今すぐ始める」ボタンが表示されている画面*
+*画像ファイル名: getting-started-top-page.png*
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 「今すぐ始める」ボタンを赤い枠で囲む*
 *注釈: 画像上に「ステップ1: ここをクリックしてアカウント作成」というテキストを配置*
@@ -62,6 +62,8 @@ ReRank AIの最大の特徴は、Google Search Console（GSC）と連携して�
 
 ![ダッシュボードのサイト追加画面](blog-images/getting-started-add-site.png)
 *画像の内容: ダッシュボードで「サイトを追加」ボタンが表示されている画面*
+*画像ファイル名: getting-started-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 「サイトを追加」ボタンを赤い枠で囲む*
 *注釈: 画像上に「ステップ1: ここをクリック」というテキストを配置*
@@ -70,6 +72,8 @@ ReRank AIの最大の特徴は、Google Search Console（GSC）と連携して�
 
 ![連携方法の選択画面](blog-images/getting-started-connect-method.png)
 *画像の内容: 連携方法を選択する画面（「Google Search Consoleと連携」と「手動でスキャン」の2つのオプションが表示）*
+*画像ファイル名: getting-started-google-search-console2.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 「Google Search Consoleと連携」オプションを赤い枠で囲む*
 
@@ -77,6 +81,8 @@ ReRank AIの最大の特徴は、Google Search Console（GSC）と連携して�
 
 ![Google認証画面](blog-images/getting-started-google-auth.png)
 *画像の内容: Googleアカウントの認証画面（OAuth 2.0の認証ダイアログ）*
+*画像ファイル名: getting-started-googleoauth-20.png*
+
 *画像のサイズ: 幅800px、高さは自動*
 *ハイライト: 認証ボタンを赤い枠で囲む*
 *注釈: 「ステップ2: Googleアカウントで認証」というテキストを配置*
@@ -85,6 +91,8 @@ ReRank AIの最大の特徴は、Google Search Console（GSC）と連携して�
 
 ![サイト選択画面](blog-images/getting-started-select-site.png)
 *画像の内容: GSCに登録されているサイトの一覧が表示されている画面*
+*画像ファイル名: getting-started-gsc.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 選択するサイトを赤い枠で囲む*
 *注釈: 「ステップ3: 監視したいサイトを選択」というテキストを配置*
@@ -107,6 +115,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![記事追加画面](blog-images/getting-started-add-article.png)
 *画像の内容: ダッシュボードで「記事を追加」ボタンが表示されている画面*
+*画像ファイル名: getting-started-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 「記事を追加」ボタンを赤い枠で囲む*
 
@@ -114,6 +124,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![URL入力画面](blog-images/getting-started-enter-url.png)
 *画像の内容: 記事のURLを入力するフォームが表示されている画面*
+*画像ファイル名: getting-started-url.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: URL入力欄を赤い枠で囲む*
 *注釈: 入力例として「https://example.com/article」というテキストを表示*
@@ -122,6 +134,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![キーワード入力画面](blog-images/getting-started-enter-keywords.png)
 *画像の内容: キーワードを入力するフォームが表示されている画面（複数のキーワードを入力できる）*
+*画像ファイル名: getting-started-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: キーワード入力欄を赤い枠で囲む*
 *注釈: 入力例として「SEO対策」「コンテンツマーケティング」などのキーワードを表示*
@@ -153,6 +167,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![通知設定画面](blog-images/getting-started-notification-settings.png)
 *画像の内容: 通知設定ページでメール通知の設定項目が表示されている画面*
+*画像ファイル名: getting-started-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: メール通知のトグルスイッチを赤い枠で囲む*
 
@@ -165,6 +181,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![通知条件の設定画面](blog-images/getting-started-notification-conditions.png)
 *画像の内容: 通知条件を設定するフォームが表示されている画面（閾値や比較期間の設定項目）*
+*画像ファイル名: getting-started-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 各設定項目を赤い枠で囲む*
 
@@ -176,6 +194,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![Slack連携画面](blog-images/getting-started-slack-connect.png)
 *画像の内容: Slack連携の設定画面で「Slack連携」ボタンが表示されている画面*
+*画像ファイル名: getting-started-slackslack.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 「Slack連携」ボタンを赤い枠で囲む*
 
@@ -184,6 +204,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![Slackチャンネル選択画面](blog-images/getting-started-slack-channel.png)
 *画像の内容: Slackのチャンネル一覧が表示されている画面（通知を受け取るチャンネルを選択）*
+*画像ファイル名: getting-started-slack.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 選択するチャンネルを赤い枠で囲む*
 
@@ -207,6 +229,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![通知一覧画面](blog-images/getting-started-notifications.png)
 *画像の内容: ダッシュボードで通知一覧が表示されている画面（順位下落の通知が表示）*
+*画像ファイル名: getting-started-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 通知アイテムを赤い枠で囲む*
 
@@ -214,6 +238,8 @@ A: はい、複数のサイトを連携できます。プランによって監�
 
 ![改善案画面](blog-images/getting-started-improvement-suggestions.png)
 *画像の内容: 分析結果ページで改善案が表示されている画面（箇条書きで改善項目が表示）*
+*画像ファイル名: getting-started-.png*
+
 *画像のサイズ: 幅1200px、高さは自動*
 *ハイライト: 改善案のリストを赤い枠で囲む*
 
