@@ -254,7 +254,7 @@ export async function GET(request: NextRequest) {
           ? !!notificationSettings?.slack_user_id
           : !!notificationSettings?.slack_channel_id;
         
-        if (slackNotifications.length > 0 && hasSlackBotToken && hasSlackRecipient) {
+        if (slackNotifications.length > 0 && hasSlackBotToken && hasSlackRecipient && notificationSettings) {
           try {
             // notification_dataからBulkNotificationItemに変換
             const items: BulkNotificationItem[] = slackNotifications
