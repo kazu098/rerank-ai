@@ -82,7 +82,7 @@ export async function getBlogPost(
   const { data, content } = matter(fileContents);
 
   // MarkdownをHTMLに変換
-  const processedContent = await remark().use(html).process(content);
+  const processedContent = await remark().use(remarkHtml).process(content);
   const htmlContent = processedContent.toString();
 
   return {
