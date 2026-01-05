@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getArticleById } from "@/lib/db/articles";
 import { createSupabaseClient } from "@/lib/supabase";
+import { checkUserPlanLimit } from "@/lib/billing/plan-limits";
 
 /**
  * 記事の監視ステータスを切り替え
@@ -49,6 +50,25 @@ export async function POST(
         { error: "アクセス権限がありません。" },
         { status: 403 }
       );
+    }
+
+    // 監視をONにする場合のみプラン制限をチェック
+    if (enabled && !article.is_monitoring) {
+      const limitCheck = await checkUserPlanLimit(userId, "articles");
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.reason || "errors.articlesLimitExceeded",
+            errorKey: limitCheck.reason || "errors.articlesLimitExceeded",
+            limitExceeded: true,
+            limitType: "articles",
+            currentUsage: limitCheck.currentUsage,
+            limit: limitCheck.limit,
+            upgradeRequired: true
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // 監視ステータスを更新
