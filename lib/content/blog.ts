@@ -3,6 +3,7 @@ import path from "path";
 import matter from "gray-matter";
 import { remark } from "remark";
 import remarkHtml from "remark-html";
+import remarkGfm from "remark-gfm";
 
 export interface BlogPost {
   slug: string;
@@ -37,8 +38,8 @@ export async function getBlogPosts(locale: string = "ja"): Promise<BlogPost[]> {
         const fileContents = fs.readFileSync(fullPath, "utf8");
         const { data, content } = matter(fileContents);
 
-        // MarkdownをHTMLに変換
-        const processedContent = await remark().use(remarkHtml).process(content);
+        // MarkdownをHTMLに変換（表をサポート）
+        const processedContent = await remark().use(remarkGfm).use(remarkHtml).process(content);
         const htmlContent = processedContent.toString();
 
         return {
