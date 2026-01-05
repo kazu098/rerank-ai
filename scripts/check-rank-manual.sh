@@ -4,8 +4,9 @@
 # 新しい通知レコードを作成するために実行
 # 使用方法:
 #   ./scripts/check-rank-manual.sh
-#   または
 #   ./scripts/check-rank-manual.sh --dry-run
+#   ./scripts/check-rank-manual.sh --limit 5
+#   ./scripts/check-rank-manual.sh --limit 5 --dry-run
 
 set -e
 
@@ -31,9 +32,44 @@ URL="${API_URL:-http://localhost:3000}/api/cron/check-rank/test"
 
 # パラメータの設定
 PARAMS=""
-if [ "$1" == "--dry-run" ]; then
-  PARAMS="?dryRun=true"
+DRY_RUN=false
+LIMIT=""
+
+# 引数の解析
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --limit)
+      LIMIT="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [--dry-run] [--limit N]"
+      exit 1
+      ;;
+  esac
+done
+
+# パラメータの組み立て
+PARAM_ARRAY=()
+
+if [ "$DRY_RUN" = true ]; then
+  PARAM_ARRAY+=("dryRun=true")
   echo "Running in DRY RUN mode (notifications will not be created)"
+fi
+
+if [ -n "$LIMIT" ]; then
+  PARAM_ARRAY+=("limit=$LIMIT")
+  echo "Limit: processing up to $LIMIT articles"
+fi
+
+# パラメータを結合
+if [ ${#PARAM_ARRAY[@]} -gt 0 ]; then
+  PARAMS="?$(IFS='&'; echo "${PARAM_ARRAY[*]}")"
 fi
 
 # APIリクエストの実行
@@ -59,4 +95,5 @@ echo "$BODY" | jq '.' 2>/dev/null || echo "$BODY"
 if [ "$HTTP_CODE" != "200" ]; then
   exit 1
 fi
+
 

@@ -25,6 +25,7 @@ import { updateSiteAuthError } from "@/lib/db/sites";
  * クエリパラメータ:
  *   - dryRun: true の場合、通知は送信せずログのみ出力
  *   - articleId: 特定の記事IDのみをチェック（オプション）
+ *   - limit: 処理する記事数の上限（オプション、タイムアウト回避用）
  */
 async function handleRequest(request: NextRequest) {
   // テスト用の認証（環境変数 CRON_SECRET を使用）
@@ -41,18 +42,31 @@ async function handleRequest(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const dryRun = searchParams.get("dryRun") === "true";
   const articleId = searchParams.get("articleId");
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
+  const startTime = Date.now();
+  
   try {
-    console.log("[Test Cron] Starting rank check job...", { dryRun, articleId });
+    console.log("[Test Cron] Starting rank check job...", { dryRun, articleId, limit });
 
     // 監視対象の記事を取得
+    const fetchStartTime = Date.now();
     let articles = await getMonitoringArticles();
-    console.log(`[Test Cron] Found ${articles.length} monitoring articles`);
+    const fetchDuration = Date.now() - fetchStartTime;
+    console.log(`[Test Cron] Found ${articles.length} monitoring articles (took ${fetchDuration}ms)`);
 
     // 特定の記事IDが指定されている場合はフィルタ
     if (articleId) {
       articles = articles.filter((a) => a.id === articleId);
       console.log(`[Test Cron] Filtered to ${articles.length} article(s) for articleId: ${articleId}`);
+    }
+
+    // limitが指定されている場合は記事数を制限
+    const totalArticles = articles.length;
+    if (limit !== undefined && limit > 0) {
+      articles = articles.slice(0, limit);
+      console.log(`[Test Cron] Limited to ${articles.length} article(s) out of ${totalArticles} (limit: ${limit})`);
     }
 
     if (articles.length === 0) {
@@ -100,6 +114,7 @@ async function handleRequest(request: NextRequest) {
     }> = [];
 
     for (const article of articles) {
+      const articleStartTime = Date.now();
       try {
         console.log(`[Test Cron] Processing article ${article.id} (${article.url})...`);
 
@@ -577,9 +592,12 @@ async function handleRequest(request: NextRequest) {
           continue;
         }
 
+        const articleDuration = Date.now() - articleStartTime;
+        console.log(`[Test Cron] Article ${article.id} processed in ${articleDuration}ms`);
         console.log(`[Test Cron] Article ${article.id} added to notification queue`);
       } catch (error: any) {
-        console.error(`[Test Cron] Error processing article ${article.id}:`, error);
+        const articleDuration = Date.now() - articleStartTime;
+        console.error(`[Test Cron] Error processing article ${article.id} (took ${articleDuration}ms):`, error);
         checkResults.push({
           articleId: article.id,
           articleUrl: article.url,
@@ -765,6 +783,7 @@ async function handleRequest(request: NextRequest) {
       message: dryRun ? "Rank check completed (DRY RUN)" : "Rank check completed",
       dryRun,
       articlesChecked: articles.length,
+      articlesProcessed: checkResults.length,
       usersNotified: sentCount,
       errors: errorCount,
       totalNotifications: Array.from(notificationsByUser.values()).reduce(
@@ -772,10 +791,15 @@ async function handleRequest(request: NextRequest) {
         0
       ),
       checkResults,
+      limit: limit,
     };
 
-    console.log("[Test Cron] Rank check job completed:", result);
-    return NextResponse.json(result);
+    const totalDuration = Date.now() - startTime;
+    console.log(`[Test Cron] Rank check job completed in ${totalDuration}ms:`, result);
+    return NextResponse.json({
+      ...result,
+      durationMs: totalDuration,
+    });
   } catch (error: any) {
     console.error("[Test Cron] Error in rank check job:", error);
     return NextResponse.json(
