@@ -500,14 +500,21 @@ export function AuthenticatedContent() {
       const selectedKeywordsArray = selectedKeywords.size > 0 
         ? Array.from(selectedKeywords).map(kw => {
             const keywordData = keywords.find(k => k.keyword === kw);
+            // キーワードデータが見つからない場合（手動入力の場合）は、デフォルト値を使用
             return keywordData ? {
               keyword: keywordData.keyword,
               position: keywordData.position,
               impressions: keywordData.impressions,
               clicks: keywordData.clicks,
               ctr: keywordData.ctr,
-            } : null;
-          }).filter(Boolean) as Array<{ keyword: string; position: number; impressions: number; clicks: number; ctr: number }>
+            } : {
+              keyword: kw,
+              position: 0, // 順位データがないため0
+              impressions: 0,
+              clicks: 0,
+              ctr: 0,
+            };
+          }) as Array<{ keyword: string; position: number; impressions: number; clicks: number; ctr: number }>
         : undefined;
       
       const step1Response = await fetch("/api/competitors/analyze-step1", {
@@ -544,7 +551,12 @@ export function AuthenticatedContent() {
           throw error;
         }
         const errorKey = errorData.errorKey || errorData.error;
-        throw new Error(errorKey ? t(errorKey) : errorData.error || "Step 1に失敗しました");
+        const errorMessage = errorData.error || errorKey || "Step 1に失敗しました";
+        // キーワードが取得できない場合のエラーメッセージをそのまま表示
+        if (errorMessage.includes("過去90日間で検索結果に表示されていない")) {
+          throw new Error(errorMessage);
+        }
+        throw new Error(errorKey ? t(errorKey) : errorMessage);
       }
 
       const step1Result = await step1Response.json();
@@ -1357,7 +1369,7 @@ export function AuthenticatedContent() {
                       <button
                         onClick={handleOpenKeywordSelectModal}
                         disabled={loading || !articleUrl || !selectedSiteUrl}
-                        className="w-full px-4 py-2 bg-white text-gray-600 border border-gray-300 rounded hover:bg-gray-50 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-2 bg-white text-blue-600 border-2 border-blue-600 rounded hover:bg-blue-50 text-sm font-semibold disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
                       >
                         {t("dashboard.articles.selectKeywords")}
                       </button>
@@ -1444,7 +1456,20 @@ export function AuthenticatedContent() {
                         </Link>
                       </div>
                     ) : (
-                      <p className="text-red-600">{error}</p>
+                      <div>
+                        <p className="text-red-600 whitespace-pre-line">{error}</p>
+                        {error && error.includes("過去90日間で検索結果に表示されていない") && (
+                          <button
+                            onClick={() => {
+                              setError(null);
+                              handleOpenKeywordSelectModal();
+                            }}
+                            className="mt-4 px-4 py-2 bg-white text-purple-600 border-2 border-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-semibold"
+                          >
+                            {t("dashboard.articles.selectKeywords")}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -2184,8 +2209,71 @@ export function AuthenticatedContent() {
                   <p className="mt-2 text-sm text-gray-600">{t("dashboard.articles.keywordSelect.loading")}</p>
                 </div>
               ) : keywords.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  {t("dashboard.articles.keywordSelect.noKeywords")}
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">
+                    {t("dashboard.articles.keywordSelect.noKeywords")}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    過去90日間で検索結果に表示されていないページのため、キーワードデータが取得できませんでした。
+                    <br />
+                    手動でキーワードを入力して分析を続行できます。
+                  </p>
+                  <div className="max-w-md mx-auto">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      キーワードを入力（カンマ区切り）
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="例: 接客AI, チャットボット, カスタマーサポート"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      onChange={(e) => {
+                        const inputKeywords = e.target.value
+                          .split(',')
+                          .map(kw => kw.trim())
+                          .filter(kw => kw.length > 0);
+                        const keywordSet = new Set(inputKeywords);
+                        setSelectedKeywords(keywordSet);
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      入力したキーワードで競合分析を実行します（順位データは取得できません）
+                    </p>
+                  </div>
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setShowKeywordSelectModal(false);
+                        setSelectedKeywords(new Set());
+                      }}
+                      className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 text-sm"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedKeywords.size > 0) {
+                          setShowKeywordSelectModal(false);
+                          // 手動入力されたキーワードを分析用の形式に変換して設定
+                          const manualKeywords = Array.from(selectedKeywords).map(keyword => ({
+                            keyword,
+                            position: 0, // 順位データがないため0
+                            impressions: 0,
+                            clicks: 0,
+                            ctr: 0,
+                          }));
+                          setKeywords(manualKeywords);
+                          // 少し遅延を入れてから分析を開始（state更新を待つ）
+                          setTimeout(() => {
+                            startAnalysis();
+                          }, 100);
+                        }
+                      }}
+                      disabled={selectedKeywords.size === 0}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
+                      {t("dashboard.articles.keywordSelect.startAnalysis")}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>

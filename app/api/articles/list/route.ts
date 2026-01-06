@@ -170,6 +170,30 @@ export async function GET(request: NextRequest) {
       position: number;
     };
     
+    // デバッグ: GSC APIの生データを確認
+    const targetUrl = "https://mia-kit.com/ja/store-app/articles/chatbot-dounyuu-shippai";
+    const targetPath = "/ja/store-app/articles/chatbot-dounyuu-shippai";
+    const targetPathWithSlash = "/ja/store-app/articles/chatbot-dounyuu-shippai/";
+    console.log(`[Articles List API] Checking for target URL: ${targetUrl}`);
+    console.log(`[Articles List API] GSC rows count: ${gscData.rows?.length || 0}`);
+    
+    // デバッグ: 該当URLがGSC APIのレスポンスに含まれているかを確認
+    const rawUrls = (gscData.rows || []).map((row: GSCRow) => row.keys[0]);
+    const foundInRaw = rawUrls.find((url: string) => 
+      url === targetPath || 
+      url === targetPathWithSlash ||
+      url === targetUrl ||
+      url.includes('chatbot-dounyuu-shippai')
+    );
+    if (foundInRaw) {
+      console.log(`[Articles List API] Found target URL in raw GSC data: ${foundInRaw}`);
+    } else {
+      console.log(`[Articles List API] Target URL NOT found in raw GSC data`);
+      // 類似URLを探す
+      const similarRawUrls = rawUrls.filter((url: string) => url.includes('/articles/')).slice(0, 10);
+      console.log(`[Articles List API] Similar raw URLs (first 10):`, similarRawUrls);
+    }
+
     const gscUrls: GSCUrlItem[] = (gscData.rows || [])
       .map((row: GSCRow) => {
         // keys[0]がページURL
@@ -189,6 +213,17 @@ export async function GET(request: NextRequest) {
         }
         // ハッシュフラグメントを除去して正規化
         const normalizedUrl = normalizeUrl(fullUrl);
+        
+        // デバッグ: 該当URLの変換過程を確認
+        if (pageUrl.includes('chatbot-dounyuu-shippai') || normalizedUrl.includes('chatbot-dounyuu-shippai')) {
+          console.log(`[Articles List API] URL transformation:`, {
+            rawPageUrl: pageUrl,
+            fullUrl,
+            normalizedUrl,
+            siteUrl,
+          });
+        }
+        
         return {
           url: normalizedUrl,
           impressions: row.impressions,
@@ -196,7 +231,29 @@ export async function GET(request: NextRequest) {
           position: row.position,
         };
       })
-      .filter((gscUrl: GSCUrlItem) => isArticleUrl(gscUrl.url)); // 記事として扱うべきURLのみをフィルタリング
+      .filter((gscUrl: GSCUrlItem) => {
+        const isArticle = isArticleUrl(gscUrl.url);
+        // デバッグ: 特定のURLが除外されている場合にログを出力
+        if (gscUrl.url.includes('/articles/') && !isArticle) {
+          console.log(`[Articles List API] Article URL excluded: ${gscUrl.url}`);
+        }
+        // デバッグ: 該当URLのフィルタリング結果を確認
+        if (gscUrl.url.includes('chatbot-dounyuu-shippai')) {
+          console.log(`[Articles List API] Target URL filter result:`, {
+            url: gscUrl.url,
+            isArticle,
+          });
+        }
+        return isArticle;
+      }); // 記事として扱うべきURLのみをフィルタリング
+    
+    // デバッグ: フィルタリング後の該当URLを確認
+    const foundAfterFilter = gscUrls.find(url => url.url.includes('chatbot-dounyuu-shippai'));
+    if (foundAfterFilter) {
+      console.log(`[Articles List API] Found target URL after filter: ${foundAfterFilter.url}`);
+    } else {
+      console.log(`[Articles List API] Target URL NOT found after filter. Total filtered: ${gscUrls.length}`);
+    }
 
     // 重複を除去：同じURL（正規化後）のデータを統合
     const urlMap = new Map<string, {
@@ -252,6 +309,18 @@ export async function GET(request: NextRequest) {
 
     // インプレッション数でソート（多い順）
     mergedArticles.sort((a, b) => b.impressions - a.impressions);
+
+    // デバッグ: 特定のURLが含まれているかを確認
+    const searchUrl = "https://mia-kit.com/ja/store-app/articles/chatbot-dounyuu-shippai";
+    const foundInMerged = mergedArticles.find(a => a.url === searchUrl || a.url.includes('chatbot-dounyuu-shippai'));
+    if (foundInMerged) {
+      console.log(`[Articles List API] Found target URL in merged articles: ${foundInMerged.url}`);
+    } else {
+      console.log(`[Articles List API] Target URL NOT found in merged articles. Total: ${mergedArticles.length}`);
+      // 類似URLを探す
+      const similarUrls = mergedArticles.filter(a => a.url.includes('/articles/')).slice(0, 5);
+      console.log(`[Articles List API] Similar URLs (first 5):`, similarUrls.map(a => a.url));
+    }
 
     // ページネーション
     const total = mergedArticles.length;

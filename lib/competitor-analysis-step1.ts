@@ -161,6 +161,26 @@ export async function analyzeStep1(
 
   console.log(`[CompetitorAnalysis] ⏱️ Step 1.3 (Keyword prioritization): ${Date.now() - step3Start}ms`);
 
+  // キーワードが取得できない場合のエラーチェック
+  if (prioritizedKeywords.length === 0) {
+    const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
+    if (keywordRows.length === 0 && !selectedKeywords) {
+      throw new Error(
+        "このページは過去90日間で検索結果に表示されていないため、キーワードデータが取得できませんでした。\n" +
+        "「キーワードを選択」ボタンから手動でキーワードを入力して分析を続行してください。"
+      );
+    } else if (prioritizedKeywords.length === 0 && selectedKeywords) {
+      // 手動選択されたキーワードがあるが、優先キーワードが空の場合は手動選択キーワードを使用
+      prioritizedKeywords = selectedKeywords.map((kw) => ({
+        keyword: kw.keyword,
+        priority: 100,
+        impressions: kw.impressions,
+        clicks: kw.clicks,
+        position: kw.position,
+      }));
+    }
+  }
+
   // 上位を保てているキーワードを抽出（1-5位）
   // 手動選択の場合はkeywordListが定義されていないので、GSCデータから再取得
   const keywordRowsForTopRanking = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
