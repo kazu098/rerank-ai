@@ -254,6 +254,20 @@ export async function GET(request: NextRequest) {
           ? !!notificationSettings?.slack_user_id
           : !!notificationSettings?.slack_channel_id;
         
+        // デバッグログ: 通知設定の状態を確認
+        console.log(`[Send Notifications Cron] Slack notification check for user ${user.email}:`, {
+          hasSlackNotifications: slackNotifications.length > 0,
+          hasSlackBotToken: !!hasSlackBotToken,
+          hasSlackRecipient,
+          notificationType: notificationSettings?.slack_notification_type,
+          channelId: notificationSettings?.slack_channel_id,
+          userId: notificationSettings?.slack_user_id,
+          slackIntegrationExists: !!slackIntegration,
+          slackIntegrationChannelId: slackIntegration?.slack_channel_id,
+          slackIntegrationUserId: slackIntegration?.slack_user_id,
+          slackIntegrationNotificationType: slackIntegration?.slack_notification_type,
+        });
+        
         if (slackNotifications.length > 0 && hasSlackBotToken && hasSlackRecipient && notificationSettings) {
           try {
             // notification_dataからBulkNotificationItemに変換
@@ -313,16 +327,26 @@ export async function GET(request: NextRequest) {
             );
 
             // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idを使用
+            // 念のため、slack_integrationsから取得した最新の情報を使用
             const recipientId = notificationSettings.slack_notification_type === 'dm'
               ? notificationSettings.slack_user_id!
               : notificationSettings.slack_channel_id!;
+
+            console.log(`[Send Notifications Cron] Sending Slack notification to user ${user.email}:`, {
+              notificationType: notificationSettings.slack_notification_type,
+              recipientId,
+              channelId: notificationSettings.slack_channel_id,
+              userId: notificationSettings.slack_user_id,
+              slackIntegrationChannelId: slackIntegration?.slack_channel_id,
+              slackIntegrationUserId: slackIntegration?.slack_user_id,
+            });
 
             await sendSlackNotificationWithBot(
               notificationSettings.slack_bot_token!,
               recipientId,
               slackPayload
             );
-            console.log(`[Send Notifications Cron] Slack notification sent via OAuth to user ${user.email}:`, {
+            console.log(`[Send Notifications Cron] Slack notification sent successfully to user ${user.email}:`, {
               notificationType: notificationSettings.slack_notification_type,
               recipientId,
             });
