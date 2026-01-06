@@ -732,7 +732,13 @@ async function handleRequest(request: NextRequest) {
           }
 
           // Slack通知も送信された場合、Slack通知のレコードも作成
-          if (notificationSettings?.slack_bot_token && notificationSettings?.slack_channel_id) {
+          // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idが必要
+          const hasSlackBotToken = !!notificationSettings?.slack_bot_token;
+          const hasSlackRecipient = notificationSettings?.slack_notification_type === 'dm'
+            ? !!notificationSettings?.slack_user_id
+            : !!notificationSettings?.slack_channel_id;
+          
+          if (hasSlackBotToken && hasSlackRecipient && notificationSettings) {
             const slackNotificationType = item.notificationType || 'rank_drop';
             const isSlackRise = slackNotificationType === 'rank_rise';
             const slackSubject = items.length === 1
@@ -742,13 +748,25 @@ async function handleRequest(request: NextRequest) {
               ? `順位上昇が検知されました（${items.length}件の記事）`
               : `順位下落が検知されました（${items.length}件の記事）`;
 
+            // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idを使用
+            const recipientId = notificationSettings.slack_notification_type === 'dm'
+              ? notificationSettings.slack_user_id!
+              : notificationSettings.slack_channel_id!;
+
+            console.log(`[Test Cron] Creating Slack notification record for user ${user.email}:`, {
+              notificationType: notificationSettings.slack_notification_type,
+              recipientId,
+              channelId: notificationSettings.slack_channel_id,
+              userId: notificationSettings.slack_user_id,
+            });
+
             // 通知内容の詳細データをJSONBで保存（メール通知と同じデータを使用）
             const { error: slackNotificationError } = await supabase.from("notifications").insert({
               user_id: user.id,
               article_id: article.id,
               notification_type: slackNotificationType,
               channel: "slack",
-              recipient: notificationSettings.slack_channel_id, // チャンネルIDまたはUser IDを保存
+              recipient: recipientId, // DMの場合はslack_user_id、チャンネルの場合はslack_channel_id
               subject: slackSubject,
               summary: slackSummary,
               notification_data: notificationData, // メール通知と同じデータを使用
@@ -761,8 +779,16 @@ async function handleRequest(request: NextRequest) {
                 slackNotificationError
               );
             } else {
-              console.log(`[Test Cron] Slack notification queued for article ${item.articleUrl}`);
+              console.log(`[Test Cron] Slack notification record created successfully for user ${user.email}`);
             }
+          } else if (hasSlackBotToken && !hasSlackRecipient) {
+            console.warn(`[Test Cron] Skipping Slack notification record creation for user ${user.email}:`, {
+              hasSlackBotToken,
+              hasSlackRecipient,
+              notificationType: notificationSettings?.slack_notification_type,
+              hasChannelId: !!notificationSettings?.slack_channel_id,
+              hasUserId: !!notificationSettings?.slack_user_id,
+            });
           }
         }
 

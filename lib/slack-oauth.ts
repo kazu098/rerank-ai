@@ -25,7 +25,7 @@ export function getSlackOAuthUrl(state?: string, requestOrigin?: string): string
       const url = new URL(requestOrigin);
       // localhostの場合は、本番環境のURLを使用
       if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.protocol === 'http:') {
-        const baseUrl = process.env.SLACK_REDIRECT_BASE_URL || 'https://rerank-ai.com';
+        const baseUrl = process.env.SLACK_REDIRECT_BASE_URL || 'https://www.rerank-ai.com';
         redirectUri = `${baseUrl}/api/auth/slack/callback`;
         console.log("[Slack OAuth] Using production URL for redirect_uri (localhost detected):", redirectUri);
       } else {
@@ -84,7 +84,7 @@ export async function exchangeSlackCodeForToken(code: string, requestUrl?: strin
       const url = new URL(requestUrl);
       // localhostの場合は、本番環境のURLを使用
       if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.protocol === 'http:') {
-        const baseUrl = process.env.SLACK_REDIRECT_BASE_URL || 'https://rerank-ai.com';
+        const baseUrl = process.env.SLACK_REDIRECT_BASE_URL || 'https://www.rerank-ai.com';
         redirectUri = `${baseUrl}/api/auth/slack/callback`;
         console.log("[Slack OAuth] Using production URL for redirect_uri (localhost detected):", redirectUri);
       } else {
