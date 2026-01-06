@@ -1,4 +1,5 @@
 import { createSupabaseClient } from '@/lib/supabase';
+import { getUserById } from './users';
 
 export interface UserAlertSettings {
   user_id: string;
@@ -45,7 +46,21 @@ export async function getUserAlertSettings(userId: string): Promise<Omit<UserAle
 
   if (error || !data) {
     // 設定が存在しない場合はデフォルト値を返す
-    return DEFAULT_ALERT_SETTINGS;
+    // timezoneがnullの場合、usersテーブルのtimezoneを取得してデフォルト値として使用
+    const user = await getUserById(userId);
+    const defaultTimezone = user?.timezone || 'Asia/Tokyo'; // 日本のサービスなのでAsia/Tokyoをデフォルトに
+    
+    return {
+      ...DEFAULT_ALERT_SETTINGS,
+      timezone: defaultTimezone,
+    };
+  }
+
+  // timezoneがnullの場合、usersテーブルのtimezoneを取得してデフォルト値として使用
+  let timezone = data.timezone;
+  if (!timezone) {
+    const user = await getUserById(userId);
+    timezone = user?.timezone || 'Asia/Tokyo'; // 日本のサービスなのでAsia/Tokyoをデフォルトに
   }
 
   return {
@@ -57,7 +72,7 @@ export async function getUserAlertSettings(userId: string): Promise<Omit<UserAle
     notification_cooldown_days: data.notification_cooldown_days ?? DEFAULT_ALERT_SETTINGS.notification_cooldown_days,
     notification_frequency: (data.notification_frequency as 'daily' | 'weekly' | 'none') ?? DEFAULT_ALERT_SETTINGS.notification_frequency,
     notification_time: data.notification_time ?? DEFAULT_ALERT_SETTINGS.notification_time,
-    timezone: data.timezone ?? DEFAULT_ALERT_SETTINGS.timezone,
+    timezone: timezone,
   };
 }
 
