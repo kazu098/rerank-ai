@@ -254,6 +254,18 @@ export async function POST(request: NextRequest) {
             id: savedIntegration.id,
             channelId: savedIntegration.slack_channel_id,
             notificationType: savedIntegration.slack_notification_type,
+            userId: savedIntegration.slack_user_id,
+            teamId: savedIntegration.slack_team_id,
+            hasBotToken: !!savedIntegration.slack_bot_token,
+          });
+          
+          // デバッグ: 保存後に再度取得して確認
+          const verifyIntegration = await getSlackIntegrationByUserId(session.userId);
+          console.log("[Notification Settings API] Verification - Slack integration after save:", {
+            exists: !!verifyIntegration,
+            channelId: verifyIntegration?.slack_channel_id,
+            notificationType: verifyIntegration?.slack_notification_type,
+            userId: verifyIntegration?.slack_user_id,
           });
 
           // チャネルまたはDMが選択された場合、挨拶メッセージを送信
