@@ -290,105 +290,31 @@ export async function saveOrUpdateNotificationSettings(
     slackNotificationType: settingsData.slack_notification_type,
   });
 
-  // 既存の設定を検索（is_enabledの条件は入れない - falseのレコードも見つけるため）
+  // UPSERTを使用して、競合を回避しながら作成または更新
+  // UNIQUE制約: (user_id, article_id, notification_type, channel)
   try {
-    // まず、複数のレコードが存在する可能性があるため、すべて取得してから最新のものを選択
-    let query = supabase
-      .from('notification_settings')
-      .select('*')
-      .eq('user_id', userId);
+    console.log('[Notification Settings DB] Using upsert to avoid race conditions');
     
-    // article_idがnullの場合は.is()を使い、値がある場合は.eq()を使う
-    if (articleId === null || articleId === undefined) {
-      query = query.is('article_id', null);
-    } else {
-      query = query.eq('article_id', articleId);
-    }
-    
-    const { data: existingRecords, error: searchError } = await query
-      .eq('notification_type', settings.notification_type)
-      .eq('channel', settings.channel)
-      .order('updated_at', { ascending: false });
-
-    if (searchError) {
-      console.error('[Notification Settings DB] Error searching for existing settings:', {
-        error: searchError.message,
-        code: searchError.code,
-        details: searchError.details,
-        hint: searchError.hint,
-      });
-      throw new Error(`Failed to search notification settings: ${searchError.message} (code: ${searchError.code})`);
-    }
-
-    // 既存のレコードが見つかった場合、最新のものを使用（複数ある場合は最新のものを更新）
-    const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-
-    if (existingRecords && existingRecords.length > 1) {
-      console.warn('[Notification Settings DB] Multiple settings found, using the most recent one:', {
-        totalCount: existingRecords.length,
-        usingId: existing?.id,
-        allIds: existingRecords.map(r => r.id),
-      });
-    }
-
-    if (!existing) {
-      console.log('[Notification Settings DB] No existing settings found (will create new)');
-    }
-
-    if (existing) {
-      console.log('[Notification Settings DB] Updating existing settings:', {
-        id: existing.id,
-        currentIsEnabled: existing.is_enabled,
-        currentHasSlackIntegrationId: !!existing.slack_integration_id,
-        newIsEnabled: settingsData.is_enabled,
-        newHasSlackIntegrationId: settingsData.slack_integration_id !== undefined,
-      });
-      // 更新
-      const { data, error } = await supabase
-        .from('notification_settings')
-        .update(settingsData)
-        .eq('id', existing.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('[Notification Settings DB] Error updating settings:', {
-          error: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-        });
-        throw new Error(`Failed to update notification settings: ${error.message} (code: ${error.code})`);
-      }
-
-      console.log('[Notification Settings DB] Settings updated successfully:', {
-        id: data.id,
-        is_enabled: data.is_enabled,
-        hasSlackIntegrationId: !!data.slack_integration_id,
-      });
-
-      return data as NotificationSettings;
-    }
-
-    console.log('[Notification Settings DB] Creating new settings');
-    // 新規作成
     const { data, error } = await supabase
       .from('notification_settings')
-      .insert(settingsData)
+      .upsert(settingsData, {
+        onConflict: 'user_id,article_id,notification_type,channel',
+        ignoreDuplicates: false, // 重複時は更新
+      })
       .select()
       .single();
 
     if (error) {
-      console.error('[Notification Settings DB] Error creating settings:', {
+      console.error('[Notification Settings DB] Error upserting settings:', {
         error: error.message,
         code: error.code,
         details: error.details,
         hint: error.hint,
       });
-      throw new Error(`Failed to create notification settings: ${error.message} (code: ${error.code})`);
+      throw new Error(`Failed to upsert notification settings: ${error.message} (code: ${error.code})`);
     }
 
-    console.log('[Notification Settings DB] Settings created successfully:', {
+    console.log('[Notification Settings DB] Settings upserted successfully:', {
       id: data.id,
       is_enabled: data.is_enabled,
       hasSlackIntegrationId: !!data.slack_integration_id,
