@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
         const subscriptionData = subscription as any;
         const currentPeriodStart = subscriptionData.current_period_start;
         const currentPeriodEnd = subscriptionData.current_period_end;
+        const trialEnd = subscriptionData.trial_end; // トライアル終了日（Unix timestamp）
         
         const planStartedAt = currentPeriodStart
           ? new Date(currentPeriodStart * 1000)
@@ -91,20 +92,23 @@ export async function POST(request: NextRequest) {
         const planEndsAt = currentPeriodEnd
           ? new Date(currentPeriodEnd * 1000)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
+        // トライアル期間がある場合、trial_ends_atを設定
+        const trialEndsAt = trialEnd ? new Date(trialEnd * 1000) : null;
 
-        await updateUserPlan(session.userId, plan.id, planStartedAt, planEndsAt);
+        await updateUserPlan(session.userId, plan.id, planStartedAt, planEndsAt, trialEndsAt);
       } catch (error: any) {
         console.error(`[Verify Session] Failed to retrieve subscription:`, error.message);
         // サブスクリプション取得に失敗した場合でも、デフォルト値でプランを更新
         const planStartedAt = new Date();
         const planEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        await updateUserPlan(session.userId, plan.id, planStartedAt, planEndsAt);
+        await updateUserPlan(session.userId, plan.id, planStartedAt, planEndsAt, undefined);
       }
     } else {
       // サブスクリプションがまだ作成されていない場合（非同期処理）
       const planStartedAt = new Date();
       const planEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      await updateUserPlan(session.userId, plan.id, planStartedAt, planEndsAt);
+      await updateUserPlan(session.userId, plan.id, planStartedAt, planEndsAt, undefined);
     }
 
     return NextResponse.json({

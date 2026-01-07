@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planName, currency, locale: requestLocale } = body;
+    const { planName, currency, locale: requestLocale, trial } = body;
 
     if (!planName) {
       return NextResponse.json(
@@ -137,7 +137,8 @@ export async function POST(request: NextRequest) {
     // Stripe公式ドキュメント: https://stripe.com/docs/api/checkout/sessions/create
     // - price: 通貨を含むPrice IDを指定（各通貨ごとに異なるPrice ID）
     // - locale: 決済ページの言語設定（"ja", "en", "auto"など）
-    const checkoutSession = await stripe.checkout.sessions.create({
+    // - trial: 無料トライアル期間を設定（7日間）
+    const checkoutSessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       mode: "subscription",
       line_items: [
@@ -165,7 +166,23 @@ export async function POST(request: NextRequest) {
       // https://stripe.com/docs/api/checkout/sessions/create#create_checkout_session-locale
       // "auto"でStripeがブラウザ言語を自動判定、"ja"で日本語固定
       locale: locale === "ja" ? "ja" : "auto",
-    });
+    };
+
+    // トライアルフラグがtrueの場合、7日間の無料トライアルを設定
+    // スタータープランのみトライアル可能
+    if (trial === true && planName === "starter") {
+      checkoutSessionParams.subscription_data = {
+        ...checkoutSessionParams.subscription_data,
+        trial_period_days: 7, // 7日間の無料トライアル
+      };
+      // メタデータにトライアル情報を追加
+      checkoutSessionParams.metadata = {
+        ...checkoutSessionParams.metadata,
+        isTrial: "true",
+      };
+    }
+
+    const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams);
 
     return NextResponse.json({
       success: true,

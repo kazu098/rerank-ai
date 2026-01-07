@@ -435,7 +435,8 @@ export async function updateUserPlan(
   userId: string,
   planId: string,
   planStartedAt?: Date,
-  planEndsAt?: Date | null
+  planEndsAt?: Date | null,
+  trialEndsAt?: Date | null
 ): Promise<void> {
   const supabase = createSupabaseClient();
 
@@ -452,6 +453,11 @@ export async function updateUserPlan(
   // planEndsAtが指定されている場合は必ず設定（undefinedの場合は設定しない）
   if (planEndsAt !== undefined) {
     updateData.plan_ends_at = planEndsAt ? planEndsAt.toISOString() : null;
+  }
+
+  // trialEndsAtが指定されている場合は必ず設定（undefinedの場合は設定しない）
+  if (trialEndsAt !== undefined) {
+    updateData.trial_ends_at = trialEndsAt ? trialEndsAt.toISOString() : null;
   }
 
   console.log(`[updateUserPlan] Updating user plan - userId: ${userId}, updateData:`, JSON.stringify(updateData, null, 2));
