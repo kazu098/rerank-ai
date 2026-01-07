@@ -35,20 +35,41 @@ export async function GET(request: NextRequest) {
     const invoices = await stripe.invoices.list({
       customer: user.stripe_customer_id,
       limit: 12, // 直近12件
+      expand: ['data.subscription'], // サブスクリプション情報も取得（デバッグ用）
     });
 
-    const formattedInvoices = invoices.data.map((invoice) => ({
-      id: invoice.id,
-      amount: invoice.amount_paid,
-      currency: invoice.currency,
-      status: invoice.status,
-      created: invoice.created,
-      periodStart: invoice.period_start,
-      periodEnd: invoice.period_end,
-      hostedInvoiceUrl: invoice.hosted_invoice_url,
-      invoicePdf: invoice.invoice_pdf,
-      description: invoice.description || invoice.lines.data[0]?.description || "",
-    }));
+    // デバッグログ: 取得した請求書の情報を確認
+    console.log(`[Invoices API] Fetched invoices for customer ${user.stripe_customer_id}:`, {
+      total: invoices.data.length,
+      invoiceIds: invoices.data.map(inv => inv.id),
+      statuses: invoices.data.map(inv => inv.status),
+      hasHostedUrl: invoices.data.map(inv => !!inv.hosted_invoice_url),
+      hasPdf: invoices.data.map(inv => !!inv.invoice_pdf),
+    });
+
+    const formattedInvoices = invoices.data.map((invoice) => {
+      // デバッグログ: 各請求書の詳細情報
+      console.log(`[Invoices API] Invoice ${invoice.id}:`, {
+        status: invoice.status,
+        amount_paid: invoice.amount_paid,
+        hosted_invoice_url: invoice.hosted_invoice_url,
+        invoice_pdf: invoice.invoice_pdf,
+        finalized: invoice.status === 'paid' || invoice.status === 'open',
+      });
+
+      return {
+        id: invoice.id,
+        amount: invoice.amount_paid,
+        currency: invoice.currency,
+        status: invoice.status,
+        created: invoice.created,
+        periodStart: invoice.period_start,
+        periodEnd: invoice.period_end,
+        hostedInvoiceUrl: invoice.hosted_invoice_url,
+        invoicePdf: invoice.invoice_pdf,
+        description: invoice.description || invoice.lines.data[0]?.description || "",
+      };
+    });
 
     return NextResponse.json({
       invoices: formattedInvoices,
