@@ -65,7 +65,13 @@ export function PricingSection() {
     // ユーザーが通貨を変更したい場合は、ロケール設定を変更してください
   };
 
-  const handlePlanSelect = async (planName: string) => {
+  const handlePlanSelect = async (planName: string, e?: React.MouseEvent) => {
+    // イベントの伝播を防ぐ
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     // 未ログイン時はログインに誘導
     if (status !== "authenticated") {
       router.push(`/${locale}?signin=true`);
@@ -78,7 +84,7 @@ export function PricingSection() {
       locale: locale,
     };
 
-    setProcessingPlan(planName);
+    setProcessingPlan(`${planName}-regular`);
     try {
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -100,6 +106,52 @@ export function PricingSection() {
       }
     } catch (error: any) {
       console.error("Checkout error:", error);
+      alert(t("errors.checkoutFailed"));
+    } finally {
+      setProcessingPlan(null);
+    }
+  };
+
+  const handleTrialStart = async (planName: string, e?: React.MouseEvent) => {
+    // イベントの伝播を防ぐ
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // 未ログイン時はログインに誘導
+    if (status !== "authenticated") {
+      router.push(`/${locale}?signin=true`);
+      return;
+    }
+
+    setProcessingPlan(`${planName}-trial`);
+    try {
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planName,
+          currency: selectedCurrency,
+          locale: locale,
+          trial: true, // トライアルフラグ
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || t("errors.checkoutFailed"));
+        return;
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      console.error("Trial checkout error:", error);
       alert(t("errors.checkoutFailed"));
     } finally {
       setProcessingPlan(null);
@@ -198,19 +250,19 @@ export function PricingSection() {
                     <div className="mt-8">
                       {plan.name === "starter" ? (
                         <button
-                          onClick={() => handlePlanSelect(plan.name)}
-                          disabled={processingPlan === plan.name || loadingPlans}
+                          onClick={(e) => handleTrialStart(plan.name, e)}
+                          disabled={processingPlan === `${plan.name}-trial` || processingPlan === `${plan.name}-regular` || loadingPlans}
                           className="block w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors text-center mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {processingPlan === plan.name ? t("common.loading") : t("home.pricing.startTrial")}
+                          {processingPlan === `${plan.name}-trial` ? t("common.loading") : t("home.pricing.startTrial")}
                         </button>
                       ) : null}
                       <button
-                        onClick={() => handlePlanSelect(plan.name)}
-                        disabled={processingPlan === plan.name || loadingPlans}
+                        onClick={(e) => handlePlanSelect(plan.name, e)}
+                        disabled={processingPlan === `${plan.name}-regular` || processingPlan === `${plan.name}-trial` || loadingPlans}
                         className="block w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {processingPlan === plan.name ? t("common.loading") : t("home.pricing.getStarted")}
+                        {processingPlan === `${plan.name}-regular` ? t("common.loading") : t("home.pricing.getStarted")}
                       </button>
                     </div>
                   </div>

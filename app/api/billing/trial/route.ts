@@ -4,7 +4,15 @@ import { getPlanByName } from "@/lib/db/plans";
 import { getUserById, updateUserPlan } from "@/lib/db/users";
 
 /**
- * 7日間無料トライアルを開始
+ * 7日間無料トライアルを開始（非推奨）
+ * 
+ * 注意: このエンドポイントはクレジットカード不要でトライアルを開始しますが、
+ * Stripeの無料トライアル機能（subscription_data.trial_period_days）を使用する方が
+ * 一般的なベストプラクティスに沿っています。
+ * 
+ * 新しい実装では、/api/billing/checkout に trial: true を渡すことで
+ * Stripeの無料トライアル機能を使用します（クレジットカード登録が必要）。
+ * 
  * POST /api/billing/trial
  * Body: { planName: string }
  */
@@ -74,7 +82,7 @@ export async function POST(request: NextRequest) {
     trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
     // ユーザーのプランを更新（トライアル中はスタータープランの機能を使用）
-    await updateUserPlan(plan.id, plan.id, new Date(), trialEndsAt);
+    await updateUserPlan(session.userId, plan.id, new Date(), trialEndsAt, trialEndsAt);
 
     // trial_ends_atも更新（別途更新が必要な場合）
     // ここではupdateUserPlanでplan_ends_atに設定しているが、

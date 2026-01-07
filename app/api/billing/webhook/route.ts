@@ -140,6 +140,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       const subscriptionData = subscription as any;
       const currentPeriodStart = subscriptionData.current_period_start;
       const currentPeriodEnd = subscriptionData.current_period_end;
+      const trialEnd = subscriptionData.trial_end; // トライアル終了日（Unix timestamp）
       
       const planStartedAt = currentPeriodStart 
         ? new Date(currentPeriodStart * 1000)
@@ -147,9 +148,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       const planEndsAt = currentPeriodEnd
         ? new Date(currentPeriodEnd * 1000)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
+      
+      // トライアル期間がある場合、trial_ends_atを設定
+      const trialEndsAt = trialEnd ? new Date(trialEnd * 1000) : null;
 
-      await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
-      console.log(`[Webhook] Plan updated for user ${userId}: ${planName} (from checkout.session.completed), planId: ${plan.id}, startedAt: ${planStartedAt}, endsAt: ${planEndsAt}`);
+      await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt, trialEndsAt);
+      console.log(`[Webhook] Plan updated for user ${userId}: ${planName} (from checkout.session.completed), planId: ${plan.id}, startedAt: ${planStartedAt}, endsAt: ${planEndsAt}, trialEndsAt: ${trialEndsAt}`);
     } catch (error: any) {
       console.error(`[Webhook] Failed to retrieve subscription ${subscriptionId}:`, error.message, error);
       // エラーが発生した場合でも、プランを更新を試みる（セッションメタデータを使用）
@@ -246,6 +250,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   const subscriptionData = subscription as any;
   const currentPeriodStart = subscriptionData.current_period_start;
   const currentPeriodEnd = subscriptionData.current_period_end;
+  const trialEnd = subscriptionData.trial_end; // トライアル終了日（Unix timestamp）
   
   const planStartedAt = currentPeriodStart
     ? new Date(currentPeriodStart * 1000)
@@ -253,9 +258,12 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   const planEndsAt = currentPeriodEnd
     ? new Date(currentPeriodEnd * 1000)
     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
+  
+  // トライアル期間がある場合、trial_ends_atを設定
+  const trialEndsAt = trialEnd ? new Date(trialEnd * 1000) : null;
 
-  await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
-  console.log(`[Webhook] Plan updated for user ${userId}: ${planName} (subscription.created), planId: ${plan.id}, startedAt: ${planStartedAt}, endsAt: ${planEndsAt}`);
+  await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt, trialEndsAt);
+  console.log(`[Webhook] Plan updated for user ${userId}: ${planName} (subscription.created), planId: ${plan.id}, startedAt: ${planStartedAt}, endsAt: ${planEndsAt}, trialEndsAt: ${trialEndsAt}`);
 }
 
 /**
@@ -304,6 +312,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const subscriptionData = subscription as any;
   const currentPeriodStart = subscriptionData.current_period_start;
   const currentPeriodEnd = subscriptionData.current_period_end;
+  const trialEnd = subscriptionData.trial_end; // トライアル終了日（Unix timestamp）
   
   const planStartedAt = currentPeriodStart
     ? new Date(currentPeriodStart * 1000)
@@ -311,9 +320,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const planEndsAt = currentPeriodEnd
     ? new Date(currentPeriodEnd * 1000)
     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
+  
+  // トライアル期間がある場合、trial_ends_atを設定（トライアルが終了している場合はnull）
+  const trialEndsAt = trialEnd && trialEnd * 1000 > Date.now() ? new Date(trialEnd * 1000) : null;
 
-  await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt);
-  console.log(`[Webhook] Plan updated for user ${userId}: ${planName}`);
+  await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt, trialEndsAt);
+  console.log(`[Webhook] Plan updated for user ${userId}: ${planName}, trialEndsAt: ${trialEndsAt}`);
 }
 
 /**
