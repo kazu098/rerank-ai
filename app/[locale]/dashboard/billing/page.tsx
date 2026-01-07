@@ -23,6 +23,7 @@ interface Plan {
 
 interface UserPlan {
   plan: Plan;
+  pending_plan: Plan | null; // 次回適用されるプラン（ダウングレード時など）
   plan_started_at: string | null;
   plan_ends_at: string | null;
   trial_ends_at: string | null;
@@ -344,7 +345,7 @@ export default function BillingPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("currentPlan")}</h2>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <div className="text-2xl font-bold text-gray-900">{currentPlan.display_name}</div>
               <div className="text-gray-600 mt-1">
                 {formatCurrencyPrice(getPlanPriceWithCurrency(currentPlan, selectedCurrency), selectedCurrency)}/月
@@ -357,6 +358,22 @@ export default function BillingPage() {
               {userPlan.plan_ends_at && currentPlan.name !== "free" && userPlan.stripe_subscription_id && (
                 <div className="text-gray-600 mt-2">
                   {t("nextRenewalDate", { date: new Date(userPlan.plan_ends_at).toLocaleDateString(locale) })}
+                </div>
+              )}
+              {/* pending_planがある場合（ダウングレード時） */}
+              {userPlan.pending_plan && userPlan.pending_plan.id !== currentPlan.id && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="text-sm text-blue-800 font-semibold mb-1">
+                    {t("planChangeScheduled") || "プラン変更予定"}
+                  </div>
+                  <div className="text-sm text-blue-700">
+                    {t("nextPlanFrom", { 
+                      planName: userPlan.pending_plan.display_name,
+                      date: userPlan.plan_ends_at 
+                        ? new Date(userPlan.plan_ends_at).toLocaleDateString(locale)
+                        : ""
+                    }) || `次回から: ${userPlan.pending_plan.display_name}プラン（${userPlan.plan_ends_at ? new Date(userPlan.plan_ends_at).toLocaleDateString(locale) : ""}から）`}
+                  </div>
                 </div>
               )}
             </div>

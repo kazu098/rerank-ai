@@ -194,10 +194,16 @@ export async function POST(request: NextRequest) {
         // アップグレード: 即座に変更（比例計算で差額を請求）
         changeType = 'upgrade';
         effectiveProrationBehavior = 'always_invoice';
+        // アップグレード時はpending_plan_idをクリア（即座に変更されるため）
+        const { updatePendingPlanId } = await import('@/lib/db/users');
+        await updatePendingPlanId(user.id, null);
       } else if (newPlanPrice < currentPlanPrice) {
         // ダウングレード: 期間終了時に変更（差額を返金しない）
         changeType = 'downgrade';
         effectiveProrationBehavior = 'none';
+        // ダウングレード時はpending_plan_idを設定（期間終了時に適用）
+        const { updatePendingPlanId } = await import('@/lib/db/users');
+        await updatePendingPlanId(user.id, newPlan.id);
       } else {
         // 同じ価格: 期間終了時に変更
         changeType = 'same';
@@ -252,8 +258,10 @@ export async function POST(request: NextRequest) {
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     try {
-      await updateUserPlan(user.id, newPlan.id, planStartedAt, planEndsAt);
-      console.log(`[Plan Change API] Plan updated immediately - userId: ${user.id}, planId: ${newPlan.id}, planName: ${planName}`);
+      // アップグレード時はpending_plan_idをクリア、ダウングレード時は既に設定済み
+      const pendingPlanIdToSet = changeType === 'upgrade' ? null : undefined;
+      await updateUserPlan(user.id, newPlan.id, planStartedAt, planEndsAt, undefined, pendingPlanIdToSet);
+      console.log(`[Plan Change API] Plan updated immediately - userId: ${user.id}, planId: ${newPlan.id}, planName: ${planName}, changeType: ${changeType}`);
     } catch (error: any) {
       console.error(`[Plan Change API] Failed to update user plan immediately:`, error.message);
       // エラーが発生しても、Stripeの更新は完了しているので続行

@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
       plan = await getPlanById(user.plan_id);
     }
 
+    // pending_plan情報を取得
+    let pendingPlan = null;
+    if (user.pending_plan_id) {
+      pendingPlan = await getPlanById(user.pending_plan_id);
+    }
+
     // 必要な情報のみを返す
     return NextResponse.json({
       user: {
@@ -56,6 +62,20 @@ export async function GET(request: NextRequest) {
               max_concurrent_analyses: plan.max_concurrent_analyses,
               max_article_suggestions_per_month: plan.max_article_suggestions_per_month,
               analysis_history_days: plan.analysis_history_days,
+            }
+          : null,
+        pending_plan: pendingPlan
+          ? {
+              id: pendingPlan.id,
+              name: pendingPlan.name,
+              display_name: pendingPlan.display_name,
+              price_monthly: pendingPlan.price_monthly,
+              max_articles: pendingPlan.max_articles,
+              max_analyses_per_month: pendingPlan.max_analyses_per_month,
+              max_sites: pendingPlan.max_sites,
+              max_concurrent_analyses: pendingPlan.max_concurrent_analyses,
+              max_article_suggestions_per_month: pendingPlan.max_article_suggestions_per_month,
+              analysis_history_days: pendingPlan.analysis_history_days,
             }
           : null,
         plan_started_at: user.plan_started_at,

@@ -324,8 +324,13 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   // トライアル期間がある場合、trial_ends_atを設定（トライアルが終了している場合はnull）
   const trialEndsAt = trialEnd && trialEnd * 1000 > Date.now() ? new Date(trialEnd * 1000) : null;
 
-  await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt, trialEndsAt);
-  console.log(`[Webhook] Plan updated for user ${userId}: ${planName}, trialEndsAt: ${trialEndsAt}`);
+  // 新しいプランが現在のプランと異なる場合、pending_plan_idをクリア（アップグレード時など）
+  // ダウングレード時は既にpending_plan_idが設定されているので、ここではクリアしない
+  const shouldClearPendingPlan = user.plan_id !== plan.id && user.pending_plan_id;
+  const pendingPlanIdToSet = shouldClearPendingPlan ? null : undefined;
+
+  await updateUserPlan(userId, plan.id, planStartedAt, planEndsAt, trialEndsAt, pendingPlanIdToSet);
+  console.log(`[Webhook] Plan updated for user ${userId}: ${planName}, trialEndsAt: ${trialEndsAt}, pendingPlanCleared: ${shouldClearPendingPlan}`);
 }
 
 /**
@@ -355,14 +360,15 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   // サブスクリプションIDをクリア
   await updateStripeSubscriptionId(userId, null);
 
-  // 無料プランに変更（現在の期間の終了日まで有効）
+  // 無料プランに変更（pending_plan_idもクリア）
   const subscriptionData = subscription as any; // Stripe型定義の互換性のため
   const planEndsAt = new Date(subscriptionData.current_period_end * 1000);
-  await updateUserPlan(userId, freePlan.id, new Date(), planEndsAt);
+  await updateUserPlan(userId, freePlan.id, new Date(), planEndsAt, undefined, null);
 }
 
 /**
  * 請求書の支払い成功時の処理
+ * 期間終了時にpending_plan_idがある場合、それを適用する
  */
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const invoiceData = invoice as any; // Stripe型定義の互換性のため
@@ -383,6 +389,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     return;
   }
 
+  const user = await getUserById(userId);
+  if (!user) {
+    console.error(`[Webhook] User not found: ${userId}`);
+    return;
+  }
+
   // プラン期間を更新
   const subscriptionData = subscription as any;
   const currentPeriodEnd = subscriptionData.current_period_end;
@@ -390,8 +402,24 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const planEndsAt = currentPeriodEnd
     ? new Date(currentPeriodEnd * 1000)
     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後をデフォルト
-  const user = await getUserById(userId);
-  if (user) {
+
+  // pending_plan_idがある場合、期間終了時に適用（ダウングレード時など）
+  if (user.pending_plan_id) {
+    console.log(`[Webhook] Applying pending plan - userId: ${userId}, pendingPlanId: ${user.pending_plan_id}`);
+    
+    // pending_plan_idをplan_idに適用
+    await updateUserPlan(
+      userId,
+      user.pending_plan_id,
+      new Date(),
+      planEndsAt,
+      undefined, // trialEndsAt
+      null // pending_plan_idをクリア
+    );
+    
+    console.log(`[Webhook] Pending plan applied - userId: ${userId}, newPlanId: ${user.pending_plan_id}`);
+  } else {
+    // pending_plan_idがない場合、現在のプランを更新
     await updateUserPlan(user.plan_id!, user.plan_id!, new Date(), planEndsAt);
   }
 }

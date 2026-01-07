@@ -39,12 +39,15 @@ export async function POST(request: NextRequest) {
 
     const stripe = getStripeClient();
 
-    // サブスクリプションをキャンセル（即座にキャンセル）
-    await stripe.subscriptions.cancel(user.stripe_subscription_id);
+    // サブスクリプションを期間終了時にキャンセル（既に支払った期間を使い切れる）
+    // cancel_at_period_end: true により、現在の期間終了まで有料プランが継続
+    await stripe.subscriptions.update(user.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Subscription cancelled successfully. You will be moved to the free plan at the end of the current billing period.",
+      message: "Subscription will be cancelled at the end of the current billing period. You can continue using the paid plan until then.",
     });
   } catch (error: any) {
     console.error("[Cancel Subscription API] Error:", error);
