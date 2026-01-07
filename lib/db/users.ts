@@ -10,6 +10,7 @@ export interface User {
   provider: string | null;
   provider_id: string | null;
   plan_id: string | null;
+  pending_plan_id: string | null; // 次回適用されるプラン（ダウングレード時など）
   plan_started_at: string | null;
   plan_ends_at: string | null;
   trial_ends_at: string | null;
@@ -436,7 +437,8 @@ export async function updateUserPlan(
   planId: string,
   planStartedAt?: Date,
   planEndsAt?: Date | null,
-  trialEndsAt?: Date | null
+  trialEndsAt?: Date | null,
+  pendingPlanId?: string | null
 ): Promise<void> {
   const supabase = createSupabaseClient();
 
@@ -460,6 +462,11 @@ export async function updateUserPlan(
     updateData.trial_ends_at = trialEndsAt ? trialEndsAt.toISOString() : null;
   }
 
+  // pendingPlanIdが指定されている場合は必ず設定（undefinedの場合は設定しない）
+  if (pendingPlanId !== undefined) {
+    updateData.pending_plan_id = pendingPlanId || null;
+  }
+
   console.log(`[updateUserPlan] Updating user plan - userId: ${userId}, updateData:`, JSON.stringify(updateData, null, 2));
 
   const { data, error } = await supabase
@@ -474,4 +481,29 @@ export async function updateUserPlan(
   }
 
   console.log(`[updateUserPlan] User plan updated successfully - userId: ${userId}, updated:`, data);
+}
+
+/**
+ * ユーザーのpending_plan_idを更新
+ */
+export async function updatePendingPlanId(
+  userId: string,
+  pendingPlanId: string | null
+): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      pending_plan_id: pendingPlanId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error(`[updatePendingPlanId] Error updating pending plan:`, error);
+    throw new Error(`Failed to update pending plan: ${error.message}`);
+  }
+
+  console.log(`[updatePendingPlanId] Pending plan updated - userId: ${userId}, pendingPlanId: ${pendingPlanId}`);
 }
