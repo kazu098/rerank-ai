@@ -450,10 +450,16 @@ export function AuthenticatedContent() {
           if (userResponse.ok) {
             const userData = await userResponse.json();
             setUserPlan(userData.user);
+            console.log("[Plan Info] User plan loaded:", userData.user?.plan?.name);
+          } else {
+            console.error("[Plan Info] Failed to fetch user info:", userResponse.status, userResponse.statusText);
           }
           if (usageResponse.ok) {
             const usageData = await usageResponse.json();
             setUsage(usageData.usage);
+            console.log("[Plan Info] Usage loaded:", usageData.usage);
+          } else {
+            console.error("[Plan Info] Failed to fetch usage:", usageResponse.status, usageResponse.statusText);
           }
         })
         .catch((err) => {
