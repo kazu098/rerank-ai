@@ -934,18 +934,6 @@ export function AuthenticatedContent() {
     }
   };
 
-  // デバッグログ
-  useEffect(() => {
-    console.log("[AuthenticatedContent] Render state:", {
-      showPropertySelection,
-      selectedSiteUrl,
-      status,
-      sessionUserId: session?.userId,
-      userPlan: userPlan?.plan?.name,
-      usage: usage?.analyses_this_month,
-    });
-  }, [showPropertySelection, selectedSiteUrl, status, session?.userId, userPlan, usage]);
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <div className="max-w-4xl mx-auto">
