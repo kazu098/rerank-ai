@@ -19,11 +19,5 @@
     "app/api/cron/check-rank/test/route.ts": {
       "maxDuration": 60
     }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/check-rank",
-      "schedule": "0 15 * * *"
-    }
-  ]
+  }
 }
