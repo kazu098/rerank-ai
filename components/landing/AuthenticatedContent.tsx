@@ -133,7 +133,8 @@ export function AuthenticatedContent() {
         const result = await response.json();
         setGscProperties(result.properties || []);
         setPropertiesLoaded(true);
-        if (result.properties && result.properties.length > 0) {
+        // プロパティが0件でも、プロパティ選択画面を表示（エラーメッセージとともに）
+        if (!selectedSiteUrl) {
           setShowPropertySelection(true);
         }
       } else {
@@ -144,11 +145,19 @@ export function AuthenticatedContent() {
           return;
         } else {
           setError(error.error || t("errors.propertyLoadFailed"));
+          // エラーが発生した場合でも、プロパティ選択画面を表示
+          if (!selectedSiteUrl) {
+            setShowPropertySelection(true);
+          }
         }
       }
     } catch (err: any) {
       console.error("[GSC] Error loading properties:", err);
       setError(err.message || t("errors.propertyLoadFailed"));
+      // エラーが発生した場合でも、プロパティ選択画面を表示
+      if (!selectedSiteUrl) {
+        setShowPropertySelection(true);
+      }
     } finally {
       setLoadingProperties(false);
     }
@@ -287,8 +296,20 @@ export function AuthenticatedContent() {
     }
   };
 
+  // セッション変更時に状態をリセット
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      // ログアウト時に状態をリセット
+      setSelectedSiteUrl(null);
+      setShowPropertySelection(false);
+      setPropertiesLoaded(false);
+      setGscProperties([]);
+    }
+  }, [status]);
+
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
+      console.log("[AuthenticatedContent] Loading GSC properties...");
       loadGSCProperties();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -401,6 +422,7 @@ export function AuthenticatedContent() {
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && session?.userId) {
       const savedSiteUrl = localStorage.getItem("selectedGSCSiteUrl");
+      console.log("[AuthenticatedContent] Checking localStorage for saved site:", savedSiteUrl, "selectedSiteUrl:", selectedSiteUrl);
       if (savedSiteUrl && !selectedSiteUrl) {
         (async () => {
           try {
@@ -417,6 +439,7 @@ export function AuthenticatedContent() {
 
             if (response.ok) {
               const result = await response.json();
+              console.log("[AuthenticatedContent] Site restored from localStorage:", savedSiteUrl);
               setSelectedSiteUrl(savedSiteUrl);
               if (result.site?.id) {
                 setSelectedSiteId(result.site.id);
@@ -426,17 +449,31 @@ export function AuthenticatedContent() {
               const error = await response.json();
               console.error("[GSC] Failed to save site from localStorage:", error);
               localStorage.removeItem("selectedGSCSiteUrl");
-              setShowPropertySelection(true);
+              // プロパティ選択画面を表示
+              if (!propertiesLoaded) {
+                loadGSCProperties();
+              } else {
+                setShowPropertySelection(true);
+              }
             }
           } catch (err: any) {
             console.error("[GSC] Error saving site from localStorage:", err);
             localStorage.removeItem("selectedGSCSiteUrl");
-            setShowPropertySelection(true);
+            // プロパティ選択画面を表示
+            if (!propertiesLoaded) {
+              loadGSCProperties();
+            } else {
+              setShowPropertySelection(true);
+            }
           }
         })();
+      } else if (!savedSiteUrl && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
+        // localStorageに保存されていない場合、プロパティを読み込む
+        console.log("[AuthenticatedContent] No saved site in localStorage, loading properties...");
+        loadGSCProperties();
       }
     }
-  }, [status, session?.accessToken, session?.userId]);
+  }, [status, session?.accessToken, session?.userId, selectedSiteUrl, propertiesLoaded, loadingProperties]);
 
   // プラン情報と使用量を取得
   useEffect(() => {
@@ -896,6 +933,18 @@ export function AuthenticatedContent() {
       alert("コピーに失敗しました");
     }
   };
+
+  // デバッグログ
+  useEffect(() => {
+    console.log("[AuthenticatedContent] Render state:", {
+      showPropertySelection,
+      selectedSiteUrl,
+      status,
+      sessionUserId: session?.userId,
+      userPlan: userPlan?.plan?.name,
+      usage: usage?.analyses_this_month,
+    });
+  }, [showPropertySelection, selectedSiteUrl, status, session?.userId, userPlan, usage]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
