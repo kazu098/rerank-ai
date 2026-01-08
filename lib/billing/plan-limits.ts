@@ -101,19 +101,32 @@ export async function checkUserPlanLimit(
       break;
     }
     case "article_suggestions": {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
       const supabase = createSupabaseClient();
-      const { data: suggestions } = await supabase
-        .from("article_suggestions")
-        .select("id")
-        .eq("user_id", userId)
-        .gte("created_at", startOfMonth.toISOString())
-        .lte("created_at", endOfMonth.toISOString());
+      
+      // Freeプランの場合は累計、それ以外は月間
+      if (plan.name === "free") {
+        // 累計提案回数を取得
+        const { data: suggestions } = await supabase
+          .from("article_suggestions")
+          .select("id")
+          .eq("user_id", userId);
 
-      currentUsage = suggestions?.length || 0;
+        currentUsage = suggestions?.length || 0;
+      } else {
+        // 月間提案回数を取得
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+        const { data: suggestions } = await supabase
+          .from("article_suggestions")
+          .select("id")
+          .eq("user_id", userId)
+          .gte("created_at", startOfMonth.toISOString())
+          .lte("created_at", endOfMonth.toISOString());
+
+        currentUsage = suggestions?.length || 0;
+      }
       break;
     }
     case "concurrent_analyses": {
