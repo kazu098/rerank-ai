@@ -162,13 +162,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 8. 最近のユーザー一覧（新規登録順、最新10件）
+    // 8. 最近のユーザー一覧（新規登録順、最新5件のみ - サマリー表示用）
     const { data: recentUsers } = await supabase
       .from("users")
       .select("id, email, name, created_at, provider, plan_id")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(5);
 
     // プラン情報を追加
     const recentUsersWithPlans = await Promise.all(
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // 9. 最近の分析実行履歴（最新20件）
+    // 9. 最近の分析実行履歴（最新5件のみ - サマリー表示用）
     const { data: recentAnalyses } = await supabase
       .from("analysis_runs")
       .select(`
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
         article:articles!inner(id, url, title, user_id)
       `)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(5);
 
     // 10. 通知送信統計
     const { count: totalNotifications } = await supabase

@@ -2,6 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DashboardStats {
   users: {
@@ -73,15 +85,71 @@ interface DashboardStats {
   };
 }
 
+interface TrendData {
+  period: string;
+  trends: {
+    users: Array<{ date: string; count: number }>;
+    analyses: Array<{ date: string; count: number }>;
+    mrr?: Array<{ date: string; mrr: number }>;
+  };
+}
+
 export default function AdminDashboardPage() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [trends, setTrends] = useState<TrendData | null>(null);
+  const [trendPeriod, setTrendPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ユーザー一覧のページング
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersPageSize] = useState(20);
+  const [usersTotalPages, setUsersTotalPages] = useState(1);
+  const [usersList, setUsersList] = useState<Array<{
+    id: string;
+    email: string;
+    name: string | null;
+    created_at: string;
+    provider: string | null;
+    planName: string;
+  }>>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  // 分析実行履歴のページング
+  const [analysesPage, setAnalysesPage] = useState(1);
+  const [analysesPageSize] = useState(20);
+  const [analysesTotalPages, setAnalysesTotalPages] = useState(1);
+  const [analysesList, setAnalysesList] = useState<Array<{
+    id: string;
+    created_at: string;
+    article: {
+      id: string;
+      url: string;
+      title: string | null;
+      user_id: string;
+    };
+  }>>([]);
+  const [analysesLoading, setAnalysesLoading] = useState(false);
+
   useEffect(() => {
     fetchStats();
+    fetchTrends();
+    fetchUsers();
+    fetchAnalyses();
   }, []);
+
+  useEffect(() => {
+    fetchTrends();
+  }, [trendPeriod]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [usersPage]);
+
+  useEffect(() => {
+    fetchAnalyses();
+  }, [analysesPage]);
 
   const fetchStats = async () => {
     try {
@@ -99,6 +167,64 @@ export default function AdminDashboardPage() {
       setError(err.message || "エラーが発生しました");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTrends = async () => {
+    try {
+      const response = await fetch(`/api/admin/dashboard/trends?period=${trendPeriod}`);
+
+      if (!response.ok) {
+        throw new Error("時系列データの取得に失敗しました");
+      }
+
+      const data = await response.json();
+      setTrends(data);
+    } catch (err: any) {
+      console.error("[Admin Dashboard Trends] Error:", err);
+      // エラーは表示しない（グラフが表示されないだけ）
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setUsersLoading(true);
+      const response = await fetch(
+        `/api/admin/users?page=${usersPage}&pageSize=${usersPageSize}`
+      );
+
+      if (!response.ok) {
+        throw new Error("ユーザー一覧の取得に失敗しました");
+      }
+
+      const data = await response.json();
+      setUsersList(data.users || []);
+      setUsersTotalPages(data.totalPages || 1);
+    } catch (err: any) {
+      console.error("[Admin Dashboard Users] Error:", err);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const fetchAnalyses = async () => {
+    try {
+      setAnalysesLoading(true);
+      const response = await fetch(
+        `/api/admin/analyses?page=${analysesPage}&pageSize=${analysesPageSize}`
+      );
+
+      if (!response.ok) {
+        throw new Error("分析実行履歴の取得に失敗しました");
+      }
+
+      const data = await response.json();
+      setAnalysesList(data.analyses || []);
+      setAnalysesTotalPages(data.totalPages || 1);
+    } catch (err: any) {
+      console.error("[Admin Dashboard Analyses] Error:", err);
+    } finally {
+      setAnalysesLoading(false);
     }
   };
 
@@ -382,97 +508,321 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 最近のユーザー一覧 */}
+      {/* 時系列グラフ */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">最近のユーザー（新規登録順）</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  メールアドレス
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  名前
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  認証方法
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  プラン
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  登録日時
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {stats.users.recent.map((user) => (
-                <tr key={user.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.email}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.name || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.provider === "google" ? "Google" : "メール・パスワード"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                    {user.planName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(user.created_at)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">時系列グラフ</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTrendPeriod("daily")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                trendPeriod === "daily"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              日次
+            </button>
+            <button
+              onClick={() => setTrendPeriod("weekly")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                trendPeriod === "weekly"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              週次
+            </button>
+            <button
+              onClick={() => setTrendPeriod("monthly")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                trendPeriod === "monthly"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              月次
+            </button>
+          </div>
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* ユーザー登録数の推移 */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              ユーザー登録数の推移
+            </h3>
+            {trends && trends.trends.users.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={trends.trends.users}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="登録数"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-gray-500">
+                データがありません
+              </div>
+            )}
+          </div>
+
+          {/* 分析実行数の推移 */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              分析実行数の推移
+            </h3>
+            {trends && trends.trends.analyses.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={trends.trends.analyses}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="count" fill="#10b981" name="実行数" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-gray-500">
+                データがありません
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* MRRの推移（月次データのみ） */}
+        {trendPeriod === "monthly" && trends?.trends.mrr && trends.trends.mrr.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              MRR（月間経常収益）の推移
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trends.trends.mrr}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `¥${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(value: number) => [
+                    formatCurrency(value),
+                    "MRR",
+                  ]}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="mrr"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  name="MRR"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
-      {/* 最近の分析実行履歴 */}
+      {/* ユーザー一覧 */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">最近の分析実行履歴</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  実行日時
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  記事URL
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  タイトル
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {stats.analyses.recent.map((analysis) => (
-                <tr key={analysis.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(analysis.created_at)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    <a
-                      href={analysis.article.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 truncate block max-w-md"
-                    >
-                      {analysis.article.url}
-                    </a>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {analysis.article.title || "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">ユーザー一覧（新規登録順）</h2>
+        {usersLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-gray-600">読み込み中...</div>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      メールアドレス
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      名前
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      認証方法
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      プラン
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      登録日時
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {usersList.length > 0 ? (
+                    usersList.map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.name || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.provider === "google" ? "Google" : "メール・パスワード"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                          {user.planName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(user.created_at)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                        ユーザーがありません
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {/* ページネーション */}
+            {usersTotalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  ページ {usersPage} / {usersTotalPages}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setUsersPage(Math.max(1, usersPage - 1))}
+                    disabled={usersPage === 1}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    前へ
+                  </button>
+                  <button
+                    onClick={() => setUsersPage(Math.min(usersTotalPages, usersPage + 1))}
+                    disabled={usersPage === usersTotalPages}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    次へ
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 分析実行履歴 */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">分析実行履歴</h2>
+        {analysesLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-gray-600">読み込み中...</div>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      実行日時
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      記事URL
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      タイトル
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {analysesList.length > 0 ? (
+                    analysesList.map((analysis) => (
+                      <tr key={analysis.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(analysis.created_at)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <a
+                            href={analysis.article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 truncate block max-w-md"
+                          >
+                            {analysis.article.url}
+                          </a>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {analysis.article.title || "-"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-4 text-center text-sm text-gray-500">
+                        分析実行履歴がありません
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {/* ページネーション */}
+            {analysesTotalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  ページ {analysesPage} / {analysesTotalPages}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAnalysesPage(Math.max(1, analysesPage - 1))}
+                    disabled={analysesPage === 1}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    前へ
+                  </button>
+                  <button
+                    onClick={() => setAnalysesPage(Math.min(analysesTotalPages, analysesPage + 1))}
+                    disabled={analysesPage === analysesTotalPages}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    次へ
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
