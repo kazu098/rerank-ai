@@ -160,6 +160,153 @@ export async function getNotificationSettings(
 }
 
 /**
+ * ユーザーの通知設定をチャネル別に取得（メールとSlackを別々に取得）
+ * 
+ * @param userId ユーザーID
+ * @param articleId 記事ID（オプション、nullの場合はデフォルト設定）
+ * @returns メール設定とSlack設定のオブジェクト
+ */
+export async function getNotificationSettingsByChannel(
+  userId: string,
+  articleId?: string | null
+): Promise<{
+  email: NotificationSettings | null;
+  slack: NotificationSettings | null;
+}> {
+  const supabase = createSupabaseClient();
+
+  // 記事固有の設定を取得
+  if (articleId) {
+    const { data: articleSettings, error } = await supabase
+      .from('notification_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('article_id', articleId)
+      .order('updated_at', { ascending: false });
+
+    if (!error && articleSettings && articleSettings.length > 0) {
+      const emailSetting = articleSettings.find(s => s.channel === 'email');
+      const slackSetting = articleSettings.find(s => s.channel === 'slack');
+
+      // Slack設定のslack_integration_idから情報を取得
+      if (slackSetting?.slack_integration_id) {
+        const { data: integrationData } = await supabase
+          .from('slack_integrations')
+          .select('*')
+          .eq('id', slackSetting.slack_integration_id)
+          .maybeSingle();
+        
+        if (integrationData) {
+          (slackSetting as any).slack_bot_token = integrationData.slack_bot_token;
+          (slackSetting as any).slack_user_id = integrationData.slack_user_id;
+          (slackSetting as any).slack_team_id = integrationData.slack_team_id;
+          (slackSetting as any).slack_channel_id = integrationData.slack_channel_id;
+          (slackSetting as any).slack_notification_type = integrationData.slack_notification_type;
+        }
+      } else if (slackSetting && !slackSetting.slack_bot_token) {
+        // slack_integration_idがなく、slack_bot_tokenもない場合は、slack_integrationsテーブルから取得を試みる
+        const slackIntegration = await getSlackIntegrationByUserId(userId);
+        if (slackIntegration) {
+          (slackSetting as any).slack_bot_token = slackIntegration.slack_bot_token;
+          (slackSetting as any).slack_user_id = slackIntegration.slack_user_id;
+          (slackSetting as any).slack_team_id = slackIntegration.slack_team_id;
+          (slackSetting as any).slack_channel_id = slackIntegration.slack_channel_id;
+          (slackSetting as any).slack_notification_type = slackIntegration.slack_notification_type;
+          (slackSetting as any).slack_integration_id = slackIntegration.id;
+        }
+      }
+
+      return {
+        email: emailSetting ? (emailSetting as NotificationSettings) : null,
+        slack: slackSetting ? (slackSetting as NotificationSettings) : null,
+      };
+    }
+  }
+
+  // デフォルト設定を取得（article_idがnull）
+  const { data: defaultSettings, error } = await supabase
+    .from('notification_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .is('article_id', null)
+    .order('updated_at', { ascending: false });
+
+  if (!error && defaultSettings && defaultSettings.length > 0) {
+    const emailSetting = defaultSettings.find(s => s.channel === 'email');
+    const slackSetting = defaultSettings.find(s => s.channel === 'slack');
+
+    // Slack設定のslack_integration_idから情報を取得
+    if (slackSetting?.slack_integration_id) {
+      const { data: integrationData } = await supabase
+        .from('slack_integrations')
+        .select('*')
+        .eq('id', slackSetting.slack_integration_id)
+        .maybeSingle();
+      
+      if (integrationData) {
+        (slackSetting as any).slack_bot_token = integrationData.slack_bot_token;
+        (slackSetting as any).slack_user_id = integrationData.slack_user_id;
+        (slackSetting as any).slack_team_id = integrationData.slack_team_id;
+        (slackSetting as any).slack_channel_id = integrationData.slack_channel_id;
+        (slackSetting as any).slack_notification_type = integrationData.slack_notification_type;
+      }
+    } else if (slackSetting && !slackSetting.slack_bot_token) {
+      // slack_integration_idがなく、slack_bot_tokenもない場合は、slack_integrationsテーブルから取得を試みる
+      const slackIntegration = await getSlackIntegrationByUserId(userId);
+      if (slackIntegration) {
+        (slackSetting as any).slack_bot_token = slackIntegration.slack_bot_token;
+        (slackSetting as any).slack_user_id = slackIntegration.slack_user_id;
+        (slackSetting as any).slack_team_id = slackIntegration.slack_team_id;
+        (slackSetting as any).slack_channel_id = slackIntegration.slack_channel_id;
+        (slackSetting as any).slack_notification_type = slackIntegration.slack_notification_type;
+        (slackSetting as any).slack_integration_id = slackIntegration.id;
+      }
+    }
+
+    return {
+      email: emailSetting ? (emailSetting as NotificationSettings) : null,
+      slack: slackSetting ? (slackSetting as NotificationSettings) : null,
+    };
+  }
+
+  // 設定が存在しない場合、slack_integrationsテーブルから直接取得を試みる（Slackのみ）
+  const slackIntegration = await getSlackIntegrationByUserId(userId);
+  if (slackIntegration) {
+    const recipient = slackIntegration.slack_notification_type === 'dm'
+      ? (slackIntegration.slack_user_id || '')
+      : (slackIntegration.slack_channel_id || '');
+    
+    const slackSetting: NotificationSettings = {
+      id: '',
+      user_id: userId,
+      article_id: null,
+      notification_type: 'rank_drop',
+      channel: 'slack',
+      recipient: recipient,
+      is_enabled: true,
+      slack_integration_id: slackIntegration.id,
+      slack_bot_token: slackIntegration.slack_bot_token,
+      slack_user_id: slackIntegration.slack_user_id,
+      slack_team_id: slackIntegration.slack_team_id,
+      slack_channel_id: slackIntegration.slack_channel_id,
+      slack_notification_type: slackIntegration.slack_notification_type,
+      created_at: slackIntegration.created_at,
+      updated_at: slackIntegration.updated_at,
+    };
+
+    return {
+      email: null,
+      slack: slackSetting,
+    };
+  }
+
+  return {
+    email: null,
+    slack: null,
+  };
+}
+
+/**
  * 複数の記事に対する通知設定を一括取得
  * 返り値: Map<articleId, { email: boolean | null, slack: boolean | null }>
  * - true: 有効、false: 無効、null: デフォルト設定を使用（記事固有の設定がない）
@@ -243,91 +390,3 @@ export async function getNotificationSettingsForArticles(
 
   return result;
 }
-
-/**
- * 通知設定を作成または更新
- */
-export async function saveOrUpdateNotificationSettings(
-  userId: string,
-  settings: Partial<NotificationSettings> & {
-    notification_type: string;
-    channel: string;
-    recipient: string;
-  },
-  articleId?: string | null
-): Promise<NotificationSettings> {
-  console.log('[Notification Settings DB] saveOrUpdateNotificationSettings called:', {
-    userId,
-    articleId: articleId || null,
-    notification_type: settings.notification_type,
-    channel: settings.channel,
-    is_enabled: settings.is_enabled,
-    hasSlackIntegrationId: settings.slack_integration_id !== undefined,
-  });
-
-  const supabase = createSupabaseClient();
-
-  const settingsData: any = {
-    user_id: userId,
-    article_id: articleId || null,
-    notification_type: settings.notification_type,
-    channel: settings.channel,
-    recipient: settings.recipient,
-    is_enabled: settings.is_enabled ?? true,
-    updated_at: new Date().toISOString(),
-  };
-
-  // slack_integration_idを追加（提供されている場合）
-  if (settings.slack_integration_id !== undefined) {
-    settingsData.slack_integration_id = settings.slack_integration_id;
-  }
-
-  console.log('[Notification Settings DB] Settings data to save:', {
-    is_enabled: settingsData.is_enabled,
-    hasSlackBotToken: settingsData.slack_bot_token !== undefined,
-    slackBotTokenIsNull: settingsData.slack_bot_token === null,
-    slackChannelId: settingsData.slack_channel_id,
-    slackNotificationType: settingsData.slack_notification_type,
-  });
-
-  // UPSERTを使用して、競合を回避しながら作成または更新
-  // UNIQUE制約: (user_id, article_id, notification_type, channel)
-  try {
-    console.log('[Notification Settings DB] Using upsert to avoid race conditions');
-    
-    const { data, error } = await supabase
-      .from('notification_settings')
-      .upsert(settingsData, {
-        onConflict: 'user_id,article_id,notification_type,channel',
-        ignoreDuplicates: false, // 重複時は更新
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[Notification Settings DB] Error upserting settings:', {
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-      });
-      throw new Error(`Failed to upsert notification settings: ${error.message} (code: ${error.code})`);
-    }
-
-    console.log('[Notification Settings DB] Settings upserted successfully:', {
-      id: data.id,
-      is_enabled: data.is_enabled,
-      hasSlackIntegrationId: !!data.slack_integration_id,
-    });
-
-    return data as NotificationSettings;
-  } catch (dbError: any) {
-    console.error('[Notification Settings DB] Database operation failed:', {
-      error: dbError.message,
-      stack: dbError.stack,
-      name: dbError.name,
-    });
-    throw dbError;
-  }
-}
-

@@ -7,7 +7,7 @@ import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
 import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib/slack-notification";
-import { getNotificationSettings } from "@/lib/db/notification-settings";
+import { getNotificationSettings, getNotificationSettingsByChannel } from "@/lib/db/notification-settings";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
 import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 import { getCurrentTimeSlot } from "@/lib/cron/slot-calculator";
@@ -407,58 +407,23 @@ export async function GET(request: NextRequest) {
         // ユーザーのロケール設定を取得（デフォルト: 'ja'）
         const locale = (user.locale || "ja") as "ja" | "en";
 
-        // 通知設定を取得（Slack通知の設定を取得するため）
-        let notificationSettings = await getNotificationSettings(user.id);
-        
-        // notification_settingsテーブルにレコードがない場合、slack_integrationsテーブルから直接取得
-        if (!notificationSettings) {
-          console.log(`[Cron] No notification_settings found for user ${user.email}, trying to get Slack integration directly...`);
-          const slackIntegration = await getSlackIntegrationByUserId(user.id);
-          if (slackIntegration) {
-            // NotificationSettings形式に変換
-            // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idをrecipientとして使用
-            const recipient = slackIntegration.slack_notification_type === 'dm'
-              ? (slackIntegration.slack_user_id || '')
-              : (slackIntegration.slack_channel_id || '');
-            
-            notificationSettings = {
-              id: '',
-              user_id: user.id,
-              article_id: null,
-              notification_type: 'rank_drop',
-              channel: 'slack',
-              recipient: recipient,
-              is_enabled: true,
-              slack_integration_id: slackIntegration.id,
-              slack_bot_token: slackIntegration.slack_bot_token,
-              slack_user_id: slackIntegration.slack_user_id,
-              slack_team_id: slackIntegration.slack_team_id,
-              slack_channel_id: slackIntegration.slack_channel_id,
-              slack_notification_type: slackIntegration.slack_notification_type,
-              created_at: slackIntegration.created_at,
-              updated_at: slackIntegration.updated_at,
-            };
-            console.log(`[Cron] Found Slack integration directly from slack_integrations table for user ${user.email}:`, {
-              notificationType: slackIntegration.slack_notification_type,
-              recipient,
-              channelId: slackIntegration.slack_channel_id,
-              userId: slackIntegration.slack_user_id,
-            });
-          }
-        }
+        // 通知設定をチャネル別に取得（メールとSlackを別々に取得）
+        const notificationSettingsByChannel = await getNotificationSettingsByChannel(user.id);
+        const emailSettings = notificationSettingsByChannel.email;
+        const slackSettings = notificationSettingsByChannel.slack;
         
         console.log(`[Cron] Notification settings for user ${user.email}:`, {
-          hasSlackBotToken: !!notificationSettings?.slack_bot_token,
-          hasSlackChannelId: !!notificationSettings?.slack_channel_id,
-          slackChannelId: notificationSettings?.slack_channel_id,
-          slackNotificationType: notificationSettings?.slack_notification_type,
-          slackTeamId: notificationSettings?.slack_team_id,
-          notificationSettingsExists: !!notificationSettings,
+          emailEnabled: emailSettings?.is_enabled ?? true, // デフォルトは有効
+          slackEnabled: slackSettings?.is_enabled ?? false, // デフォルトは無効
+          hasSlackBotToken: !!slackSettings?.slack_bot_token,
+          hasSlackChannelId: !!slackSettings?.slack_channel_id,
+          slackChannelId: slackSettings?.slack_channel_id,
+          slackNotificationType: slackSettings?.slack_notification_type,
+          slackTeamId: slackSettings?.slack_team_id,
         });
 
         // 通知履歴をDBに保存（sent_atはNULL、通知送信cronで送信）
         for (const item of items) {
-          // notificationsテーブルにレコードを作成（メール通知）
           const notificationType = item.notificationType || 'rank_drop';
           const isRise = notificationType === 'rank_rise';
           const subject = items.length === 1
@@ -479,83 +444,95 @@ export async function GET(request: NextRequest) {
             analysisResult: item.analysisResult,
           };
 
-          const { error: emailNotificationError } = await supabase.from("notifications").insert({
-            user_id: user.id,
-            article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
-            notification_type: notificationType,
-            channel: "email",
-            recipient: user.email,
-            subject,
-            summary,
-            notification_data: notificationData,
-            sent_at: null, // 通知送信cronで送信されるまでNULL
-          });
-
-          if (emailNotificationError) {
-            console.error(
-              `[Cron] Failed to save email notification for article ${item.articleUrl}:`,
-              emailNotificationError
-            );
-          }
-
-          // Slack通知も送信された場合、Slack通知のレコードも作成
-          // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idが必要
-          const hasSlackBotToken = !!notificationSettings?.slack_bot_token;
-          const hasSlackRecipient = notificationSettings?.slack_notification_type === 'dm'
-            ? !!notificationSettings?.slack_user_id
-            : !!notificationSettings?.slack_channel_id;
-          
-          if (hasSlackBotToken && hasSlackRecipient && notificationSettings) {
-            const slackNotificationType = item.notificationType || 'rank_drop';
-            const isSlackRise = slackNotificationType === 'rank_rise';
-            const slackSubject = items.length === 1
-              ? (isSlackRise ? "【ReRank AI】順位上昇を検知しました" : "【ReRank AI】順位下落を検知しました")
-              : (isSlackRise ? `【ReRank AI】順位上昇を検知しました（${items.length}件の記事）` : `【ReRank AI】順位下落を検知しました（${items.length}件の記事）`);
-            const slackSummary = isSlackRise
-              ? `順位上昇が検知されました（${items.length}件の記事）`
-              : `順位下落が検知されました（${items.length}件の記事）`;
-
-            // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idを使用
-            const recipientId = notificationSettings.slack_notification_type === 'dm'
-              ? notificationSettings.slack_user_id!
-              : notificationSettings.slack_channel_id!;
-
-            console.log(`[Cron] Creating Slack notification record for user ${user.email}:`, {
-              notificationType: notificationSettings.slack_notification_type,
-              recipientId,
-              channelId: notificationSettings.slack_channel_id,
-              userId: notificationSettings.slack_user_id,
-            });
-
-            // 通知内容の詳細データをJSONBで保存（メール通知と同じデータを使用）
-            const { error: slackNotificationError } = await supabase.from("notifications").insert({
+          // メール通知の作成（is_enabledをチェック）
+          const emailEnabled = emailSettings?.is_enabled ?? true; // デフォルトは有効
+          if (emailEnabled) {
+            const { error: emailNotificationError } = await supabase.from("notifications").insert({
               user_id: user.id,
               article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
-              notification_type: slackNotificationType,
-              channel: "slack",
-              recipient: recipientId, // DMの場合はslack_user_id、チャンネルの場合はslack_channel_id
-              subject: slackSubject,
-              summary: slackSummary,
-              notification_data: notificationData, // メール通知と同じデータを使用
+              notification_type: notificationType,
+              channel: "email",
+              recipient: user.email,
+              subject,
+              summary,
+              notification_data: notificationData,
               sent_at: null, // 通知送信cronで送信されるまでNULL
             });
 
-            if (slackNotificationError) {
+            if (emailNotificationError) {
               console.error(
-                `[Cron] Failed to save Slack notification for article ${item.articleUrl}:`,
-                slackNotificationError
+                `[Cron] Failed to save email notification for article ${item.articleUrl}:`,
+                emailNotificationError
               );
             } else {
-              console.log(`[Cron] Slack notification record created successfully for user ${user.email}`);
+              console.log(`[Cron] Email notification record created for user ${user.email}`);
             }
-          } else if (hasSlackBotToken && !hasSlackRecipient) {
-            console.warn(`[Cron] Skipping Slack notification record creation for user ${user.email}:`, {
-              hasSlackBotToken,
-              hasSlackRecipient,
-              notificationType: notificationSettings?.slack_notification_type,
-              hasChannelId: !!notificationSettings?.slack_channel_id,
-              hasUserId: !!notificationSettings?.slack_user_id,
-            });
+          } else {
+            console.log(`[Cron] Email notification disabled for user ${user.email}, skipping`);
+          }
+
+          // Slack通知の作成（is_enabledをチェック）
+          const slackEnabled = slackSettings?.is_enabled ?? false; // デフォルトは無効
+          if (slackEnabled && slackSettings) {
+            const hasSlackBotToken = !!slackSettings.slack_bot_token;
+            const hasSlackRecipient = slackSettings.slack_notification_type === 'dm'
+              ? !!slackSettings.slack_user_id
+              : !!slackSettings.slack_channel_id;
+            
+            if (hasSlackBotToken && hasSlackRecipient) {
+              const slackNotificationType = item.notificationType || 'rank_drop';
+              const isSlackRise = slackNotificationType === 'rank_rise';
+              const slackSubject = items.length === 1
+                ? (isSlackRise ? "【ReRank AI】順位上昇を検知しました" : "【ReRank AI】順位下落を検知しました")
+                : (isSlackRise ? `【ReRank AI】順位上昇を検知しました（${items.length}件の記事）` : `【ReRank AI】順位下落を検知しました（${items.length}件の記事）`);
+              const slackSummary = isSlackRise
+                ? `順位上昇が検知されました（${items.length}件の記事）`
+                : `順位下落が検知されました（${items.length}件の記事）`;
+
+              // DMの場合はslack_user_id、チャンネルの場合はslack_channel_idを使用
+              const recipientId = slackSettings.slack_notification_type === 'dm'
+                ? slackSettings.slack_user_id!
+                : slackSettings.slack_channel_id!;
+
+              console.log(`[Cron] Creating Slack notification record for user ${user.email}:`, {
+                notificationType: slackSettings.slack_notification_type,
+                recipientId,
+                channelId: slackSettings.slack_channel_id,
+                userId: slackSettings.slack_user_id,
+              });
+
+              // 通知内容の詳細データをJSONBで保存（メール通知と同じデータを使用）
+              const { error: slackNotificationError } = await supabase.from("notifications").insert({
+                user_id: user.id,
+                article_id: articles.find((a) => a.url === item.articleUrl)?.id || null,
+                notification_type: slackNotificationType,
+                channel: "slack",
+                recipient: recipientId, // DMの場合はslack_user_id、チャンネルの場合はslack_channel_id
+                subject: slackSubject,
+                summary: slackSummary,
+                notification_data: notificationData, // メール通知と同じデータを使用
+                sent_at: null, // 通知送信cronで送信されるまでNULL
+              });
+
+              if (slackNotificationError) {
+                console.error(
+                  `[Cron] Failed to save Slack notification for article ${item.articleUrl}:`,
+                  slackNotificationError
+                );
+              } else {
+                console.log(`[Cron] Slack notification record created successfully for user ${user.email}`);
+              }
+            } else {
+              console.warn(`[Cron] Skipping Slack notification record creation for user ${user.email}:`, {
+                hasSlackBotToken,
+                hasSlackRecipient,
+                notificationType: slackSettings.slack_notification_type,
+                hasChannelId: !!slackSettings.slack_channel_id,
+                hasUserId: !!slackSettings.slack_user_id,
+              });
+            }
+          } else {
+            console.log(`[Cron] Slack notification disabled or not configured for user ${user.email}, skipping`);
           }
         }
 
