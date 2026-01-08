@@ -1,0 +1,37 @@
+name: Check Rank Drops
+
+on:
+  schedule:
+    # 1日1回実行（日本時刻 0:00 = UTC 15:00、GSC APIのデータは1日単位で更新されるため）
+    - cron: '0 15 * * *'
+  workflow_dispatch: # 手動実行も可能
+
+jobs:
+  check-rank:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # 最大60分まで実行可能（記事数に応じて調整可能）
+    
+    steps:
+      - name: Call Check Rank API
+        run: |
+          # VERCEL_URLの末尾スラッシュを削除（念のため）
+          VERCEL_URL=$(echo "${{ vars.VERCEL_URL }}" | sed 's|/$||')
+          # rerank-ai.comをwww.rerank-ai.comに置き換え（リダイレクトを避けるため）
+          VERCEL_URL=$(echo "${VERCEL_URL}" | sed 's|https://rerank-ai\.com|https://www.rerank-ai.com|g')
+          
+          echo "🔄 Starting rank check job..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${VERCEL_URL}/api/cron/check-rank" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Rank check job completed successfully"
+            echo "$body"
+          else
+            echo "❌ Rank check job failed with HTTP $http_code"
+            echo "$body"
+            exit 1
+          fi
