@@ -310,11 +310,9 @@ export function AuthenticatedContent() {
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && !selectedSiteUrl) {
       if (!loadingProperties && !propertiesLoaded) {
-        console.log("[AuthenticatedContent] Loading GSC properties...");
         loadGSCProperties();
       } else if (propertiesLoaded && !showPropertySelection) {
         // 既にプロパティが読み込まれているが、選択画面が表示されていない場合
-        console.log("[AuthenticatedContent] Properties already loaded but selection not shown, showing selection...");
         setShowPropertySelection(true);
       }
     }
@@ -428,7 +426,6 @@ export function AuthenticatedContent() {
   useEffect(() => {
     if (status === "authenticated" && session?.accessToken && session?.userId) {
       const savedSiteUrl = localStorage.getItem("selectedGSCSiteUrl");
-      console.log("[AuthenticatedContent] Checking localStorage for saved site:", savedSiteUrl, "selectedSiteUrl:", selectedSiteUrl);
       if (savedSiteUrl && !selectedSiteUrl) {
         (async () => {
           try {
@@ -445,7 +442,6 @@ export function AuthenticatedContent() {
 
             if (response.ok) {
               const result = await response.json();
-              console.log("[AuthenticatedContent] Site restored from localStorage:", savedSiteUrl);
               setSelectedSiteUrl(savedSiteUrl);
               if (result.site?.id) {
                 setSelectedSiteId(result.site.id);
@@ -475,12 +471,10 @@ export function AuthenticatedContent() {
         })();
       } else if (!savedSiteUrl && !selectedSiteUrl) {
         // localStorageに保存されていない場合、プロパティを読み込む
-        console.log("[AuthenticatedContent] No saved site in localStorage, loading properties...");
         if (!loadingProperties && !propertiesLoaded) {
           loadGSCProperties();
         } else if (propertiesLoaded && !showPropertySelection) {
           // 既にプロパティが読み込まれているが、選択画面が表示されていない場合
-          console.log("[AuthenticatedContent] Properties already loaded but selection not shown, showing selection...");
           setShowPropertySelection(true);
         }
       }
@@ -499,16 +493,10 @@ export function AuthenticatedContent() {
           if (userResponse.ok) {
             const userData = await userResponse.json();
             setUserPlan(userData.user);
-            console.log("[Plan Info] User plan loaded:", userData.user?.plan?.name);
-          } else {
-            console.error("[Plan Info] Failed to fetch user info:", userResponse.status, userResponse.statusText);
           }
           if (usageResponse.ok) {
             const usageData = await usageResponse.json();
             setUsage(usageData.usage);
-            console.log("[Plan Info] Usage loaded:", usageData.usage);
-          } else {
-            console.error("[Plan Info] Failed to fetch usage:", usageResponse.status, usageResponse.statusText);
           }
         })
         .catch((err) => {
