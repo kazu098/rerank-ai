@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { createSupabaseClient } from "@/lib/supabase";
 import { ArticleSuggestion } from "@/lib/article-suggestion";
 
@@ -15,10 +16,12 @@ export interface ArticleSuggestionRecord {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  generation_id: string;
 }
 
 /**
  * 記事提案を保存
+ * 同じ生成セッション（1回のAPI呼び出し）のすべての提案に同じgeneration_idを付与
  */
 export async function saveArticleSuggestions(
   userId: string,
@@ -26,6 +29,9 @@ export async function saveArticleSuggestions(
   suggestions: ArticleSuggestion[]
 ): Promise<ArticleSuggestionRecord[]> {
   const supabase = createSupabaseClient();
+
+  // 1回の生成セッションで同じgeneration_idを使用
+  const generationId = randomUUID();
 
   const records = suggestions.map((suggestion) => ({
     user_id: userId,
@@ -37,6 +43,7 @@ export async function saveArticleSuggestions(
     estimated_impressions: suggestion.estimatedImpressions || null,
     priority: suggestion.priority,
     status: "pending" as const,
+    generation_id: generationId,
   }));
 
   const { data, error } = await supabase
