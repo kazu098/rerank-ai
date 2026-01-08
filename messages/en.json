@@ -282,6 +282,7 @@
     "trialExpired": "Trial period has ended. Please upgrade your plan.",
     "articlesLimitExceeded": "Article monitoring limit reached",
     "analysesLimitExceeded": "Monthly analysis limit reached",
+    "analysesLimitExceededTotal": "Total analysis limit reached",
     "checkoutFailed": "Checkout failed"
   },
   "billing": {
