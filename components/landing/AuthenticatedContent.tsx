@@ -308,12 +308,18 @@ export function AuthenticatedContent() {
   }, [status]);
 
   useEffect(() => {
-    if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
-      console.log("[AuthenticatedContent] Loading GSC properties...");
-      loadGSCProperties();
+    if (status === "authenticated" && session?.accessToken && !selectedSiteUrl) {
+      if (!loadingProperties && !propertiesLoaded) {
+        console.log("[AuthenticatedContent] Loading GSC properties...");
+        loadGSCProperties();
+      } else if (propertiesLoaded && !showPropertySelection) {
+        // 既にプロパティが読み込まれているが、選択画面が表示されていない場合
+        console.log("[AuthenticatedContent] Properties already loaded but selection not shown, showing selection...");
+        setShowPropertySelection(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session?.accessToken, selectedSiteUrl]);
+  }, [status, session?.accessToken, selectedSiteUrl, propertiesLoaded, showPropertySelection]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -467,13 +473,19 @@ export function AuthenticatedContent() {
             }
           }
         })();
-      } else if (!savedSiteUrl && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
+      } else if (!savedSiteUrl && !selectedSiteUrl) {
         // localStorageに保存されていない場合、プロパティを読み込む
         console.log("[AuthenticatedContent] No saved site in localStorage, loading properties...");
-        loadGSCProperties();
+        if (!loadingProperties && !propertiesLoaded) {
+          loadGSCProperties();
+        } else if (propertiesLoaded && !showPropertySelection) {
+          // 既にプロパティが読み込まれているが、選択画面が表示されていない場合
+          console.log("[AuthenticatedContent] Properties already loaded but selection not shown, showing selection...");
+          setShowPropertySelection(true);
+        }
       }
     }
-  }, [status, session?.accessToken, session?.userId, selectedSiteUrl, propertiesLoaded, loadingProperties]);
+  }, [status, session?.accessToken, session?.userId, selectedSiteUrl, propertiesLoaded, loadingProperties, showPropertySelection]);
 
   // プラン情報と使用量を取得
   useEffect(() => {
