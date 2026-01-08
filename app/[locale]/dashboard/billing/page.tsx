@@ -67,6 +67,14 @@ export default function BillingPage() {
   const [verifyingSession, setVerifyingSession] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "invoices">("overview");
 
+  // URLパラメータからタブを設定
+  useEffect(() => {
+    const tabParam = searchParams?.get("tab");
+    if (tabParam === "overview" || tabParam === "invoices") {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (session?.userId) {
       fetchBillingData();
@@ -429,7 +437,9 @@ export default function BillingPage() {
               {/* 新規記事提案 */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">{t("articleSuggestionsCount")}</span>
+                  <span className="text-gray-700">
+                    {currentPlan.name === "free" ? t("articleSuggestionsTotal") : t("articleSuggestionsCount")}
+                  </span>
                   <span className="text-gray-900 font-semibold">
                     {usage.article_suggestions_this_month} /{" "}
                     {formatLimit(currentPlan.max_article_suggestions_per_month)}

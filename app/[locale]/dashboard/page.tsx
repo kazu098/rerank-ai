@@ -186,7 +186,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">{t("dashboard.billing.currentPlan")}</h2>
               <Link
-                href="/dashboard/billing"
+                href="/dashboard/billing?tab=overview"
                 className="text-sm text-blue-600 hover:text-blue-700"
               >
                 {t("dashboard.billing.viewDetails")} →

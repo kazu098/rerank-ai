@@ -32,7 +32,7 @@ UPDATE plans SET
 WHERE name = 'business';
 
 UPDATE plans SET 
-  max_article_suggestions_per_month = 0,
+  max_article_suggestions_per_month = 1,
   analysis_history_days = NULL
 WHERE name = 'free';
 
