@@ -25,6 +25,7 @@ export function AuthenticatedContent() {
     limitType: string;
     currentUsage: number;
     limit: number | null;
+    trialExpired?: boolean;
   } | null>(null);
   const [articleUrl, setArticleUrl] = useState("");
   const [notificationEmail, setNotificationEmail] = useState("");
@@ -115,6 +116,11 @@ export function AuthenticatedContent() {
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [suggestionSiteUrl, setSuggestionSiteUrl] = useState<string>("");
   const [sites, setSites] = useState<Array<{ id: string; site_url: string }>>([]);
+
+  // プラン制限関連
+  const [userPlan, setUserPlan] = useState<any>(null);
+  const [usage, setUsage] = useState<{ analyses_this_month: number; articles: number } | null>(null);
+  const [loadingPlanInfo, setLoadingPlanInfo] = useState(false);
 
   const loadGSCProperties = async () => {
     if (propertiesLoaded) return;
@@ -432,6 +438,33 @@ export function AuthenticatedContent() {
     }
   }, [status, session?.accessToken, session?.userId]);
 
+  // プラン情報と使用量を取得
+  useEffect(() => {
+    if (status === "authenticated" && session?.userId) {
+      setLoadingPlanInfo(true);
+      Promise.all([
+        fetch("/api/users/me"),
+        fetch("/api/billing/usage"),
+      ])
+        .then(async ([userResponse, usageResponse]) => {
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            setUserPlan(userData.user);
+          }
+          if (usageResponse.ok) {
+            const usageData = await usageResponse.json();
+            setUsage(usageData.usage);
+          }
+        })
+        .catch((err) => {
+          console.error("[Plan Info] Error fetching plan info:", err);
+        })
+        .finally(() => {
+          setLoadingPlanInfo(false);
+        });
+    }
+  }, [status, session?.userId]);
+
   const startAnalysis = async () => {
     if (!selectedSiteUrl) {
       setError(t("errors.propertyNotSelected"));
@@ -525,8 +558,21 @@ export function AuthenticatedContent() {
 
       if (!step1Response.ok) {
         const errorData = await step1Response.json();
-        if (errorData.limitExceeded || errorData.upgradeRequired) {
+        // 制限超過またはトライアル期限切れの場合
+        if (errorData.limitExceeded || errorData.trialExpired || errorData.upgradeRequired) {
           const errorKey = errorData.errorKey || errorData.error || "errors.limitExceeded";
+          
+          // トライアル期限切れの場合
+          if (errorData.trialExpired) {
+            const errorMessage = t(errorKey);
+            const error = new Error(errorMessage);
+            (error as any).trialExpired = true;
+            (error as any).upgradeRequired = true;
+            (error as any).errorKey = errorKey;
+            throw error;
+          }
+          
+          // 制限超過の場合
           const limitTypeKey = errorData.limitType 
             ? `errors.limitType${errorData.limitType.charAt(0).toUpperCase() + errorData.limitType.slice(1)}`
             : "";
@@ -699,12 +745,13 @@ export function AuthenticatedContent() {
         }
       }
     } catch (err: any) {
-      if (err.limitExceeded) {
+      if (err.limitExceeded || err.trialExpired) {
         setLimitError({
           message: err.message,
           limitType: err.limitType || "unknown",
           currentUsage: err.currentUsage || 0,
           limit: err.limit || null,
+          trialExpired: err.trialExpired || false,
         });
         setError(null);
       } else {
@@ -1365,10 +1412,54 @@ export function AuthenticatedContent() {
                   </div>
                 </details>
 
+                {/* プラン制限超過の警告 */}
+                {userPlan?.plan && usage && (() => {
+                  const analysesLimit = userPlan.plan.max_analyses_per_month;
+                  const isFreePlan = userPlan.plan.name === "free";
+                  const isAnalysesExceeded = analysesLimit !== null && usage.analyses_this_month >= analysesLimit;
+                  
+                  if (isAnalysesExceeded) {
+                    return (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <p className="text-sm font-semibold text-yellow-800">
+                            {isFreePlan ? t("errors.analysesLimitExceededTotal") : t("errors.analysesLimitExceeded")}
+                          </p>
+                        </div>
+                        <p className="text-sm text-yellow-700 mb-3">
+                          {t("billing.usage", {
+                            current: usage.analyses_this_month,
+                            limit: analysesLimit ?? t("billing.unlimited")
+                          })}
+                        </p>
+                        <Link
+                          href="/#pricing"
+                          className="inline-block text-sm font-semibold text-yellow-800 hover:text-yellow-900"
+                        >
+                          {t("billing.upgradePlan")} →
+                        </Link>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {/* 実行ボタン */}
                 <button
                   onClick={startAnalysis}
-                  disabled={loading || !articleUrl || !selectedSiteUrl}
+                  disabled={(() => {
+                    if (loading || !articleUrl || !selectedSiteUrl) return true;
+                    if (userPlan?.plan && usage) {
+                      const analysesLimit = userPlan.plan.max_analyses_per_month;
+                      if (analysesLimit !== null && usage.analyses_this_month >= analysesLimit) {
+                        return true;
+                      }
+                    }
+                    return false;
+                  })()}
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
@@ -1430,12 +1521,14 @@ export function AuthenticatedContent() {
                     {limitError ? (
                       <div>
                         <p className="text-yellow-800 font-semibold mb-2">{limitError.message}</p>
-                        <p className="text-yellow-700 text-sm mb-3">
-                          {t("billing.currentUsage")}: {t("billing.usage", {
-                            current: limitError.currentUsage,
-                            limit: limitError.limit ?? t("billing.unlimited")
-                          })}
-                        </p>
+                        {!limitError.trialExpired && (
+                          <p className="text-yellow-700 text-sm mb-3">
+                            {t("billing.currentUsage")}: {t("billing.usage", {
+                              current: limitError.currentUsage,
+                              limit: limitError.limit ?? t("billing.unlimited")
+                            })}
+                          </p>
+                        )}
                         <Link
                           href="/#pricing"
                           className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"

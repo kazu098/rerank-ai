@@ -79,7 +79,7 @@ CREATE TABLE plans (
 **初期データ例**:
 ```sql
 INSERT INTO plans (name, display_name, price_monthly, max_articles, max_analyses_per_month, max_sites, max_concurrent_analyses) VALUES
-('free', '無料', 0, 3, 3, 1, 1),
+('free', '無料', 0, 3, 7, 1, 1),
 ('starter', 'スターター', 2980, 20, 20, 1, 1),
 ('standard', 'スタンダード', 9800, 100, 100, 3, 3),
 ('business', 'ビジネス', 29800, NULL, NULL, NULL, 10);

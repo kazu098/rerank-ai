@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { analyzeStep1 } from "@/lib/competitor-analysis-step1";
 import { checkUserPlanLimit, isTrialActive } from "@/lib/billing/plan-limits";
 import { getArticleByUrl } from "@/lib/db/articles";
+import { getUserById } from "@/lib/db/users";
+import { getPlanById } from "@/lib/db/plans";
 
 /**
  * Step 1: GSCデータ取得 + キーワード選定 + 時系列データ取得
@@ -20,7 +22,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // プラン制限をチェック（月間分析回数）
+    // ユーザーとプラン情報を取得
+    const user = await getUserById(session.userId);
+    if (!user || !user.plan_id) {
+      return NextResponse.json(
+        { 
+          error: "errors.planNotSet",
+          errorKey: "errors.planNotSet",
+          upgradeRequired: true
+        },
+        { status: 403 }
+      );
+    }
+
+    const plan = await getPlanById(user.plan_id);
+    if (!plan) {
+      return NextResponse.json(
+        { 
+          error: "errors.planNotFound",
+          errorKey: "errors.planNotFound",
+          upgradeRequired: true
+        },
+        { status: 403 }
+      );
+    }
+
+    // スターターのトライアルの場合：トライアル期間をチェック
+    const isTrial = await isTrialActive(session.userId);
+    if (plan.name === "starter" && !isTrial) {
+      // スターターのトライアル期間が終了している場合
+      return NextResponse.json(
+        { 
+          error: "errors.trialExpired",
+          errorKey: "errors.trialExpired",
+          trialExpired: true,
+          upgradeRequired: true
+        },
+        { status: 403 }
+      );
+    }
+
+    // その他のプランの場合：分析回数の制限をチェック
     const limitCheck = await checkUserPlanLimit(session.userId, "analyses");
     if (!limitCheck.allowed) {
       return NextResponse.json(
@@ -31,20 +73,6 @@ export async function POST(request: NextRequest) {
           limitType: "analyses",
           currentUsage: limitCheck.currentUsage,
           limit: limitCheck.limit,
-          upgradeRequired: true
-        },
-        { status: 403 }
-      );
-    }
-
-    // トライアル期間のチェック
-    const isTrial = await isTrialActive(session.userId);
-    if (!isTrial && !limitCheck.allowed) {
-      return NextResponse.json(
-        { 
-          error: "errors.trialExpired",
-          errorKey: "errors.trialExpired",
-          trialExpired: true,
           upgradeRequired: true
         },
         { status: 403 }

@@ -58,27 +58,46 @@ export async function checkUserPlanLimit(
       break;
     }
     case "analyses": {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
       const supabase = createSupabaseClient();
-      // analysis_runsはarticle_id経由でユーザーを特定する必要がある
-      const { data: analyses } = await supabase
-        .from("analysis_runs")
-        .select(`
-          id,
-          article:articles!inner(user_id)
-        `)
-        .gte("created_at", startOfMonth.toISOString())
-        .lte("created_at", endOfMonth.toISOString());
+      
+      // Freeプランの場合は累計、それ以外は月間
+      if (plan.name === "free") {
+        // 累計分析回数を取得
+        const { data: analyses } = await supabase
+          .from("analysis_runs")
+          .select(`
+            id,
+            article:articles!inner(user_id)
+          `);
 
-      // ユーザーIDでフィルタリング
-      const userAnalyses = analyses?.filter(
-        (analysis: any) => analysis.article?.user_id === userId
-      ) || [];
+        // ユーザーIDでフィルタリング
+        const userAnalyses = analyses?.filter(
+          (analysis: any) => analysis.article?.user_id === userId
+        ) || [];
 
-      currentUsage = userAnalyses.length;
+        currentUsage = userAnalyses.length;
+      } else {
+        // 月間分析回数を取得
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+        const { data: analyses } = await supabase
+          .from("analysis_runs")
+          .select(`
+            id,
+            article:articles!inner(user_id)
+          `)
+          .gte("created_at", startOfMonth.toISOString())
+          .lte("created_at", endOfMonth.toISOString());
+
+        // ユーザーIDでフィルタリング
+        const userAnalyses = analyses?.filter(
+          (analysis: any) => analysis.article?.user_id === userId
+        ) || [];
+
+        currentUsage = userAnalyses.length;
+      }
       break;
     }
     case "article_suggestions": {
@@ -121,10 +140,22 @@ export async function checkUserPlanLimit(
 
 /**
  * トライアル期間中かチェック
+ * フリープランの場合は常にfalseを返す（トライアルは有料プランのみ）
  */
 export async function isTrialActive(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
-  if (!user || !user.trial_ends_at) {
+  if (!user || !user.plan_id) {
+    return false;
+  }
+
+  // フリープランの場合はトライアル期間をチェックしない
+  const plan = await getPlanById(user.plan_id);
+  if (plan && plan.name === "free") {
+    return false;
+  }
+
+  // トライアル期間が設定されていない場合はfalse
+  if (!user.trial_ends_at) {
     return false;
   }
 

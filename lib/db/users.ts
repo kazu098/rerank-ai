@@ -99,9 +99,8 @@ export async function getOrCreateUser(
     throw new Error('Free plan not found');
   }
 
-  // トライアル期間を設定（7日間）
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+  // フリープランの場合はトライアル期間を設定しない（分析回数などの制限のみで制御）
+  // トライアル期間は有料プラン（スターターなど）のみに適用
 
   // Google OAuthの場合はemail_verifiedをtrueに設定（Googleが既に認証済み）
   // パスワード認証の場合はemail_verifiedはfalse（メール認証が必要）
@@ -115,7 +114,7 @@ export async function getOrCreateUser(
       provider,
       provider_id: providerId,
       plan_id: freePlan.id,
-      trial_ends_at: trialEndsAt.toISOString(),
+      trial_ends_at: null, // フリープランにはトライアル期間を設定しない
       timezone: timezone || 'UTC', // タイムゾーンが提供されていない場合はUTC
       locale: 'ja', // デフォルトロケールは'ja'
       email_verified: emailVerified, // Google OAuthの場合はtrue、それ以外はfalse
@@ -271,9 +270,8 @@ export async function createUserWithPassword(
     throw new Error('Free plan not found');
   }
 
-  // トライアル期間を設定（7日間）
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+  // フリープランの場合はトライアル期間を設定しない（分析回数などの制限のみで制御）
+  // トライアル期間は有料プラン（スターターなど）のみに適用
 
   // ユーザーを作成
   const { data: newUser, error: createError } = await supabase
@@ -287,7 +285,7 @@ export async function createUserWithPassword(
             email_verification_token_expires_at: verificationTokenExpiresAt.toISOString(),
             provider: 'credentials',
             plan_id: freePlan.id,
-            trial_ends_at: trialEndsAt.toISOString(),
+            trial_ends_at: null, // フリープランにはトライアル期間を設定しない
             timezone: 'UTC',
             locale: 'ja', // デフォルトロケールは'ja'
           })
