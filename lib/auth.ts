@@ -108,55 +108,87 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // リダイレクトURLが相対パスの場合、baseUrlを追加
-      if (url.startsWith("/")) {
-        // 既にロケールが含まれている場合はそのまま返す
-        // /ja, /ja/, /ja/dashboard などに対応
-        if (url.match(/^\/(ja|en)(\/|$)/)) {
-          return `${baseUrl}${url}`;
+      try {
+        // リダイレクトURLが相対パスの場合、baseUrlを追加
+        if (url.startsWith("/")) {
+          // 既にロケールが含まれている場合はそのまま返す
+          // /ja, /ja/, /ja/dashboard などに対応
+          if (url.match(/^\/(ja|en)(\/|$)/)) {
+            return `${baseUrl}${url}`;
+          }
+          // ロケールが含まれていない場合は、デフォルトロケール（ja）を追加
+          return `${baseUrl}/ja${url}`;
         }
-        // ロケールが含まれていない場合は、デフォルトロケール（ja）を追加
-        return `${baseUrl}/ja${url}`;
+        // 同じオリジンのURLの場合、そのまま返す
+        try {
+          const urlObj = new URL(url);
+          if (urlObj.origin === baseUrl) return url;
+        } catch (e) {
+          console.error("[Auth] Invalid redirect URL:", url, e);
+        }
+        // デフォルトはトップページにリダイレクト（分析画面に戻る）
+        return `${baseUrl}/ja`;
+      } catch (error: any) {
+        console.error("[Auth] Redirect callback error:", {
+          error: error.message,
+          stack: error.stack,
+          url,
+          baseUrl,
+        });
+        // エラーが発生した場合は、デフォルトのトップページにリダイレクト
+        return `${baseUrl}/ja`;
       }
-      // 同じオリジンのURLの場合、そのまま返す
-      if (new URL(url).origin === baseUrl) return url;
-      // デフォルトはトップページにリダイレクト（分析画面に戻る）
-      return `${baseUrl}/ja`;
     },
     async jwt({ token, account, user, trigger }) {
-      // 初回ログイン時にアクセストークンを保存
-      if (account && user) {
-        // Google OAuthの場合のみアクセストークンを保存
-        if (account.provider === "google") {
-          token.accessToken = account.access_token;
-          token.refreshToken = account.refresh_token;
-          token.expiresAt = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000; // ミリ秒に変換
-        }
-        
-        // ユーザー情報をDBに保存
-        if (user.email) {
-          try {
-            if (account.provider === "google") {
-              const dbUser = await getOrCreateUser(
-                user.email,
-                user.name || null,
-                account.provider,
-                account.providerAccountId
-              );
-              token.userId = dbUser.id;
-            } else if (account.provider === "credentials") {
-              // Credentials認証の場合は既にDBにユーザーが存在する
-              const dbUser = await getUserByEmail(user.email);
-              if (dbUser) {
-                token.userId = dbUser.id;
-              }
-            }
-          } catch (error) {
-            console.error("[Auth] Failed to save user to database:", error);
-            // エラーが発生してもログインは続行
+      try {
+        // 初回ログイン時にアクセストークンを保存
+        if (account && user) {
+          // Google OAuthの場合のみアクセストークンを保存
+          if (account.provider === "google") {
+            token.accessToken = account.access_token;
+            token.refreshToken = account.refresh_token;
+            token.expiresAt = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000; // ミリ秒に変換
           }
+          
+          // ユーザー情報をDBに保存
+          if (user.email) {
+            try {
+              if (account.provider === "google") {
+                const dbUser = await getOrCreateUser(
+                  user.email,
+                  user.name || null,
+                  account.provider,
+                  account.providerAccountId
+                );
+                token.userId = dbUser.id;
+              } else if (account.provider === "credentials") {
+                // Credentials認証の場合は既にDBにユーザーが存在する
+                const dbUser = await getUserByEmail(user.email);
+                if (dbUser) {
+                  token.userId = dbUser.id;
+                }
+              }
+            } catch (error: any) {
+              console.error("[Auth] Failed to save user to database:", {
+                error: error.message,
+                stack: error.stack,
+                email: user.email,
+                provider: account.provider,
+              });
+              // エラーが発生してもログインは続行
+            }
+          }
+          
+          return token;
         }
-        
+      } catch (error: any) {
+        console.error("[Auth] JWT callback error:", {
+          error: error.message,
+          stack: error.stack,
+          hasAccount: !!account,
+          hasUser: !!user,
+        });
+        // エラーが発生してもトークンを返す（ログインは続行）
         return token;
       }
 
@@ -214,28 +246,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      // セッションにアクセストークンとユーザーIDを追加
-      if (token) {
-        if (token.accessToken) {
-          (session as any).accessToken = token.accessToken;
-        }
-        
-        // userIdが設定されていない場合、メールアドレスから取得
-        if (!token.userId && session.user?.email) {
-          try {
-            const dbUser = await getUserByEmail(session.user.email);
-            if (dbUser) {
-              token.userId = dbUser.id;
-              (session as any).userId = dbUser.id;
-            }
-          } catch (error) {
-            console.error("[Auth] Failed to get user from database:", error);
+      try {
+        // セッションにアクセストークンとユーザーIDを追加
+        if (token) {
+          if (token.accessToken) {
+            (session as any).accessToken = token.accessToken;
           }
-        } else if (token.userId) {
-          (session as any).userId = token.userId;
+          
+          // userIdが設定されていない場合、メールアドレスから取得
+          if (!token.userId && session.user?.email) {
+            try {
+              const dbUser = await getUserByEmail(session.user.email);
+              if (dbUser) {
+                token.userId = dbUser.id;
+                (session as any).userId = dbUser.id;
+              }
+            } catch (error: any) {
+              console.error("[Auth] Failed to get user from database:", {
+                error: error.message,
+                stack: error.stack,
+                email: session.user?.email,
+              });
+            }
+          } else if (token.userId) {
+            (session as any).userId = token.userId;
+          }
         }
+        return session;
+      } catch (error: any) {
+        console.error("[Auth] Session callback error:", {
+          error: error.message,
+          stack: error.stack,
+          hasToken: !!token,
+          hasSession: !!session,
+        });
+        // エラーが発生してもセッションを返す
+        return session;
       }
-      return session;
     },
   },
   pages: {
