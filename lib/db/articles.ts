@@ -154,6 +154,47 @@ export async function getMonitoringArticles(): Promise<Article[]> {
 }
 
 /**
+ * 指定されたスロットに該当する監視対象の記事一覧を取得（時間分散処理用）
+ * 
+ * @param slot スロット番号（0-23）
+ * @param totalSlots 総スロット数（デフォルト: 24）
+ * @returns 該当スロットの記事一覧
+ */
+export async function getMonitoringArticlesForSlot(
+  slot: number,
+  totalSlots: number = 24
+): Promise<Article[]> {
+  const supabase = createSupabaseClient();
+
+  // 全監視記事を取得
+  const { data: allArticles, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('is_monitoring', true)
+    .is('deleted_at', null)
+    .order('last_analyzed_at', { ascending: true, nullsFirst: true });
+
+  if (error) {
+    throw new Error(`Failed to get monitoring articles: ${error.message}`);
+  }
+
+  if (!allArticles || allArticles.length === 0) {
+    return [];
+  }
+
+  // スロット計算関数をインポート
+  const { getCheckRankTimeSlot } = await import('@/lib/cron/slot-calculator');
+
+  // 該当スロットの記事のみをフィルタ
+  const articlesForSlot = allArticles.filter((article) => {
+    const articleSlot = getCheckRankTimeSlot(article.user_id, totalSlots);
+    return articleSlot === slot;
+  });
+
+  return articlesForSlot as Article[];
+}
+
+/**
  * 記事IDから記事情報を取得
  */
 export async function getArticleById(articleId: string): Promise<Article | null> {
