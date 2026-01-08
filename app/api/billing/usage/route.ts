@@ -33,6 +33,11 @@ export async function GET(request: NextRequest) {
       isFreePlan = plan?.name === "free";
     }
 
+    // 今月の開始日と終了日を取得（新規記事提案回数の取得で使用）
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
     // Freeプランの場合は累計、それ以外は月間の分析回数を取得
     let userAnalyses: any[] = [];
     if (isFreePlan) {
@@ -54,10 +59,6 @@ export async function GET(request: NextRequest) {
       ) || [];
     } else {
       // 今月の分析回数を取得
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
       const { data: analyses, error: analysesError } = await supabase
         .from("analysis_runs")
         .select(`
