@@ -2,9 +2,15 @@ name: Check Rank Drops
 
 on:
   schedule:
-    # 1日1回実行（日本時刻 0:00 = UTC 15:00、GSC APIのデータは1日単位で更新されるため）
-    - cron: '0 15 * * *'
+    # 1時間ごとに実行（24スロットで時間分散処理）
+    # 各スロットは1時間ごとに実行され、該当するユーザーの記事のみを処理
+    - cron: '0 * * * *'
   workflow_dispatch: # 手動実行も可能
+    inputs:
+      slot:
+        description: 'Time slot (0-23). If not specified, current hour is used.'
+        required: false
+        type: number
 
 jobs:
   check-rank:
@@ -19,8 +25,16 @@ jobs:
           # rerank-ai.comをwww.rerank-ai.comに置き換え（リダイレクトを避けるため）
           VERCEL_URL=$(echo "${VERCEL_URL}" | sed 's|https://rerank-ai\.com|https://www.rerank-ai.com|g')
           
-          echo "🔄 Starting rank check job..."
-          response=$(curl -s -w "\n%{http_code}" -X GET "${VERCEL_URL}/api/cron/check-rank" \
+          # スロットを決定（手動実行の場合は指定されたスロット、スケジュール実行の場合は現在の時刻から計算）
+          if [ -n "${{ github.event.inputs.slot }}" ]; then
+            SLOT="${{ github.event.inputs.slot }}"
+          else
+            # 現在のUTC時刻からスロットを計算（0-23）
+            SLOT=$(date -u +%H)
+          fi
+          
+          echo "🔄 Starting rank check job for slot ${SLOT}/24..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${VERCEL_URL}/api/cron/check-rank?slot=${SLOT}" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json")
           
@@ -28,10 +42,10 @@ jobs:
           body=$(echo "$response" | sed '$d')
           
           if [ "$http_code" -eq 200 ]; then
-            echo "✅ Rank check job completed successfully"
+            echo "✅ Rank check job completed successfully for slot ${SLOT}"
             echo "$body"
           else
-            echo "❌ Rank check job failed with HTTP $http_code"
+            echo "❌ Rank check job failed with HTTP $http_code for slot ${SLOT}"
             echo "$body"
             exit 1
           fi

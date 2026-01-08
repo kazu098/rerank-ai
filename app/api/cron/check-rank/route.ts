@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GSCApiClient } from "@/lib/gsc-api";
 import { NotificationChecker } from "@/lib/notification-checker";
-import { getMonitoringArticles } from "@/lib/db/articles";
+import { getMonitoringArticles, getMonitoringArticlesForSlot } from "@/lib/db/articles";
 import { getSitesByUserId, updateSiteTokens, updateSiteAuthError } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
@@ -10,6 +10,7 @@ import { sendSlackNotificationWithBot, formatSlackBulkNotification } from "@/lib
 import { getNotificationSettings } from "@/lib/db/notification-settings";
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
 import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
+import { getCurrentTimeSlot } from "@/lib/cron/slot-calculator";
 
 /**
  * Cronジョブ: 順位下落をチェックして通知キューに保存
@@ -24,18 +25,35 @@ import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
  * 注意: 通知送信は別のcronジョブ（/api/cron/send-notifications）で実行される。
  */
 export async function GET(request: NextRequest) {
-  // Cronジョブの認証（Vercel Cronからのリクエストか確認）
+  // Cronジョブの認証（GitHub Actionsからのリクエストか確認）
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    console.log("[Cron] Starting rank check job...");
+    // スロットパラメータを取得（時間分散処理用）
+    const searchParams = request.nextUrl.searchParams;
+    const slotParam = searchParams.get("slot");
+    const totalSlots = 24; // 1日を24スロット（1時間ごと）に分割
 
-    // 監視対象の記事を取得
-    const articles = await getMonitoringArticles();
-    console.log(`[Cron] Found ${articles.length} monitoring articles`);
+    // スロットが指定されていない場合は現在のスロットを使用
+    const currentSlot = slotParam !== null 
+      ? parseInt(slotParam, 10) 
+      : getCurrentTimeSlot(totalSlots);
+
+    if (isNaN(currentSlot) || currentSlot < 0 || currentSlot >= totalSlots) {
+      return NextResponse.json(
+        { error: `Invalid slot parameter. Must be between 0 and ${totalSlots - 1}` },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[Cron] Starting rank check job for slot ${currentSlot}/${totalSlots}...`);
+
+    // 該当スロットの監視対象の記事を取得
+    const articles = await getMonitoringArticlesForSlot(currentSlot, totalSlots);
+    console.log(`[Cron] Found ${articles.length} monitoring articles for slot ${currentSlot}`);
 
     if (articles.length === 0) {
       return NextResponse.json({ message: "No articles to monitor" });
@@ -553,6 +571,8 @@ export async function GET(request: NextRequest) {
 
     const result = {
       message: "Rank check completed",
+      slot: currentSlot,
+      totalSlots: totalSlots,
       articlesChecked: articles.length,
       usersQueued: sentCount,
       errors: errorCount,
