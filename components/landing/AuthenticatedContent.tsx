@@ -133,7 +133,8 @@ export function AuthenticatedContent() {
         const result = await response.json();
         setGscProperties(result.properties || []);
         setPropertiesLoaded(true);
-        if (result.properties && result.properties.length > 0) {
+        // プロパティが0件でも、プロパティ選択画面を表示（エラーメッセージとともに）
+        if (!selectedSiteUrl) {
           setShowPropertySelection(true);
         }
       } else {
@@ -144,11 +145,19 @@ export function AuthenticatedContent() {
           return;
         } else {
           setError(error.error || t("errors.propertyLoadFailed"));
+          // エラーが発生した場合でも、プロパティ選択画面を表示
+          if (!selectedSiteUrl) {
+            setShowPropertySelection(true);
+          }
         }
       }
     } catch (err: any) {
       console.error("[GSC] Error loading properties:", err);
       setError(err.message || t("errors.propertyLoadFailed"));
+      // エラーが発生した場合でも、プロパティ選択画面を表示
+      if (!selectedSiteUrl) {
+        setShowPropertySelection(true);
+      }
     } finally {
       setLoadingProperties(false);
     }
@@ -287,12 +296,28 @@ export function AuthenticatedContent() {
     }
   };
 
+  // セッション変更時に状態をリセット
   useEffect(() => {
-    if (status === "authenticated" && session?.accessToken && !selectedSiteUrl && !loadingProperties && !propertiesLoaded) {
-      loadGSCProperties();
+    if (status === "unauthenticated") {
+      // ログアウト時に状態をリセット
+      setSelectedSiteUrl(null);
+      setShowPropertySelection(false);
+      setPropertiesLoaded(false);
+      setGscProperties([]);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.accessToken && !selectedSiteUrl) {
+      if (!loadingProperties && !propertiesLoaded) {
+        loadGSCProperties();
+      } else if (propertiesLoaded && !showPropertySelection) {
+        // 既にプロパティが読み込まれているが、選択画面が表示されていない場合
+        setShowPropertySelection(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session?.accessToken, selectedSiteUrl]);
+  }, [status, session?.accessToken, selectedSiteUrl, propertiesLoaded, showPropertySelection]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -426,17 +451,35 @@ export function AuthenticatedContent() {
               const error = await response.json();
               console.error("[GSC] Failed to save site from localStorage:", error);
               localStorage.removeItem("selectedGSCSiteUrl");
-              setShowPropertySelection(true);
+              // プロパティ選択画面を表示
+              if (!propertiesLoaded) {
+                loadGSCProperties();
+              } else {
+                setShowPropertySelection(true);
+              }
             }
           } catch (err: any) {
             console.error("[GSC] Error saving site from localStorage:", err);
             localStorage.removeItem("selectedGSCSiteUrl");
-            setShowPropertySelection(true);
+            // プロパティ選択画面を表示
+            if (!propertiesLoaded) {
+              loadGSCProperties();
+            } else {
+              setShowPropertySelection(true);
+            }
           }
         })();
+      } else if (!savedSiteUrl && !selectedSiteUrl) {
+        // localStorageに保存されていない場合、プロパティを読み込む
+        if (!loadingProperties && !propertiesLoaded) {
+          loadGSCProperties();
+        } else if (propertiesLoaded && !showPropertySelection) {
+          // 既にプロパティが読み込まれているが、選択画面が表示されていない場合
+          setShowPropertySelection(true);
+        }
       }
     }
-  }, [status, session?.accessToken, session?.userId]);
+  }, [status, session?.accessToken, session?.userId, selectedSiteUrl, propertiesLoaded, loadingProperties, showPropertySelection]);
 
   // プラン情報と使用量を取得
   useEffect(() => {
@@ -450,16 +493,10 @@ export function AuthenticatedContent() {
           if (userResponse.ok) {
             const userData = await userResponse.json();
             setUserPlan(userData.user);
-            console.log("[Plan Info] User plan loaded:", userData.user?.plan?.name);
-          } else {
-            console.error("[Plan Info] Failed to fetch user info:", userResponse.status, userResponse.statusText);
           }
           if (usageResponse.ok) {
             const usageData = await usageResponse.json();
             setUsage(usageData.usage);
-            console.log("[Plan Info] Usage loaded:", usageData.usage);
-          } else {
-            console.error("[Plan Info] Failed to fetch usage:", usageResponse.status, usageResponse.statusText);
           }
         })
         .catch((err) => {
