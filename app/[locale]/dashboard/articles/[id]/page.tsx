@@ -347,6 +347,7 @@ export default function ArticleDetailPage({
     try {
       const response = await fetch(`/api/articles/${articleId}/mark-as-fixed`, {
         method: "POST",
+        credentials: "include",
       });
 
       if (!response.ok) {
