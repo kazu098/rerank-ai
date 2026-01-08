@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 interface DashboardStats {
   users: {
     total: number;
+    active: number;
     newToday: number;
     newThisWeek: number;
     newThisMonth: number;
@@ -15,6 +16,14 @@ interface DashboardStats {
       google: number;
       credentials: number;
     };
+    recent: Array<{
+      id: string;
+      email: string;
+      name: string | null;
+      created_at: string;
+      provider: string | null;
+      planName: string;
+    }>;
   };
   plans: {
     byPlan: Record<string, number>;
@@ -28,6 +37,16 @@ interface DashboardStats {
     thisMonth: number;
     lastMonth: number;
     growthRate: number | null;
+    recent: Array<{
+      id: string;
+      created_at: string;
+      article: {
+        id: string;
+        url: string;
+        title: string | null;
+        user_id: string;
+      };
+    }>;
   };
   articleSuggestions: {
     total: number;
@@ -40,6 +59,17 @@ interface DashboardStats {
     mrr: number;
     arr: number;
     byPlan: Record<string, number>;
+  };
+  subscriptions: {
+    active: number;
+    cancellationsThisMonth: number;
+    cancellationsLastMonth: number;
+    churnRate: number | null;
+    trialUsers: number;
+  };
+  notifications: {
+    total: number;
+    thisMonth: number;
   };
 }
 
@@ -89,6 +119,17 @@ export default function AdminDashboardPage() {
     return `${sign}${(rate * 100).toFixed(1)}%`;
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("ja-JP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -119,7 +160,7 @@ export default function AdminDashboardPage() {
       {/* ユーザー統計 */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">ユーザー統計</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="border rounded-lg p-4">
             <p className="text-sm text-gray-500">総ユーザー数</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">
@@ -127,20 +168,27 @@ export default function AdminDashboardPage() {
             </p>
           </div>
           <div className="border rounded-lg p-4">
-            <p className="text-sm text-gray-500">今日の新規登録</p>
+            <p className="text-sm text-gray-500">アクティブユーザー</p>
             <p className="text-3xl font-bold text-blue-600 mt-2">
+              {formatNumber(stats.users.active)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">過去30日以内</p>
+          </div>
+          <div className="border rounded-lg p-4">
+            <p className="text-sm text-gray-500">今日の新規登録</p>
+            <p className="text-3xl font-bold text-green-600 mt-2">
               {formatNumber(stats.users.newToday)}
             </p>
           </div>
           <div className="border rounded-lg p-4">
             <p className="text-sm text-gray-500">今週の新規登録</p>
-            <p className="text-3xl font-bold text-green-600 mt-2">
+            <p className="text-3xl font-bold text-purple-600 mt-2">
               {formatNumber(stats.users.newThisWeek)}
             </p>
           </div>
           <div className="border rounded-lg p-4">
             <p className="text-sm text-gray-500">今月の新規登録</p>
-            <p className="text-3xl font-bold text-purple-600 mt-2">
+            <p className="text-3xl font-bold text-orange-600 mt-2">
               {formatNumber(stats.users.newThisMonth)}
             </p>
             {stats.users.growthRate !== null && (
@@ -252,8 +300,41 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* サブスクリプション統計 */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">サブスクリプション統計</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="border rounded-lg p-4">
+            <p className="text-sm text-gray-500">アクティブサブスクリプション</p>
+            <p className="text-3xl font-bold text-green-600 mt-2">
+              {formatNumber(stats.subscriptions.active)}
+            </p>
+          </div>
+          <div className="border rounded-lg p-4">
+            <p className="text-sm text-gray-500">今月の解約数</p>
+            <p className="text-3xl font-bold text-red-600 mt-2">
+              {formatNumber(stats.subscriptions.cancellationsThisMonth)}
+            </p>
+          </div>
+          <div className="border rounded-lg p-4">
+            <p className="text-sm text-gray-500">解約率</p>
+            <p className="text-3xl font-bold text-orange-600 mt-2">
+              {stats.subscriptions.churnRate !== null
+                ? `${(stats.subscriptions.churnRate * 100).toFixed(2)}%`
+                : "-"}
+            </p>
+          </div>
+          <div className="border rounded-lg p-4">
+            <p className="text-sm text-gray-500">トライアル中ユーザー</p>
+            <p className="text-3xl font-bold text-blue-600 mt-2">
+              {formatNumber(stats.subscriptions.trialUsers)}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* その他の統計 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">新規記事提案</h2>
           <div className="space-y-4">
@@ -280,6 +361,117 @@ export default function AdminDashboardPage() {
               {formatNumber(stats.sites.total)}
             </p>
           </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">通知送信</h2>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-500">総送信数</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {formatNumber(stats.notifications.total)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">今月の送信数</p>
+              <p className="text-2xl font-bold text-indigo-600 mt-1">
+                {formatNumber(stats.notifications.thisMonth)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 最近のユーザー一覧 */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">最近のユーザー（新規登録順）</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  メールアドレス
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  名前
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  認証方法
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  プラン
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  登録日時
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {stats.users.recent.map((user) => (
+                <tr key={user.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {user.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.name || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.provider === "google" ? "Google" : "メール・パスワード"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                    {user.planName}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(user.created_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 最近の分析実行履歴 */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">最近の分析実行履歴</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  実行日時
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  記事URL
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  タイトル
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {stats.analyses.recent.map((analysis) => (
+                <tr key={analysis.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(analysis.created_at)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    <a
+                      href={analysis.article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 truncate block max-w-md"
+                    >
+                      {analysis.article.url}
+                    </a>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {analysis.article.title || "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

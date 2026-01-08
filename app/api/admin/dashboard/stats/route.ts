@@ -162,6 +162,77 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 8. 最近のユーザー一覧（新規登録順、最新10件）
+    const { data: recentUsers } = await supabase
+      .from("users")
+      .select("id, email, name, created_at, provider, plan_id")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    // プラン情報を追加
+    const recentUsersWithPlans = await Promise.all(
+      (recentUsers || []).map(async (user) => {
+        let planName = "free";
+        if (user.plan_id) {
+          const plan = await getPlanById(user.plan_id);
+          planName = plan?.name || "free";
+        }
+        return {
+          ...user,
+          planName,
+        };
+      })
+    );
+
+    // 9. 最近の分析実行履歴（最新20件）
+    const { data: recentAnalyses } = await supabase
+      .from("analysis_runs")
+      .select(`
+        id,
+        created_at,
+        article:articles!inner(id, url, title, user_id)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    // 10. 通知送信統計
+    const { count: totalNotifications } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true });
+
+    const { count: notificationsThisMonth } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", startOfMonth.toISOString())
+      .lt("created_at", endOfMonth.toISOString());
+
+    // 11. アクティブユーザー数（過去30日以内にログインしたユーザー）
+    // 注: 現在はログイン履歴テーブルがないため、暫定的に全ユーザー数を返す
+    // 将来的にログイン履歴テーブルを追加する必要がある
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+    // 暫定的に、過去30日以内に作成されたユーザーをアクティブユーザーとみなす
+    const { count: activeUsers } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .gte("created_at", thirtyDaysAgo.toISOString());
+
+    // 12. 解約数（今月・先月）
+    // 注: 現在は解約履歴テーブルがないため、暫定的に0を返す
+    // 将来的に解約履歴テーブルを追加する必要がある
+    const cancellationsThisMonth = 0;
+    const cancellationsLastMonth = 0;
+
+    // 13. トライアル中ユーザー数
+    const { count: trialUsers } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .not("trial_ends_at", "is", null)
+      .gt("trial_ends_at", now.toISOString());
+
     // 前月比の計算
     const userGrowthRate =
       newUsersLastMonth && newUsersLastMonth > 0
@@ -173,15 +244,27 @@ export async function GET(request: NextRequest) {
         ? ((analysesThisMonth || 0) - analysesLastMonth) / analysesLastMonth
         : null;
 
+    // 解約率の計算（アクティブサブスクリプション数に対する解約数の割合）
+    const activeSubscriptions = Object.entries(planCounts)
+      .filter(([planName]) => planName !== "free")
+      .reduce((sum, [, count]) => sum + count, 0);
+    
+    const churnRate =
+      activeSubscriptions > 0 && cancellationsThisMonth > 0
+        ? cancellationsThisMonth / activeSubscriptions
+        : null;
+
     const stats = {
       users: {
         total: totalUsers || 0,
+        active: activeUsers || 0, // 過去30日以内
         newToday: newUsersToday || 0,
         newThisWeek: newUsersThisWeek || 0,
         newThisMonth: newUsersThisMonth || 0,
         newLastMonth: newUsersLastMonth || 0,
         growthRate: userGrowthRate,
         byProvider: providerStats,
+        recent: recentUsersWithPlans,
       },
       plans: {
         byPlan: planCounts,
@@ -195,6 +278,7 @@ export async function GET(request: NextRequest) {
         thisMonth: analysesThisMonth || 0,
         lastMonth: analysesLastMonth || 0,
         growthRate: analysesGrowthRate,
+        recent: recentAnalyses || [],
       },
       articleSuggestions: {
         total: uniqueGenerations.size,
@@ -207,6 +291,17 @@ export async function GET(request: NextRequest) {
         mrr: mrr,
         arr: mrr * 12,
         byPlan: mrrByPlan,
+      },
+      subscriptions: {
+        active: activeSubscriptions,
+        cancellationsThisMonth,
+        cancellationsLastMonth,
+        churnRate,
+        trialUsers: trialUsers || 0,
+      },
+      notifications: {
+        total: totalNotifications || 0,
+        thisMonth: notificationsThisMonth || 0,
       },
     };
 
