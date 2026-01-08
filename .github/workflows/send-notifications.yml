@@ -9,7 +9,7 @@ on:
 jobs:
   send-notifications:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 60  # ユーザー数増加に対応するため延長（最大360分まで可能）
     
     steps:
       - name: Call Send Notifications API
