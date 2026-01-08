@@ -121,10 +121,22 @@ export async function checkUserPlanLimit(
 
 /**
  * トライアル期間中かチェック
+ * フリープランの場合は常にfalseを返す（トライアルは有料プランのみ）
  */
 export async function isTrialActive(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
-  if (!user || !user.trial_ends_at) {
+  if (!user || !user.plan_id) {
+    return false;
+  }
+
+  // フリープランの場合はトライアル期間をチェックしない
+  const plan = await getPlanById(user.plan_id);
+  if (plan && plan.name === "free") {
+    return false;
+  }
+
+  // トライアル期間が設定されていない場合はfalse
+  if (!user.trial_ends_at) {
     return false;
   }
 

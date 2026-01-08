@@ -350,11 +350,7 @@ export default function BillingPage() {
               <div className="text-gray-600 mt-1">
                 {formatCurrencyPrice(getPlanPriceWithCurrency(currentPlan, selectedCurrency), selectedCurrency)}/月
               </div>
-              {isTrial && userPlan.trial_ends_at && currentPlan.name === "free" && (
-                <div className="text-yellow-600 mt-2">
-                  {t("trialUntil", { date: new Date(userPlan.trial_ends_at).toLocaleDateString(locale) })}
-                </div>
-              )}
+              {/* フリープランにはトライアル期間は設定されない（分析回数などの制限のみで制御） */}
               {userPlan.plan_ends_at && currentPlan.name !== "free" && userPlan.stripe_subscription_id && (
                 <div className="text-gray-600 mt-2">
                   {t("nextRenewalDate", { date: new Date(userPlan.plan_ends_at).toLocaleDateString(locale) })}

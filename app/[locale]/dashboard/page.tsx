@@ -198,13 +198,7 @@ export default function DashboardPage() {
                 <div className="text-2xl font-bold text-gray-900 mb-1">
                   {userPlan.plan.display_name}
                 </div>
-                {isTrialActive() && userPlan.trial_ends_at && userPlan.plan?.name === "free" && (
-                  <div className="text-sm text-yellow-600 mt-1">
-                    {t("dashboard.billing.trialUntil", {
-                      date: new Date(userPlan.trial_ends_at).toLocaleDateString(locale)
-                    })}
-                  </div>
-                )}
+                {/* フリープランにはトライアル期間は設定されない（分析回数などの制限のみで制御） */}
                 {userPlan.plan_ends_at && userPlan.plan?.name !== "free" && userPlan.stripe_subscription_id && (
                   <div className="text-sm text-gray-600 mt-1">
                     {t("dashboard.billing.nextRenewalDate", {

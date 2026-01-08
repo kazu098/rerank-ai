@@ -25,6 +25,7 @@ export function AuthenticatedContent() {
     limitType: string;
     currentUsage: number;
     limit: number | null;
+    trialExpired?: boolean;
   } | null>(null);
   const [articleUrl, setArticleUrl] = useState("");
   const [notificationEmail, setNotificationEmail] = useState("");
@@ -525,8 +526,21 @@ export function AuthenticatedContent() {
 
       if (!step1Response.ok) {
         const errorData = await step1Response.json();
-        if (errorData.limitExceeded || errorData.upgradeRequired) {
+        // 制限超過またはトライアル期限切れの場合
+        if (errorData.limitExceeded || errorData.trialExpired || errorData.upgradeRequired) {
           const errorKey = errorData.errorKey || errorData.error || "errors.limitExceeded";
+          
+          // トライアル期限切れの場合
+          if (errorData.trialExpired) {
+            const errorMessage = t(errorKey);
+            const error = new Error(errorMessage);
+            (error as any).trialExpired = true;
+            (error as any).upgradeRequired = true;
+            (error as any).errorKey = errorKey;
+            throw error;
+          }
+          
+          // 制限超過の場合
           const limitTypeKey = errorData.limitType 
             ? `errors.limitType${errorData.limitType.charAt(0).toUpperCase() + errorData.limitType.slice(1)}`
             : "";
@@ -699,12 +713,13 @@ export function AuthenticatedContent() {
         }
       }
     } catch (err: any) {
-      if (err.limitExceeded) {
+      if (err.limitExceeded || err.trialExpired) {
         setLimitError({
           message: err.message,
           limitType: err.limitType || "unknown",
           currentUsage: err.currentUsage || 0,
           limit: err.limit || null,
+          trialExpired: err.trialExpired || false,
         });
         setError(null);
       } else {
@@ -1430,12 +1445,14 @@ export function AuthenticatedContent() {
                     {limitError ? (
                       <div>
                         <p className="text-yellow-800 font-semibold mb-2">{limitError.message}</p>
-                        <p className="text-yellow-700 text-sm mb-3">
-                          {t("billing.currentUsage")}: {t("billing.usage", {
-                            current: limitError.currentUsage,
-                            limit: limitError.limit ?? t("billing.unlimited")
-                          })}
-                        </p>
+                        {!limitError.trialExpired && (
+                          <p className="text-yellow-700 text-sm mb-3">
+                            {t("billing.currentUsage")}: {t("billing.usage", {
+                              current: limitError.currentUsage,
+                              limit: limitError.limit ?? t("billing.unlimited")
+                            })}
+                          </p>
+                        )}
                         <Link
                           href="/#pricing"
                           className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
