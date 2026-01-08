@@ -67,6 +67,14 @@ export default function BillingPage() {
   const [verifyingSession, setVerifyingSession] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "invoices">("overview");
 
+  // URLパラメータからタブを設定
+  useEffect(() => {
+    const tabParam = searchParams?.get("tab");
+    if (tabParam === "overview" || tabParam === "invoices") {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (session?.userId) {
       fetchBillingData();
