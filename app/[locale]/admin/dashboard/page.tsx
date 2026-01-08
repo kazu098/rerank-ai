@@ -700,8 +700,8 @@ export default function AdminDashboardPage() {
                   label={{ value: "累計MRR", angle: 90, position: "insideRight" }}
                 />
                 <Tooltip
-                  formatter={(value: number, name: string) => [
-                    formatCurrency(value),
+                  formatter={(value: number | undefined, name: string) => [
+                    value !== undefined ? formatCurrency(value) : "-",
                     name === "mrr" ? "新規MRR" : "累計MRR",
                   ]}
                 />
