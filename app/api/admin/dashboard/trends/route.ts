@@ -43,9 +43,20 @@ export async function GET(request: NextRequest) {
     }
 
     // ユーザー登録数の時系列データ
-    const userTrends: Array<{ date: string; count: number }> = [];
+    const userTrends: Array<{ date: string; count: number; cumulative: number }> = [];
     const analysisTrends: Array<{ date: string; count: number }> = [];
-    const mrrTrends: Array<{ date: string; mrr: number }> = [];
+    const mrrTrends: Array<{ date: string; mrr: number; cumulative: number }> = [];
+
+    // 累計計算用の変数
+    let cumulativeUsers = 0;
+
+    // 開始日時点での累計を取得
+    const { count: initialUserCount } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .lt("created_at", startDate.toISOString());
+    cumulativeUsers = initialUserCount || 0;
 
     for (let i = dataPoints - 1; i >= 0; i--) {
       let periodStart: Date;
@@ -79,6 +90,8 @@ export async function GET(request: NextRequest) {
         .gte("created_at", periodStart.toISOString())
         .lte("created_at", periodEnd.toISOString());
 
+      cumulativeUsers += userCount || 0;
+
       userTrends.push({
         date: period === "daily"
           ? periodStart.toISOString().split("T")[0]
@@ -86,6 +99,7 @@ export async function GET(request: NextRequest) {
           ? `${periodStart.toISOString().split("T")[0]}`
           : `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, "0")}`,
         count: userCount || 0,
+        cumulative: cumulativeUsers,
       });
 
       // 分析実行数
@@ -104,44 +118,56 @@ export async function GET(request: NextRequest) {
         count: analysisCount || 0,
       });
 
-      // MRR計算（月次データのみ）
-      if (period === "monthly") {
-        const { data: usersWithPlans } = await supabase
-          .from("users")
-          .select("plan_id, plan_started_at, plan_ends_at")
-          .is("deleted_at", null)
-          .not("plan_id", "is", null);
+      // MRR計算（全期間で計算）
+      // この期間終了時点でアクティブな全サブスクリプションのMRRを計算
+      const { data: activeUsersWithPlans } = await supabase
+        .from("users")
+        .select("plan_id, plan_started_at, plan_ends_at")
+        .is("deleted_at", null)
+        .not("plan_id", "is", null);
 
-        let periodMrr = 0;
-        if (usersWithPlans) {
-          for (const user of usersWithPlans) {
-            if (user.plan_id) {
-              const plan = await getPlanById(user.plan_id);
-              if (plan && plan.name !== "free" && plan.price_monthly) {
-                // この期間中にアクティブだったサブスクリプションをカウント
-                const planStarted = user.plan_started_at
-                  ? new Date(user.plan_started_at)
-                  : null;
-                const planEnds = user.plan_ends_at ? new Date(user.plan_ends_at) : null;
+      let totalMrrAtPeriodEnd = 0;
+      let newMrrInPeriod = 0;
+      
+      if (activeUsersWithPlans) {
+        for (const user of activeUsersWithPlans) {
+          if (user.plan_id) {
+            const plan = await getPlanById(user.plan_id);
+            if (plan && plan.name !== "free" && plan.price_monthly) {
+              const planStarted = user.plan_started_at
+                ? new Date(user.plan_started_at)
+                : null;
+              const planEnds = user.plan_ends_at ? new Date(user.plan_ends_at) : null;
 
-                // 期間中にアクティブだったかチェック
-                const isActiveInPeriod =
-                  (!planStarted || planStarted <= periodEnd) &&
-                  (!planEnds || planEnds >= periodStart);
+              // この期間終了時点でアクティブだったかチェック
+              const isActiveAtPeriodEnd =
+                (!planStarted || planStarted <= periodEnd) &&
+                (!planEnds || planEnds >= periodEnd);
 
-                if (isActiveInPeriod) {
-                  periodMrr += plan.price_monthly;
+              if (isActiveAtPeriodEnd) {
+                totalMrrAtPeriodEnd += plan.price_monthly;
+                
+                // この期間中に新規に開始されたサブスクリプションをカウント
+                if (planStarted && planStarted >= periodStart && planStarted <= periodEnd) {
+                  newMrrInPeriod += plan.price_monthly;
                 }
               }
             }
           }
         }
-
-        mrrTrends.push({
-          date: `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, "0")}`,
-          mrr: periodMrr,
-        });
       }
+
+      const dateLabel = period === "daily"
+        ? periodStart.toISOString().split("T")[0]
+        : period === "weekly"
+        ? `${periodStart.toISOString().split("T")[0]}`
+        : `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, "0")}`;
+
+      mrrTrends.push({
+        date: dateLabel,
+        mrr: newMrrInPeriod,
+        cumulative: totalMrrAtPeriodEnd,
+      });
     }
 
     return NextResponse.json({

@@ -1,10 +1,9 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "@/src/i18n/routing";
+import { useRouter, Link } from "@/src/i18n/routing";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 export default function AdminLayout({
   children,
@@ -102,22 +101,6 @@ export default function AdminLayout({
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                 >
                   ユーザー管理
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/subscriptions"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                >
-                  サブスクリプション
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/analytics"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                >
-                  分析状況
                 </Link>
               </li>
             </ul>

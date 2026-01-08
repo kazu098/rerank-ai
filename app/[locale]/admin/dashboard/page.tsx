@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { Link } from "@/src/i18n/routing";
 import {
   LineChart,
   Line,
@@ -277,14 +278,20 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">ダッシュボード</h1>
         <p className="text-gray-600 mt-2">サービスの運営状況を確認</p>
       </div>
 
-      {/* ユーザー統計 */}
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* ========== ユーザー関連 ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">ユーザー関連</h2>
+        </div>
+
+        {/* ユーザー統計 */}
+        <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">ユーザー統計</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="border rounded-lg p-4">
@@ -337,23 +344,30 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* プラン別ユーザー数 */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">プラン別ユーザー数</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(stats.plans.byPlan).map(([planName, count]) => (
-            <div key={planName} className="border rounded-lg p-4">
-              <p className="text-sm text-gray-500 capitalize">{planName}</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {formatNumber(count)}
-              </p>
-            </div>
-          ))}
+        {/* プラン別ユーザー数 */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">プラン別ユーザー数</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Object.entries(stats.plans.byPlan).map(([planName, count]) => (
+              <div key={planName} className="border rounded-lg p-4">
+                <p className="text-sm text-gray-500 capitalize">{planName}</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">
+                  {formatNumber(count)}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 収益統計 */}
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* ========== 収益関連 ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">収益関連</h2>
+        </div>
+
+        {/* 収益統計 */}
+        <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">収益統計</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="border rounded-lg p-4">
@@ -382,52 +396,8 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 記事・分析統計 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* サブスクリプション統計 */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">記事統計</h2>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-500">総記事数</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {formatNumber(stats.articles.total)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">監視中記事数</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">
-                {formatNumber(stats.articles.monitoring)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">分析実行統計</h2>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-500">総分析実行回数</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {formatNumber(stats.analyses.total)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">今月の分析実行回数</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">
-                {formatNumber(stats.analyses.thisMonth)}
-              </p>
-              {stats.analyses.growthRate !== null && (
-                <p className="text-sm mt-1 text-gray-600">
-                  前月比: {formatGrowthRate(stats.analyses.growthRate)}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* サブスクリプション統計 */}
-      <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">サブスクリプション統計</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="border rounded-lg p-4">
@@ -459,48 +429,111 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* その他の統計 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">新規記事提案</h2>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-500">総提案回数</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {formatNumber(stats.articleSuggestions.total)}
-              </p>
+      </div>
+
+      {/* ========== 記事・コンテンツ関連 ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">記事・コンテンツ関連</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">記事統計</h2>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">総記事数</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatNumber(stats.articles.total)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">監視中記事数</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">
+                  {formatNumber(stats.articles.monitoring)}
+                </p>
+              </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">新規記事提案</h2>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">総提案回数</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatNumber(stats.articleSuggestions.total)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">今月の提案回数</p>
+                <p className="text-2xl font-bold text-purple-600 mt-1">
+                  {formatNumber(stats.articleSuggestions.thisMonth)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">GSC連携</h2>
             <div>
-              <p className="text-sm text-gray-500">今月の提案回数</p>
-              <p className="text-2xl font-bold text-purple-600 mt-1">
-                {formatNumber(stats.articleSuggestions.thisMonth)}
+              <p className="text-sm text-gray-500">連携サイト数</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {formatNumber(stats.sites.total)}
               </p>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ========== 分析関連 ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">分析関連</h2>
+        </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">GSC連携</h2>
-          <div>
-            <p className="text-sm text-gray-500">連携サイト数</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">
-              {formatNumber(stats.sites.total)}
-            </p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">分析実行統計</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500">総分析実行回数</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">
+                {formatNumber(stats.analyses.total)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">今月の分析実行回数</p>
+              <p className="text-3xl font-bold text-green-600 mt-2">
+                {formatNumber(stats.analyses.thisMonth)}
+              </p>
+              {stats.analyses.growthRate !== null && (
+                <p className="text-sm mt-1 text-gray-600">
+                  前月比: {formatGrowthRate(stats.analyses.growthRate)}
+                </p>
+              )}
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* ========== その他 ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">その他</h2>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">通知送信</h2>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-500">総送信数</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
+              <p className="text-3xl font-bold text-gray-900 mt-2">
                 {formatNumber(stats.notifications.total)}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-500">今月の送信数</p>
-              <p className="text-2xl font-bold text-indigo-600 mt-1">
+              <p className="text-3xl font-bold text-indigo-600 mt-2">
                 {formatNumber(stats.notifications.thisMonth)}
               </p>
             </div>
@@ -508,8 +541,13 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 時系列グラフ */}
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* ========== 時系列グラフ ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">時系列グラフ</h2>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-900">時系列グラフ</h2>
           <div className="flex gap-2">
@@ -563,15 +601,35 @@ export default function AdminDashboardPage() {
                     textAnchor="end"
                     height={80}
                   />
-                  <YAxis tick={{ fontSize: 12 }} />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 12 }}
+                    label={{ value: "新規登録数", angle: -90, position: "insideLeft" }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    label={{ value: "累計ユーザー数", angle: 90, position: "insideRight" }}
+                  />
                   <Tooltip />
                   <Legend />
                   <Line
+                    yAxisId="left"
                     type="monotone"
                     dataKey="count"
                     stroke="#3b82f6"
                     strokeWidth={2}
-                    name="登録数"
+                    name="新規登録数"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="cumulative"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    name="累計ユーザー数"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -612,8 +670,8 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* MRRの推移（月次データのみ） */}
-        {trendPeriod === "monthly" && trends?.trends.mrr && trends.trends.mrr.length > 0 && (
+        {/* MRRの推移 */}
+        {trends?.trends.mrr && trends.trends.mrr.length > 0 && (
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               MRR（月間経常収益）の推移
@@ -629,31 +687,56 @@ export default function AdminDashboardPage() {
                   height={80}
                 />
                 <YAxis
+                  yAxisId="left"
                   tick={{ fontSize: 12 }}
                   tickFormatter={(value) => `¥${(value / 1000).toFixed(0)}k`}
+                  label={{ value: "新規MRR", angle: -90, position: "insideLeft" }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `¥${(value / 1000).toFixed(0)}k`}
+                  label={{ value: "累計MRR", angle: 90, position: "insideRight" }}
                 />
                 <Tooltip
-                  formatter={(value: number) => [
+                  formatter={(value: number, name: string) => [
                     formatCurrency(value),
-                    "MRR",
+                    name === "mrr" ? "新規MRR" : "累計MRR",
                   ]}
                 />
                 <Legend />
                 <Line
+                  yAxisId="left"
                   type="monotone"
                   dataKey="mrr"
                   stroke="#10b981"
                   strokeWidth={2}
-                  name="MRR"
+                  name="新規MRR"
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="cumulative"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  name="累計MRR"
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
         )}
+        </div>
       </div>
 
-      {/* ユーザー一覧 */}
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* ========== ユーザー一覧 ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">ユーザー一覧</h2>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">ユーザー一覧（新規登録順）</h2>
         {usersLoading ? (
           <div className="flex items-center justify-center h-64">
@@ -685,9 +768,14 @@ export default function AdminDashboardPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {usersList.length > 0 ? (
                     usersList.map((user) => (
-                      <tr key={user.id}>
+                      <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.email}
+                          <Link
+                            href={`/admin/users/${user.id}`}
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {user.email}
+                          </Link>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {user.name || "-"}
@@ -739,11 +827,17 @@ export default function AdminDashboardPage() {
             )}
           </>
         )}
+        </div>
       </div>
 
-      {/* 分析実行履歴 */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">分析実行履歴</h2>
+      {/* ========== 分析実行履歴 ========== */}
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-2">
+          <h2 className="text-2xl font-bold text-gray-900">分析実行履歴</h2>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">分析実行履歴</h2>
         {analysesLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-600">読み込み中...</div>
@@ -823,6 +917,7 @@ export default function AdminDashboardPage() {
             )}
           </>
         )}
+        </div>
       </div>
     </div>
   );
