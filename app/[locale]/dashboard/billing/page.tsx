@@ -384,7 +384,9 @@ export default function BillingPage() {
               {/* 分析回数 */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">{t("analyses")}</span>
+                  <span className="text-gray-700">
+                    {currentPlan.name === "free" ? t("analysesTotal") : t("analyses")}
+                  </span>
                   <span className="text-gray-900 font-semibold">
                     {usage.analyses_this_month} / {formatLimit(currentPlan.max_analyses_per_month)}
                   </span>

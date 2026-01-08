@@ -213,7 +213,9 @@ export default function DashboardPage() {
                 {/* 分析回数 */}
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">{t("dashboard.billing.analyses")}</span>
+                    <span className="text-gray-600">
+                      {userPlan.plan.name === "free" ? t("dashboard.billing.analysesTotal") : t("dashboard.billing.analyses")}
+                    </span>
                     <span className="font-semibold">
                       {usage.analyses_this_month} / {formatLimit(userPlan.plan.max_analyses_per_month)}
                     </span>

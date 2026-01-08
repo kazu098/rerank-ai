@@ -282,9 +282,11 @@
     "limitExceeded": "{limitType}の制限（{limit}）に達しています。プランをアップグレードしてください。",
     "limitTypeArticles": "監視記事数",
     "limitTypeAnalyses": "月間分析回数",
+    "limitTypeAnalysesTotal": "累計分析回数",
     "trialExpired": "トライアル期間が終了しています。プランをアップグレードしてください。",
     "articlesLimitExceeded": "監視記事数の制限に達しています",
     "analysesLimitExceeded": "月間分析回数の制限に達しています",
+    "analysesLimitExceededTotal": "累計分析回数の制限に達しています",
     "checkoutFailed": "チェックアウト処理に失敗しました"
   },
   "billing": {
@@ -319,6 +321,7 @@
       "trialUntil": "トライアル期間: {date}まで",
       "nextRenewalDate": "次回更新日: {date}",
       "analyses": "月間分析回数",
+      "analysesTotal": "累計分析回数",
       "articles": "監視記事数",
       "articleSuggestions": "新規記事提案（今月）",
       "articleSuggestionsCount": "新規記事提案回数",

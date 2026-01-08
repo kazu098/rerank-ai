@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS plans (
 -- プランの初期データ
 -- display_nameは英語で保存（多言語対応はアプリケーション側で実装）
 INSERT INTO plans (name, display_name, price_monthly, max_articles, max_analyses_per_month, max_sites, max_concurrent_analyses) VALUES
-('free', 'Free', 0, 3, 3, 1, 1),
+('free', 'Free', 0, 3, 7, 1, 1),
 ('starter', 'Starter', 2980, 20, 20, 1, 1),
 ('standard', 'Standard', 9800, 100, 100, 3, 3),
 ('business', 'Business', 29800, NULL, NULL, NULL, 10)
