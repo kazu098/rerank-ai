@@ -322,6 +322,7 @@
       "nextRenewalDate": "次回更新日: {date}",
       "analyses": "月間分析回数",
       "analysesTotal": "累計分析回数",
+    "articleSuggestionsTotal": "累計新規記事提案回数",
       "articles": "監視記事数",
       "articleSuggestions": "新規記事提案（今月）",
       "articleSuggestionsCount": "新規記事提案回数",

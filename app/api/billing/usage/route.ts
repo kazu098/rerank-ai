@@ -78,22 +78,40 @@ export async function GET(request: NextRequest) {
       ) || [];
     }
 
-    // 今月の新規記事提案回数を取得
-    const { data: suggestions, error: suggestionsError } = await supabase
-      .from("article_suggestions")
-      .select("id")
-      .eq("user_id", session.userId)
-      .gte("created_at", startOfMonth.toISOString())
-      .lte("created_at", endOfMonth.toISOString());
+    // 新規記事提案回数を取得（Freeプランは累計、それ以外は月間）
+    let userSuggestions: any[] = [];
+    if (isFreePlan) {
+      // 累計提案回数を取得
+      const { data: suggestions, error: suggestionsError } = await supabase
+        .from("article_suggestions")
+        .select("id")
+        .eq("user_id", session.userId);
 
-    if (suggestionsError) {
-      console.error("[Usage API] Error fetching suggestions:", suggestionsError);
+      if (suggestionsError) {
+        console.error("[Usage API] Error fetching suggestions:", suggestionsError);
+      }
+
+      userSuggestions = suggestions || [];
+    } else {
+      // 今月の提案回数を取得
+      const { data: suggestions, error: suggestionsError } = await supabase
+        .from("article_suggestions")
+        .select("id")
+        .eq("user_id", session.userId)
+        .gte("created_at", startOfMonth.toISOString())
+        .lte("created_at", endOfMonth.toISOString());
+
+      if (suggestionsError) {
+        console.error("[Usage API] Error fetching suggestions:", suggestionsError);
+      }
+
+      userSuggestions = suggestions || [];
     }
 
     const usage = {
       articles: monitoringArticles.length,
       analyses_this_month: userAnalyses.length,
-      article_suggestions_this_month: suggestions?.length || 0,
+      article_suggestions_this_month: userSuggestions.length,
     };
 
     return NextResponse.json({
