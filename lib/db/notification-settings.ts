@@ -390,3 +390,90 @@ export async function getNotificationSettingsForArticles(
 
   return result;
 }
+
+/**
+ * 通知設定を作成または更新
+ */
+export async function saveOrUpdateNotificationSettings(
+  userId: string,
+  settings: Partial<NotificationSettings> & {
+    notification_type: string;
+    channel: string;
+    recipient: string;
+  },
+  articleId?: string | null
+): Promise<NotificationSettings> {
+  console.log('[Notification Settings DB] saveOrUpdateNotificationSettings called:', {
+    userId,
+    articleId: articleId || null,
+    notification_type: settings.notification_type,
+    channel: settings.channel,
+    is_enabled: settings.is_enabled,
+    hasSlackIntegrationId: settings.slack_integration_id !== undefined,
+  });
+
+  const supabase = createSupabaseClient();
+
+  const settingsData: any = {
+    user_id: userId,
+    article_id: articleId || null,
+    notification_type: settings.notification_type,
+    channel: settings.channel,
+    recipient: settings.recipient,
+    is_enabled: settings.is_enabled ?? true,
+    updated_at: new Date().toISOString(),
+  };
+
+  // slack_integration_idを追加（提供されている場合）
+  if (settings.slack_integration_id !== undefined) {
+    settingsData.slack_integration_id = settings.slack_integration_id;
+  }
+
+  console.log('[Notification Settings DB] Settings data to save:', {
+    is_enabled: settingsData.is_enabled,
+    hasSlackBotToken: settingsData.slack_bot_token !== undefined,
+    slackBotTokenIsNull: settingsData.slack_bot_token === null,
+    slackChannelId: settingsData.slack_channel_id,
+    slackNotificationType: settingsData.slack_notification_type,
+  });
+
+  // UPSERTを使用して、競合を回避しながら作成または更新
+  // UNIQUE制約: (user_id, article_id, notification_type, channel)
+  try {
+    console.log('[Notification Settings DB] Using upsert to avoid race conditions');
+    
+    const { data, error } = await supabase
+      .from('notification_settings')
+      .upsert(settingsData, {
+        onConflict: 'user_id,article_id,notification_type,channel',
+        ignoreDuplicates: false, // 重複時は更新
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Notification Settings DB] Error upserting settings:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      throw new Error(`Failed to upsert notification settings: ${error.message} (code: ${error.code})`);
+    }
+
+    console.log('[Notification Settings DB] Settings upserted successfully:', {
+      id: data.id,
+      is_enabled: data.is_enabled,
+      hasSlackIntegrationId: !!data.slack_integration_id,
+    });
+
+    return data as NotificationSettings;
+  } catch (dbError: any) {
+    console.error('[Notification Settings DB] Database operation failed:', {
+      error: dbError.message,
+      stack: dbError.stack,
+      name: dbError.name,
+    });
+    throw dbError;
+  }
+}
