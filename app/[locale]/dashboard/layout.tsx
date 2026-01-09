@@ -131,7 +131,7 @@ export default function DashboardLayout({
                 </svg>
               </button>
               {/* ロゴが存在する場合のみ表示 */}
-              <div className="flex items-center gap-2 ml-2 lg:ml-0">
+              <Link href="/dashboard" className="flex items-center gap-2 ml-2 lg:ml-0 hover:opacity-80 transition-opacity">
                 <Image 
                   src="/logo.svg" 
                   alt="ReRank AI" 
@@ -146,7 +146,7 @@ export default function DashboardLayout({
                 <h1 className="text-xl font-bold text-gray-900">
                   ReRank AI
                 </h1>
-              </div>
+              </Link>
             </div>
             <div className="flex items-center gap-4">
               {/* ユーザーメニュー */}
