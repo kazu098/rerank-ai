@@ -40,7 +40,19 @@ export async function POST(request: NextRequest) {
       secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
     });
 
-    const refreshToken = (token?.refreshToken as string) || "";
+    // 既存のサイトを確認し、リフレッシュトークンが存在する場合は保持する
+    const { getSitesByUserId } = await import("@/lib/db/sites");
+    const existingSites = await getSitesByUserId(session.userId);
+    const existingSite = existingSites.find(s => 
+      s.site_url === siteUrl || s.site_url === siteUrl.replace(/\/$/, '')
+    );
+    
+    // JWTから新しいリフレッシュトークンを取得（存在する場合）
+    const newRefreshToken = token?.refreshToken as string | undefined;
+    // 既存のリフレッシュトークンがある場合は優先して使用、なければ新しいトークンを使用、どちらもなければnull
+    const refreshToken: string | null = (existingSite?.gsc_refresh_token && existingSite.gsc_refresh_token.trim() !== '') 
+      ? existingSite.gsc_refresh_token 
+      : (newRefreshToken && newRefreshToken.trim() !== '' ? newRefreshToken : null);
 
     // トークンの有効期限を計算（JWTトークンから取得、なければ1時間後）
     const expiresAt = token?.expiresAt

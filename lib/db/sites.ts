@@ -75,7 +75,7 @@ export async function saveOrUpdateSite(
   userId: string,
   siteUrl: string,
   accessToken: string,
-  refreshToken: string,
+  refreshToken: string | null,
   expiresAt: Date,
   displayName?: string
 ): Promise<Site> {
@@ -106,17 +106,36 @@ export async function saveOrUpdateSite(
 
   if (existingSite) {
     // 更新（URLも正規化して更新）
+    // リフレッシュトークンが空文字列の場合は、既存のリフLEッシュトークンを保持
+    const updateData: {
+      site_url: string;
+      gsc_access_token: string;
+      gsc_refresh_token?: string;
+      gsc_token_expires_at: string;
+      display_name?: string;
+      is_active: boolean;
+      updated_at: string;
+    } = {
+      site_url: normalizedSiteUrl, // 正規化されたURLに更新
+      gsc_access_token: accessToken,
+      gsc_token_expires_at: expiresAt.toISOString(),
+      display_name: displayName || existingSite.display_name,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    // リフレッシュトークンが有効な値の場合のみ更新（空文字列やnullの場合は既存の値を保持）
+    if (refreshToken && refreshToken.trim() !== '') {
+      updateData.gsc_refresh_token = refreshToken;
+    } else if (existingSite.gsc_refresh_token && existingSite.gsc_refresh_token.trim() !== '') {
+      // 既存のリフレッシュトークンが存在する場合は保持
+      updateData.gsc_refresh_token = existingSite.gsc_refresh_token;
+    }
+    // どちらも存在しない場合は、gsc_refresh_tokenを更新しない（既存のnull/空文字列を保持）
+
     const { data: updatedSite, error } = await supabase
       .from('sites')
-      .update({
-        site_url: normalizedSiteUrl, // 正規化されたURLに更新
-        gsc_access_token: accessToken,
-        gsc_refresh_token: refreshToken,
-        gsc_token_expires_at: expiresAt.toISOString(),
-        display_name: displayName || existingSite.display_name,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', existingSite.id)
       .select()
       .single();
@@ -129,18 +148,30 @@ export async function saveOrUpdateSite(
   }
 
   // 新規作成（正規化されたURLで保存）
+  // リフレッシュトークンが空文字列の場合はnullとして保存
+  const insertData: {
+    user_id: string;
+    site_url: string;
+    display_name: string;
+    gsc_access_token: string;
+    gsc_refresh_token: string | null;
+    gsc_token_expires_at: string;
+    is_active: boolean;
+    is_trial: boolean;
+  } = {
+    user_id: userId,
+    site_url: normalizedSiteUrl, // 正規化されたURLで保存
+    display_name: displayName || normalizedSiteUrl,
+    gsc_access_token: accessToken,
+    gsc_refresh_token: (refreshToken && refreshToken.trim() !== '') ? refreshToken : null,
+    gsc_token_expires_at: expiresAt.toISOString(),
+    is_active: true,
+    is_trial: false,
+  };
+
   const { data: newSite, error } = await supabase
     .from('sites')
-    .insert({
-      user_id: userId,
-      site_url: normalizedSiteUrl, // 正規化されたURLで保存
-      display_name: displayName || normalizedSiteUrl,
-      gsc_access_token: accessToken,
-      gsc_refresh_token: refreshToken,
-      gsc_token_expires_at: expiresAt.toISOString(),
-      is_active: true,
-      is_trial: false,
-    })
+    .insert(insertData)
     .select()
     .single();
 

@@ -108,14 +108,19 @@ export async function GET(request: NextRequest) {
         let accessToken = site.gsc_access_token;
         let refreshToken = site.gsc_refresh_token;
 
+        // リフレッシュトークンが空文字列の場合はnullとして扱う
+        if (refreshToken && refreshToken.trim() === '') {
+          refreshToken = null;
+        }
+
         // トークンが期限切れまたは期限切れ間近（10分前）の場合、リフレッシュを試みる
         // tokenExpiresAtがnullの場合でも、リフレッシュトークンがあればリフレッシュを試みる（安全のため）
         const shouldRefresh = tokenExpiresAt 
           ? now >= tokenExpiresAt - 10 * 60 * 1000
-          : refreshToken !== null; // tokenExpiresAtがnullでリフレッシュトークンがある場合、リフレッシュを試みる
+          : refreshToken !== null && refreshToken !== ''; // tokenExpiresAtがnullでリフレッシュトークンがある場合、リフレッシュを試みる
 
         if (shouldRefresh) {
-          if (!refreshToken) {
+          if (!refreshToken || refreshToken.trim() === '') {
             console.warn(
               `[Cron] GSC access token expired or missing expiration date for site ${site.id}, but no refresh token available. Skipping article ${article.id}.`
             );
@@ -221,11 +226,13 @@ export async function GET(request: NextRequest) {
             );
             
             // 401エラーの場合、リフレッシュトークンによる自動更新を試みる
-            if (refreshToken) {
+            // リフレッシュトークンが空文字列の場合はnullとして扱う
+            const validRefreshToken = refreshToken && refreshToken.trim() !== '' ? refreshToken : null;
+            if (validRefreshToken) {
               console.log(`[Cron] Attempting to refresh GSC access token for site ${site.id} after 401 error...`);
               try {
                 const refreshGscClient = new GSCApiClient(accessToken);
-                const refreshed = await refreshGscClient.refreshAccessToken(refreshToken);
+                const refreshed = await refreshGscClient.refreshAccessToken(validRefreshToken);
                 
                 // トークンをDBに更新
                 // 注意: Google OAuth 2.0では、リフレッシュトークンは通常返されない（既存のリフレッシュトークンがそのまま有効）
@@ -233,7 +240,7 @@ export async function GET(request: NextRequest) {
                 await updateSiteTokens(
                   site.id,
                   refreshed.accessToken,
-                  refreshed.refreshToken ?? refreshToken, // 新しいリフレッシュトークンがあれば使用、なければ既存のものを保持
+                  refreshed.refreshToken ?? validRefreshToken, // 新しいリフレッシュトークンがあれば使用、なければ既存のものを保持
                   refreshed.expiresAt
                 );
                 
@@ -251,6 +258,14 @@ export async function GET(request: NextRequest) {
                 
                 // 再試行が成功した場合は、通常の処理フローに戻る
                 console.log(`[Cron] Retry successful after token refresh for article ${article.id}`);
+                
+                // リフレッシュしたトークンをローカル変数に更新（後の処理で使用）
+                accessToken = refreshed.accessToken;
+                if (refreshed.refreshToken) {
+                  refreshToken = refreshed.refreshToken;
+                } else {
+                  refreshToken = validRefreshToken; // 新しいリフレッシュトークンが返されない場合は既存のものを保持
+                }
               } catch (refreshError: any) {
                 console.error(
                   `[Cron] Failed to refresh GSC access token for site ${site.id} after 401 error:`,
@@ -300,8 +315,45 @@ export async function GET(request: NextRequest) {
               }
             } else {
               console.error(
-                `[Cron] Token may be expired or invalid. Skipping article ${article.id}. User should re-authenticate.`
+                `[Cron] GSC API authentication error for site ${site.id}, article ${article.id}: No refresh token available. User should re-authenticate.`
               );
+              
+              // リフレッシュトークンが存在しない場合でも認証エラーを記録
+              try {
+                await updateSiteAuthError(site.id);
+                
+                // 24時間以内に通知を送っていない場合のみメール通知を送る
+                const supabase = createSupabaseClient();
+                const { data: siteData } = await supabase
+                  .from('sites')
+                  .select('auth_error_at, user_id')
+                  .eq('id', site.id)
+                  .single();
+                
+                if (siteData) {
+                  const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
+                  const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
+                  
+                  if (shouldNotify) {
+                    const user = await getUserById(siteData.user_id);
+                    if (user?.email) {
+                      const notificationService = new NotificationService();
+                      const locale = (user.locale || "ja") as "ja" | "en";
+                      await notificationService.sendAuthErrorNotification(
+                        user.email,
+                        site.site_url,
+                        locale
+                      );
+                      console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${site.id}`);
+                    }
+                  } else {
+                    console.log(`[Cron] Auth error notification already sent within 24 hours for site ${site.id}, skipping`);
+                  }
+                }
+              } catch (notifyError: any) {
+                console.error(`[Cron] Failed to send auth error notification:`, notifyError);
+              }
+              
               continue;
             }
           } else {
