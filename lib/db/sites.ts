@@ -106,11 +106,11 @@ export async function saveOrUpdateSite(
 
   if (existingSite) {
     // 更新（URLも正規化して更新）
-    // リフレッシュトークンが空文字列の場合は、既存のリフLEッシュトークンを保持
+    // リフレッシュトークンが空文字列の場合は、既存のリフレッシュトークンを保持
     const updateData: {
       site_url: string;
       gsc_access_token: string;
-      gsc_refresh_token?: string;
+      gsc_refresh_token?: string | null;
       gsc_token_expires_at: string;
       display_name?: string;
       is_active: boolean;
@@ -124,14 +124,19 @@ export async function saveOrUpdateSite(
       updated_at: new Date().toISOString(),
     };
 
-    // リフレッシュトークンが有効な値の場合のみ更新（空文字列やnullの場合は既存の値を保持）
+    // リフレッシュトークンの更新処理
+    // 新しいリフレッシュトークンが有効な値の場合は更新
     if (refreshToken && refreshToken.trim() !== '') {
       updateData.gsc_refresh_token = refreshToken;
-    } else if (existingSite.gsc_refresh_token && existingSite.gsc_refresh_token.trim() !== '') {
-      // 既存のリフレッシュトークンが存在する場合は保持
+    } 
+    // 新しいリフレッシュトークンがnullの場合でも、既存のリフレッシュトークンが有効な場合は保持
+    else if (existingSite.gsc_refresh_token && existingSite.gsc_refresh_token.trim() !== '') {
       updateData.gsc_refresh_token = existingSite.gsc_refresh_token;
     }
-    // どちらも存在しない場合は、gsc_refresh_tokenを更新しない（既存のnull/空文字列を保持）
+    // 新しいリフレッシュトークンがnullで、既存もnull/空文字列の場合は、明示的にnullを設定（再認証時にnullを保存するため）
+    else {
+      updateData.gsc_refresh_token = null;
+    }
 
     const { data: updatedSite, error } = await supabase
       .from('sites')
