@@ -148,6 +148,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.accessToken = account.access_token;
             token.refreshToken = account.refresh_token;
             token.expiresAt = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000; // ミリ秒に変換
+            
+            // リフレッシュトークンが取得できなかった場合の警告ログ
+            if (!account.refresh_token) {
+              console.warn("[Auth] Refresh token not provided by Google OAuth:", {
+                hasAccessToken: !!account.access_token,
+                hasRefreshToken: !!account.refresh_token,
+                email: user.email,
+                provider: account.provider,
+                note: "This may happen if access_type=offline or prompt=consent is not properly set, or if the user has already granted permissions before."
+              });
+            }
           }
           
           // ユーザー情報をDBに保存
