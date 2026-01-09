@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GSCApiClient } from "@/lib/gsc-api";
 import { NotificationChecker } from "@/lib/notification-checker";
-import { getMonitoringArticles, getMonitoringArticlesForSlot } from "@/lib/db/articles";
+import { getMonitoringArticles, getMonitoringArticlesForSlot, updateArticleAnalysis } from "@/lib/db/articles";
 import { getSitesByUserId, updateSiteTokens, updateSiteAuthError } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
@@ -311,6 +311,30 @@ export async function GET(request: NextRequest) {
             );
             continue;
           }
+        }
+
+        // 順位データをDBに保存（通知が必要かどうかに関わらず更新）
+        try {
+          // rankDropResultまたはrankRiseResultから現在の順位を取得
+          const currentPosition = checkResult.rankDropResult?.currentAveragePosition 
+            ?? checkResult.rankRiseResult?.currentAveragePosition;
+          const previousPosition = article.current_average_position;
+          
+          if (currentPosition !== undefined) {
+            await updateArticleAnalysis(
+              article.id,
+              currentPosition,
+              previousPosition !== null ? previousPosition : undefined
+            );
+            
+            console.log(`[Cron] Updated article analysis data for article ${article.id}:`, {
+              currentPosition,
+              previousPosition,
+            });
+          }
+        } catch (updateError: any) {
+          console.error(`[Cron] Failed to update article analysis for article ${article.id}:`, updateError);
+          // エラーが発生しても処理を続行
         }
 
         if (!checkResult.shouldNotify) {

@@ -174,7 +174,7 @@ export default function ArticlesPage() {
       fetchAlertSettings();
       fetchSlackConnectionStatus();
     }
-  }, [filter, sortBy]);
+  }, [filter, sortBy, currentPage]);
 
   const fetchSlackConnectionStatus = async () => {
     try {
@@ -974,8 +974,8 @@ export default function ArticlesPage() {
                     })}
                 </div>
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(Math.ceil(articles.length / itemsPerPage), prev + 1))}
-                  disabled={currentPage >= Math.ceil(articles.length / itemsPerPage)}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage >= totalPages}
                   className="px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                 >
                   次へ
