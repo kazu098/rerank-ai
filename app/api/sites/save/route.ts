@@ -39,6 +39,15 @@ export async function POST(request: NextRequest) {
       req: request,
       secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
     });
+    
+    console.log("[Sites Save] JWT Token info:", {
+      hasToken: !!token,
+      hasRefreshToken: !!token?.refreshToken,
+      refreshTokenLength: token?.refreshToken?.length || 0,
+      refreshTokenPrefix: token?.refreshToken ? `${token.refreshToken.substring(0, 20)}...` : 'null',
+      hasAccessToken: !!token?.accessToken,
+      expiresAt: token?.expiresAt ? new Date(token.expiresAt as number).toISOString() : 'null',
+    });
 
     // 既存のサイトを確認し、リフレッシュトークンが存在する場合は保持する
     const { getSitesByUserId } = await import("@/lib/db/sites");
@@ -67,6 +76,17 @@ export async function POST(request: NextRequest) {
     // JWTから新しいリフレッシュトークンを取得（存在する場合）
     const newRefreshToken = token?.refreshToken as string | undefined;
     
+    console.log("[Sites Save] Debug info:", {
+      userId: session.userId,
+      siteUrl,
+      hasNewRefreshToken: !!newRefreshToken,
+      newRefreshTokenLength: newRefreshToken?.length || 0,
+      existingSiteId: existingSite?.id,
+      existingSiteUrl: existingSite?.site_url,
+      existingRefreshToken: existingSite?.gsc_refresh_token ? `${existingSite.gsc_refresh_token.substring(0, 20)}...` : 'null',
+      existingRefreshTokenLength: existingSite?.gsc_refresh_token?.length || 0,
+    });
+    
     // 再認証時は新しいリフレッシュトークンを優先して使用
     // 既存のリフレッシュトークンがnull/空文字列で、新しいリフレッシュトークンがある場合は新しいものを使用
     // 既存のリフレッシュトークンが有効な場合は保持（サイト保存時に既存のトークンを上書きしないため）
@@ -75,6 +95,11 @@ export async function POST(request: NextRequest) {
       : (existingSite?.gsc_refresh_token && existingSite.gsc_refresh_token.trim() !== '')
         ? existingSite.gsc_refresh_token  // 既存のリフレッシュトークンが有効な場合は保持
         : null;  // どちらもない場合はnull
+    
+    console.log("[Sites Save] Selected refresh token:", {
+      willUse: refreshToken ? `${refreshToken.substring(0, 20)}...` : 'null',
+      source: refreshToken === newRefreshToken ? 'new' : refreshToken === existingSite?.gsc_refresh_token ? 'existing' : 'null',
+    });
 
     // トークンの有効期限を計算（JWTトークンから取得、なければ1時間後）
     const expiresAt = token?.expiresAt

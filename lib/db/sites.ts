@@ -125,18 +125,30 @@ export async function saveOrUpdateSite(
     };
 
     // リフレッシュトークンの更新処理
+    console.log("[Sites DB] Refresh token update logic:", {
+      refreshTokenProvided: refreshToken ? `${refreshToken.substring(0, 20)}...` : 'null',
+      refreshTokenLength: refreshToken?.length || 0,
+      existingRefreshToken: existingSite.gsc_refresh_token ? `${existingSite.gsc_refresh_token.substring(0, 20)}...` : 'null',
+      existingRefreshTokenLength: existingSite.gsc_refresh_token?.length || 0,
+    });
+    
     // 新しいリフレッシュトークンが有効な値の場合は更新
     if (refreshToken && refreshToken.trim() !== '') {
       updateData.gsc_refresh_token = refreshToken;
+      console.log("[Sites DB] Will update with new refresh token");
     } 
     // 新しいリフレッシュトークンがnullの場合でも、既存のリフレッシュトークンが有効な場合は保持
     else if (existingSite.gsc_refresh_token && existingSite.gsc_refresh_token.trim() !== '') {
       updateData.gsc_refresh_token = existingSite.gsc_refresh_token;
+      console.log("[Sites DB] Will keep existing refresh token");
     }
     // 新しいリフレッシュトークンがnullで、既存もnull/空文字列の場合は、明示的にnullを設定（再認証時にnullを保存するため）
     else {
       updateData.gsc_refresh_token = null;
+      console.log("[Sites DB] Will set refresh token to null");
     }
+    
+    console.log("[Sites DB] Final updateData.gsc_refresh_token:", updateData.gsc_refresh_token ? `${updateData.gsc_refresh_token.substring(0, 20)}...` : 'null');
 
     const { data: updatedSite, error } = await supabase
       .from('sites')
