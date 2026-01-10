@@ -96,6 +96,52 @@ export default function ArticleDetailPage({
       const articleData = await response.json();
       setData(articleData);
 
+      // 存在しない分析結果IDの改善案データをクリア
+      // これにより、前回の分析結果の改善案が表示されないようにする
+      const currentAnalysisResultIds = new Set(
+        (articleData.analysisResults || []).map((r: any) => r.id)
+      );
+      
+      setImprovementData((prev) => {
+        const next: Record<string, any> = {};
+        Object.keys(prev).forEach((id) => {
+          if (currentAnalysisResultIds.has(id)) {
+            next[id] = prev[id];
+          }
+        });
+        return next;
+      });
+      
+      setShowImprovementModal((prev) => {
+        const next: Record<string, boolean> = {};
+        Object.keys(prev).forEach((id) => {
+          if (currentAnalysisResultIds.has(id) && prev[id]) {
+            next[id] = prev[id];
+          }
+        });
+        return next;
+      });
+      
+      setImprovementLoading((prev) => {
+        const next: Record<string, boolean> = {};
+        Object.keys(prev).forEach((id) => {
+          if (currentAnalysisResultIds.has(id) && prev[id]) {
+            next[id] = prev[id];
+          }
+        });
+        return next;
+      });
+      
+      setImprovementError((prev) => {
+        const next: Record<string, string> = {};
+        Object.keys(prev).forEach((id) => {
+          if (currentAnalysisResultIds.has(id)) {
+            next[id] = prev[id];
+          }
+        });
+        return next;
+      });
+
       // 分析結果の詳細データは遅延読み込み（表示時またはクリック時に取得）
       // 初期表示時は基本情報のみを取得して高速化
     } catch (err: any) {
