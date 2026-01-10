@@ -216,6 +216,25 @@ export async function GET(request: NextRequest) {
             site.site_url,
             article.url
           );
+          
+          // デバッグログ: 通知判定結果を出力
+          console.log(`[Cron] Notification check result for article ${article.id}:`, {
+            shouldNotify: checkResult.shouldNotify,
+            notificationType: checkResult.notificationType,
+            reason: checkResult.reason,
+            settings: {
+              drop_threshold: checkResult.settings.drop_threshold,
+              keyword_drop_threshold: checkResult.settings.keyword_drop_threshold,
+              consecutive_drop_days: checkResult.settings.consecutive_drop_days,
+              min_impressions: checkResult.settings.min_impressions,
+              comparison_days: checkResult.settings.comparison_days,
+            },
+            rankDropResult: {
+              hasDrop: checkResult.rankDropResult.hasDrop,
+              dropAmount: checkResult.rankDropResult.dropAmount,
+              droppedKeywordsCount: checkResult.rankDropResult.droppedKeywords?.length || 0,
+            },
+          });
         } catch (error: any) {
           // GSC API呼び出し時のエラーをハンドリング（特に401エラー）
           const errorMessage = error.message || String(error);

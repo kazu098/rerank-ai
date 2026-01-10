@@ -198,12 +198,26 @@ export class NotificationChecker {
 
     // 連続下落日数のチェック
     const consecutiveDropDays = effectiveSettings.consecutive_drop_days || DEFAULT_ALERT_SETTINGS.consecutive_drop_days;
+    const dropThreshold = effectiveSettings.drop_threshold || DEFAULT_ALERT_SETTINGS.position_drop_threshold;
+    
+    console.log(`[NotificationChecker] Checking consecutive drop:`, {
+      consecutiveDropDays,
+      dropThreshold,
+      hasDrop: rankDropResult.hasDrop,
+      dropAmount: rankDropResult.dropAmount,
+    });
+    
     const hasConsecutiveDrop = await this.checkConsecutiveDrop(
       siteUrl,
       pageUrl,
       consecutiveDropDays,
-      effectiveSettings.drop_threshold || DEFAULT_ALERT_SETTINGS.position_drop_threshold
+      dropThreshold
     );
+
+    console.log(`[NotificationChecker] Consecutive drop check result:`, {
+      hasConsecutiveDrop,
+      consecutiveDropDays,
+    });
 
     if (!hasConsecutiveDrop) {
       return {
@@ -230,6 +244,17 @@ export class NotificationChecker {
     const hasValidKeywords = rankDropResult.droppedKeywords.some(
       (kw) => kw.impressions >= minImpressions
     );
+
+    console.log(`[NotificationChecker] Impressions check:`, {
+      minImpressions,
+      droppedKeywordsCount: rankDropResult.droppedKeywords.length,
+      hasValidKeywords,
+      droppedKeywords: rankDropResult.droppedKeywords.map(kw => ({
+        keyword: kw.keyword,
+        impressions: kw.impressions,
+        position: kw.position,
+      })),
+    });
 
     if (!hasValidKeywords && rankDropResult.droppedKeywords.length > 0) {
       return {
@@ -330,6 +355,15 @@ export class NotificationChecker {
       .toISOString()
       .split("T")[0];
 
+    console.log(`[NotificationChecker] checkConsecutiveDrop:`, {
+      siteUrl,
+      pageUrl,
+      consecutiveDays,
+      dropThreshold,
+      startDate,
+      endDate,
+    });
+
     // 時系列データを取得
     const timeSeriesData = await this.client.getPageTimeSeriesData(
       siteUrl,
@@ -339,7 +373,14 @@ export class NotificationChecker {
     );
 
     const rows = Array.isArray(timeSeriesData?.rows) ? timeSeriesData.rows : [];
+    console.log(`[NotificationChecker] Time series data:`, {
+      rowsCount: rows.length,
+      requiredDays: consecutiveDays,
+      hasEnoughData: rows.length >= consecutiveDays,
+    });
+
     if (rows.length < consecutiveDays) {
+      console.log(`[NotificationChecker] Not enough data: ${rows.length} < ${consecutiveDays}`);
       return false;
     }
 
@@ -349,9 +390,16 @@ export class NotificationChecker {
     // 各日の順位を計算
     const dailyPositions = recentRows.map((row) => row.position);
     
+    console.log(`[NotificationChecker] Daily positions:`, {
+      dailyPositions,
+      basePosition: dailyPositions[0],
+      dropThreshold,
+    });
+    
     // 連続して下落しているかチェック
     // 基準となる順位（最初の日の順位）と比較
     if (dailyPositions.length < consecutiveDays) {
+      console.log(`[NotificationChecker] Not enough daily positions: ${dailyPositions.length} < ${consecutiveDays}`);
       return false;
     }
 
@@ -360,14 +408,29 @@ export class NotificationChecker {
 
     for (let i = 1; i < dailyPositions.length; i++) {
       const currentPosition = dailyPositions[i];
-      if (currentPosition > basePosition + dropThreshold) {
+      const isDropped = currentPosition > basePosition + dropThreshold;
+      if (isDropped) {
         consecutiveDropCount++;
       } else {
         consecutiveDropCount = 0;
       }
+      console.log(`[NotificationChecker] Day ${i}:`, {
+        currentPosition,
+        basePosition,
+        threshold: basePosition + dropThreshold,
+        isDropped,
+        consecutiveDropCount,
+      });
     }
 
-    return consecutiveDropCount >= consecutiveDays - 1;
+    const result = consecutiveDropCount >= consecutiveDays - 1;
+    console.log(`[NotificationChecker] Consecutive drop result:`, {
+      consecutiveDropCount,
+      required: consecutiveDays - 1,
+      result,
+    });
+
+    return result;
   }
 }
 
