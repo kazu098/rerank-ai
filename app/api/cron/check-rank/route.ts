@@ -13,6 +13,46 @@ import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 import { getCurrentTimeSlot } from "@/lib/cron/slot-calculator";
 
 /**
+ * 認証エラー（401/403）を処理し、必要に応じてユーザーに通知を送る
+ */
+async function handleAuthError(siteId: string, siteUrl: string): Promise<void> {
+  try {
+    await updateSiteAuthError(siteId);
+    
+    // 24時間以内に通知を送っていない場合のみメール通知を送る
+    const supabase = createSupabaseClient();
+    const { data: siteData } = await supabase
+      .from('sites')
+      .select('auth_error_at, user_id')
+      .eq('id', siteId)
+      .single();
+    
+    if (siteData) {
+      const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
+      const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
+      
+      if (shouldNotify) {
+        const user = await getUserById(siteData.user_id);
+        if (user?.email) {
+          const notificationService = new NotificationService();
+          const locale = (user.locale || "ja") as "ja" | "en";
+          await notificationService.sendAuthErrorNotification(
+            user.email,
+            siteUrl,
+            locale
+          );
+          console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${siteId}`);
+        }
+      } else {
+        console.log(`[Cron] Auth error notification already sent within 24 hours for site ${siteId}, skipping`);
+      }
+    }
+  } catch (notifyError: any) {
+    console.error(`[Cron] Failed to send auth error notification:`, notifyError);
+  }
+}
+
+/**
  * Cronジョブ: 順位下落をチェックして通知キューに保存
  * 実行頻度: 1日1回（日本時刻 0:00 = UTC 15:00、GSC APIのデータは1日単位で更新されるため）
  * 
@@ -236,18 +276,23 @@ export async function GET(request: NextRequest) {
             },
           });
         } catch (error: any) {
-          // GSC API呼び出し時のエラーをハンドリング（特に401エラー）
+          // GSC API呼び出し時のエラーをハンドリング（特に401/403エラー）
           const errorMessage = error.message || String(error);
-          if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('invalid_token')) {
+          const is401Error = errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('invalid_token');
+          const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('permission');
+          
+          if (is401Error || is403Error) {
+            const errorType = is401Error ? '401' : '403';
             console.error(
-              `[Cron] GSC API authentication error for site ${site.id}, article ${article.id}:`,
+              `[Cron] GSC API ${errorType} error for site ${site.id}, article ${article.id}:`,
               errorMessage
             );
             
-            // 401エラーの場合、リフレッシュトークンによる自動更新を試みる
-            // リフレッシュトークンが空文字列の場合はnullとして扱う
-            const validRefreshToken = refreshToken && refreshToken.trim() !== '' ? refreshToken : null;
-            if (validRefreshToken) {
+            if (is401Error) {
+              // 401エラーの場合、リフレッシュトークンによる自動更新を試みる
+              // リフレッシュトークンが空文字列の場合はnullとして扱う
+              const validRefreshToken = refreshToken && refreshToken.trim() !== '' ? refreshToken : null;
+              if (validRefreshToken) {
               console.log(`[Cron] Attempting to refresh GSC access token for site ${site.id} after 401 error...`);
               try {
                 const refreshGscClient = new GSCApiClient(accessToken);
@@ -294,88 +339,37 @@ export async function GET(request: NextRequest) {
                   `[Cron] Token may be expired or invalid. Skipping article ${article.id}. User should re-authenticate.`
                 );
                 
-                // 認証エラーを記録
-                try {
-                  await updateSiteAuthError(site.id);
-                  
-                  // 24時間以内に通知を送っていない場合のみメール通知を送る
-                  const supabase = createSupabaseClient();
-                  const { data: siteData } = await supabase
-                    .from('sites')
-                    .select('auth_error_at, user_id')
-                    .eq('id', site.id)
-                    .single();
-                  
-                  if (siteData) {
-                    const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
-                    const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
-                    
-                    if (shouldNotify) {
-                      const user = await getUserById(siteData.user_id);
-                      if (user?.email) {
-                        const notificationService = new NotificationService();
-                        const locale = (user.locale || "ja") as "ja" | "en";
-                        await notificationService.sendAuthErrorNotification(
-                          user.email,
-                          site.site_url,
-                          locale
-                        );
-                        console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${site.id}`);
-                      }
-                    } else {
-                      console.log(`[Cron] Auth error notification already sent within 24 hours for site ${site.id}, skipping`);
-                    }
-                  }
-                } catch (notifyError: any) {
-                  console.error(`[Cron] Failed to send auth error notification:`, notifyError);
-                }
-                
+                // 認証エラーを記録して通知を送る
+                await handleAuthError(site.id, site.site_url);
                 continue;
               }
             } else {
+                // 401エラーでリフレッシュトークンが存在しない場合
+                console.error(
+                  `[Cron] GSC API authentication error for site ${site.id}, article ${article.id}: No refresh token available. User should re-authenticate.`
+                );
+                
+                // 認証エラーを記録して通知を送る
+                await handleAuthError(site.id, site.site_url);
+                continue;
+              }
+            } else if (is403Error) {
+              // 403エラー（権限不足）の場合
               console.error(
-                `[Cron] GSC API authentication error for site ${site.id}, article ${article.id}: No refresh token available. User should re-authenticate.`
+                `[Cron] GSC API permission error for site ${site.id}, article ${article.id}: User does not have permission for this site.`
+              );
+              console.error(
+                `[Cron] Site URL: ${site.site_url}, Error message: ${errorMessage}`
               );
               
-              // リフレッシュトークンが存在しない場合でも認証エラーを記録
-              try {
-                await updateSiteAuthError(site.id);
-                
-                // 24時間以内に通知を送っていない場合のみメール通知を送る
-                const supabase = createSupabaseClient();
-                const { data: siteData } = await supabase
-                  .from('sites')
-                  .select('auth_error_at, user_id')
-                  .eq('id', site.id)
-                  .single();
-                
-                if (siteData) {
-                  const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
-                  const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
-                  
-                  if (shouldNotify) {
-                    const user = await getUserById(siteData.user_id);
-                    if (user?.email) {
-                      const notificationService = new NotificationService();
-                      const locale = (user.locale || "ja") as "ja" | "en";
-                      await notificationService.sendAuthErrorNotification(
-                        user.email,
-                        site.site_url,
-                        locale
-                      );
-                      console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${site.id}`);
-                    }
-                  } else {
-                    console.log(`[Cron] Auth error notification already sent within 24 hours for site ${site.id}, skipping`);
-                  }
-                }
-              } catch (notifyError: any) {
-                console.error(`[Cron] Failed to send auth error notification:`, notifyError);
-              }
-              
+              // 認証エラーを記録して通知を送る（403も再認証が必要）
+              console.log(`[Cron] Calling handleAuthError for site ${site.id} due to 403 error`);
+              await handleAuthError(site.id, site.site_url);
+              console.log(`[Cron] handleAuthError completed for site ${site.id}`);
               continue;
             }
           } else {
+            // その他のGSC APIエラー
             console.error(
               `[Cron] GSC API error for site ${site.id}, article ${article.id}:`,
               errorMessage
@@ -385,6 +379,11 @@ export async function GET(request: NextRequest) {
         }
 
         // 順位データをDBに保存（通知が必要かどうかに関わらず更新）
+        // checkResultがundefinedの場合はスキップ（エラーが発生した場合）
+        if (!checkResult) {
+          continue;
+        }
+
         try {
           // rankDropResultまたはrankRiseResultから現在の順位を取得
           const currentPosition = checkResult.rankDropResult?.currentAveragePosition 
