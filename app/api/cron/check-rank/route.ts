@@ -14,8 +14,9 @@ import { getCurrentTimeSlot } from "@/lib/cron/slot-calculator";
 
 /**
  * 認証エラー（401/403）を処理し、必要に応じてユーザーに通知を送る
+ * @param errorType '401' | '403' - エラーの種類（401: 認証エラー、403: 権限エラー）
  */
-async function handleAuthError(siteId: string, siteUrl: string): Promise<void> {
+async function handleAuthError(siteId: string, siteUrl: string, errorType: '401' | '403' = '401'): Promise<void> {
   try {
     await updateSiteAuthError(siteId);
     
@@ -39,9 +40,10 @@ async function handleAuthError(siteId: string, siteUrl: string): Promise<void> {
           await notificationService.sendAuthErrorNotification(
             user.email,
             siteUrl,
-            locale
+            locale,
+            errorType
           );
-          console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${siteId}`);
+          console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${siteId} (error type: ${errorType})`);
         }
       } else {
         console.log(`[Cron] Auth error notification already sent within 24 hours for site ${siteId}, skipping`);
@@ -340,7 +342,7 @@ export async function GET(request: NextRequest) {
                 );
                 
                 // 認証エラーを記録して通知を送る
-                await handleAuthError(site.id, site.site_url);
+                await handleAuthError(site.id, site.site_url, '401');
                 continue;
               }
             } else {
@@ -350,7 +352,7 @@ export async function GET(request: NextRequest) {
                 );
                 
                 // 認証エラーを記録して通知を送る
-                await handleAuthError(site.id, site.site_url);
+                await handleAuthError(site.id, site.site_url, '401');
                 continue;
               }
             } else if (is403Error) {
@@ -362,9 +364,9 @@ export async function GET(request: NextRequest) {
                 `[Cron] Site URL: ${site.site_url}, Error message: ${errorMessage}`
               );
               
-              // 認証エラーを記録して通知を送る（403も再認証が必要）
+              // 認証エラーを記録して通知を送る（403も再認証が必要、所有権確認も案内）
               console.log(`[Cron] Calling handleAuthError for site ${site.id} due to 403 error`);
-              await handleAuthError(site.id, site.site_url);
+              await handleAuthError(site.id, site.site_url, '403');
               console.log(`[Cron] handleAuthError completed for site ${site.id}`);
               continue;
             }
