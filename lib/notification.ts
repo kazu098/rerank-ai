@@ -641,11 +641,13 @@ export class NotificationService {
 
   /**
    * GSC認証エラー（リフレッシュトークン無効）をメールで通知
+   * @param errorType '401' | '403' - エラーの種類（401: 認証エラー、403: 権限エラー）
    */
   async sendAuthErrorNotification(
     to: string,
     siteUrl: string,
-    locale: "ja" | "en" = "ja"
+    locale: "ja" | "en" = "ja",
+    errorType: '401' | '403' = '401'
   ): Promise<void> {
     if (!process.env.RESEND_API_KEY) {
       console.warn("[Notification] RESEND_API_KEY is not set, skipping email notification");
@@ -657,12 +659,16 @@ export class NotificationService {
     const dashboardUrl = `${baseUrl}/${locale}/dashboard`;
 
     const subject = locale === "ja"
-      ? "【ReRank AI】Google Search Consoleの認証が必要です"
-      : "[ReRank AI] Google Search Console authentication required";
+      ? errorType === '403'
+        ? "【ReRank AI】Google Search Consoleのアクセス権限が必要です"
+        : "【ReRank AI】Google Search Consoleの認証が必要です"
+      : errorType === '403'
+        ? "[ReRank AI] Google Search Console access permission required"
+        : "[ReRank AI] Google Search Console authentication required";
 
     const html = locale === "ja"
-      ? this.formatAuthErrorEmailBodyJa(siteUrl, dashboardUrl)
-      : this.formatAuthErrorEmailBodyEn(siteUrl, dashboardUrl);
+      ? this.formatAuthErrorEmailBodyJa(siteUrl, dashboardUrl, errorType)
+      : this.formatAuthErrorEmailBodyEn(siteUrl, dashboardUrl, errorType);
 
     try {
       const { data, error } = await resend.emails.send({
@@ -687,7 +693,10 @@ export class NotificationService {
   /**
    * 認証エラーメール本文（日本語）
    */
-  private formatAuthErrorEmailBodyJa(siteUrl: string, dashboardUrl: string): string {
+  private formatAuthErrorEmailBodyJa(siteUrl: string, dashboardUrl: string, errorType: '401' | '403' = '401'): string {
+    const is403Error = errorType === '403';
+    const gscUrl = `https://search.google.com/search-console`;
+    
     return `
       <!DOCTYPE html>
       <html>
@@ -702,32 +711,63 @@ export class NotificationService {
           .alert { background: #FEF2F2; border-left: 4px solid #EF4444; padding: 16px; margin-bottom: 16px; border-radius: 4px; }
           .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 16px; }
           .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
+          .code-block { background: #f3f4f6; padding: 12px; border-radius: 4px; font-family: monospace; font-size: 14px; overflow-x: auto; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1 style="margin: 0;">⚠️ ReRank AI - 認証が必要です</h1>
+            <h1 style="margin: 0;">⚠️ ReRank AI - ${is403Error ? 'アクセス権限が必要です' : '認証が必要です'}</h1>
           </div>
           <div class="content">
             <div class="alert">
               <p style="margin: 0; font-weight: bold; color: #991B1B;">
-                Google Search Consoleの認証が期限切れになりました
+                ${is403Error 
+                  ? 'Google Search Consoleへのアクセス権限がありません' 
+                  : 'Google Search Consoleの認証が期限切れになりました'}
               </p>
             </div>
             <div class="section">
               <h2 style="margin-top: 0;">定期監視が停止しています</h2>
               <p>
-                以下のサイトの定期監視が停止しています。Google Search Consoleの再認証が必要です。
+                以下のサイトの定期監視が停止しています。
               </p>
-              <p style="background: #f3f4f6; padding: 12px; border-radius: 4px; font-family: monospace;">
+              <p class="code-block">
                 ${siteUrl}
               </p>
+              ${is403Error ? `
+                <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 16px; margin: 16px 0; border-radius: 4px;">
+                  <p style="margin: 0; font-weight: bold; color: #92400E;">
+                    ⚠️ 重要: サイトの所有権確認が必要です
+                  </p>
+                  <p style="margin: 8px 0 0 0;">
+                    再認証だけでは解決しません。Google Search Consoleでサイトの所有権確認を完了させてください。
+                  </p>
+                </div>
+              ` : ''}
               <p>
                 再認証を行わないと、順位変動の通知が届かなくなります。
               </p>
               <a href="${dashboardUrl}" class="button">ダッシュボードで再認証する</a>
             </div>
+            ${is403Error ? `
+            <div class="section">
+              <h3 style="margin-top: 0;">📋 所有権確認の手順（最も簡単な方法）</h3>
+              <p style="font-weight: bold; color: #059669;">推奨: HTMLタグ（メタタグ）方式</p>
+              <ol>
+                <li><a href="${gscUrl}" target="_blank" style="color: #4F46E5;">Google Search Console</a>にアクセス</li>
+                <li>サイトを選択（または新規追加）</li>
+                <li>「所有権の確認」画面で「HTMLタグ」を選択</li>
+                <li>表示されたメタタグをコピー（例: <code>&lt;meta name="google-site-verification" content="..." /&gt;</code>）</li>
+                <li>サイトのホームページ（トップページ）の<code>&lt;head&gt;</code>セクションにメタタグを貼り付け</li>
+                <li>Search Consoleで「確認」ボタンをクリック</li>
+                <li>確認が完了したら、ReRank AIで再認証を行ってください</li>
+              </ol>
+              <p style="margin-top: 16px; font-size: 14px; color: #6B7280;">
+                💡 <strong>ヒント:</strong> WordPressを使用している場合は、テーマの<code>header.php</code>または「外観」→「テーマエディター」から編集できます。
+              </p>
+            </div>
+            ` : ''}
             <div class="section">
               <h3 style="margin-top: 0;">再認証の手順</h3>
               <ol>
@@ -750,7 +790,10 @@ export class NotificationService {
   /**
    * 認証エラーメール本文（英語）
    */
-  private formatAuthErrorEmailBodyEn(siteUrl: string, dashboardUrl: string): string {
+  private formatAuthErrorEmailBodyEn(siteUrl: string, dashboardUrl: string, errorType: '401' | '403' = '401'): string {
+    const is403Error = errorType === '403';
+    const gscUrl = `https://search.google.com/search-console`;
+    
     return `
       <!DOCTYPE html>
       <html>
