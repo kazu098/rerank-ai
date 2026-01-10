@@ -264,10 +264,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       try {
-        // セッションにアクセストークンとユーザーIDを追加
+        // セッションにアクセストークン、リフレッシュトークン、ユーザーIDを追加
         if (token) {
           if (token.accessToken) {
             (session as any).accessToken = token.accessToken;
+          }
+          
+          // リフレッシュトークンもセッションに追加（サイト保存時に使用）
+          if (token.refreshToken) {
+            (session as any).refreshToken = token.refreshToken;
           }
           
           // userIdが設定されていない場合、メールアドレスから取得
