@@ -79,12 +79,14 @@ export default function ArticleDetailPage({
   const [userPlan, setUserPlan] = useState<any>(null);
   const [usage, setUsage] = useState<{ analyses_this_month: number; articles: number } | null>(null);
 
-  const fetchArticleDetail = useCallback(async () => {
+  const fetchArticleDetail = useCallback(async (skipCache: boolean = false) => {
     if (!articleId) return;
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/articles/${articleId}`);
+      const response = await fetch(`/api/articles/${articleId}`, {
+        ...(skipCache && { cache: 'no-store' }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -367,8 +369,8 @@ export default function ArticleDetailPage({
         throw new Error(errorData.error || "修正済みフラグの更新に失敗しました");
       }
 
-      // データを再取得して確実に最新の状態にする
-      await fetchArticleDetail();
+      // データを再取得して確実に最新の状態にする（キャッシュを無効化）
+      await fetchArticleDetail(true);
     } catch (err: any) {
       // エラーの場合、元の状態に戻す（楽観的更新で既に戻しているが、念のため）
       setData((prevData) => {
