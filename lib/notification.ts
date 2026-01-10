@@ -694,6 +694,9 @@ export class NotificationService {
    * 認証エラーメール本文（日本語）
    */
   private formatAuthErrorEmailBodyJa(siteUrl: string, dashboardUrl: string, errorType: '401' | '403' = '401'): string {
+    const is403Error = errorType === '403';
+    const gscUrl = `https://search.google.com/search-console`;
+    
     return `
       <!DOCTYPE html>
       <html>
@@ -708,6 +711,7 @@ export class NotificationService {
           .alert { background: #FEF2F2; border-left: 4px solid #EF4444; padding: 16px; margin-bottom: 16px; border-radius: 4px; }
           .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 16px; }
           .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
+          .code-block { background: #f3f4f6; padding: 12px; border-radius: 4px; font-family: monospace; font-size: 14px; overflow-x: auto; }
         </style>
       </head>
       <body>
