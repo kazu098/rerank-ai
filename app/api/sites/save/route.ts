@@ -34,19 +34,30 @@ export async function POST(request: NextRequest) {
 
     // 連携サイト数はプラン制限の対象外（分析回数と監視記事数で実質的に制限される）
 
-    // JWTトークンからリフレッシュトークンを取得
-    const token = await getToken({
-      req: request,
-      secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-    });
+    // セッションからリフレッシュトークンを取得（NextAuth v5ではセッションに含める）
+    // フォールバックとしてJWTトークンからも取得を試みる
+    let sessionRefreshToken: string | undefined = (session as any).refreshToken;
+    let jwtTokenExpiresAt: number | undefined;
     
-    console.log("[Sites Save] JWT Token info:", {
-      hasToken: !!token,
-      hasRefreshToken: !!token?.refreshToken,
-      refreshTokenLength: token?.refreshToken?.length || 0,
-      refreshTokenPrefix: token?.refreshToken ? `${token.refreshToken.substring(0, 20)}...` : 'null',
-      hasAccessToken: !!token?.accessToken,
-      expiresAt: token?.expiresAt ? new Date(token.expiresAt as number).toISOString() : 'null',
+    // セッションにリフレッシュトークンがない場合、JWTトークンから取得を試みる
+    let jwtToken = null;
+    if (!sessionRefreshToken) {
+      jwtToken = await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+      });
+      sessionRefreshToken = jwtToken?.refreshToken as string | undefined;
+      jwtTokenExpiresAt = jwtToken?.expiresAt as number | undefined;
+    }
+    
+    console.log("[Sites Save] Token info:", {
+      hasSessionRefreshToken: !!(session as any).refreshToken,
+      sessionRefreshTokenLength: (session as any).refreshToken?.length || 0,
+      hasJWTToken: !!jwtToken,
+      jwtTokenRefreshToken: !!jwtToken?.refreshToken,
+      refreshTokenLength: sessionRefreshToken?.length || 0,
+      refreshTokenPrefix: sessionRefreshToken ? `${sessionRefreshToken.substring(0, 20)}...` : 'null',
+      source: (session as any).refreshToken ? 'session' : (jwtToken?.refreshToken ? 'jwt' : 'none'),
     });
 
     // 既存のサイトを確認し、リフレッシュトークンが存在する場合は保持する
@@ -73,8 +84,8 @@ export async function POST(request: NextRequest) {
       return normalizedExistingUrl === normalizedSiteUrl;
     });
     
-    // JWTから新しいリフレッシュトークンを取得（存在する場合）
-    const newRefreshToken = token?.refreshToken as string | undefined;
+    // セッションまたはJWTトークンから新しいリフレッシュトークンを取得
+    const newRefreshToken = sessionRefreshToken;
     
     console.log("[Sites Save] Debug info:", {
       userId: session.userId,
@@ -102,8 +113,8 @@ export async function POST(request: NextRequest) {
     });
 
     // トークンの有効期限を計算（JWTトークンから取得、なければ1時間後）
-    const expiresAt = token?.expiresAt
-      ? new Date(token.expiresAt as number)
+    const expiresAt = jwtTokenExpiresAt
+      ? new Date(jwtTokenExpiresAt)
       : new Date(Date.now() + 3600 * 1000);
 
     // サイト情報を保存

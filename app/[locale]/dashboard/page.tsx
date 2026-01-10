@@ -80,8 +80,37 @@ export default function DashboardPage() {
 
     if (status === "authenticated" && session?.userId) {
       fetchDashboardData();
+      // 再認証後に既存サイトのリフレッシュトークンを更新
+      updateSiteTokens();
     }
   }, [status, session, router]);
+
+  const updateSiteTokens = async () => {
+    try {
+      const response = await fetch("/api/sites/update-tokens", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.updatedSites && result.updatedSites.length > 0) {
+          console.log(`[Dashboard] Updated refresh tokens for ${result.updatedSites.length} site(s)`);
+        }
+      } else {
+        const error = await response.json();
+        // リフレッシュトークンが取得できない場合はエラーを無視（既に有効なトークンがある場合など）
+        if (error.code !== "NO_REFRESH_TOKEN") {
+          console.error("[Dashboard] Failed to update site tokens:", error);
+        }
+      }
+    } catch (err: any) {
+      // エラーは無視（サイト更新は必須ではない）
+      console.error("[Dashboard] Error updating site tokens:", err);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
