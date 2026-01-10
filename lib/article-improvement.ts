@@ -211,10 +211,70 @@ ${missingAIOElements.length > 0 ? '9. FAQセクションを追加する場合は
    */
   private parseResponse(text: string): ArticleImprovementResult {
     try {
-      // JSONコードブロックを除去
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
-      const jsonText = jsonMatch ? jsonMatch[1] : text.trim();
+      let jsonText = text.trim();
 
+      // パターン1: ```json ... ``` コードブロックを除去（貪欲マッチングで最後の```まで）
+      const jsonBlockStart = jsonText.indexOf('```json');
+      if (jsonBlockStart !== -1) {
+        // ```jsonの後の位置を取得
+        const contentStart = jsonBlockStart + 7; // '```json'.length
+        // 最後の```を探す（貪欲マッチング）
+        const codeBlockEnd = jsonText.lastIndexOf('```');
+        if (codeBlockEnd !== -1 && codeBlockEnd > contentStart) {
+          jsonText = jsonText.substring(contentStart, codeBlockEnd).trim();
+        } else {
+          // 終了マーカーがない場合、```jsonの後から最後まで
+          jsonText = jsonText.substring(contentStart).trim();
+        }
+      } else {
+        // パターン2: ``` ... ``` コードブロックを除去
+        const codeBlockStart = jsonText.indexOf('```');
+        if (codeBlockStart !== -1) {
+          const contentStart = codeBlockStart + 3; // '```'.length
+          const codeBlockEnd = jsonText.lastIndexOf('```');
+          if (codeBlockEnd !== -1 && codeBlockEnd > contentStart) {
+            jsonText = jsonText.substring(contentStart, codeBlockEnd).trim();
+          } else {
+            jsonText = jsonText.substring(contentStart).trim();
+          }
+        }
+      }
+
+      // パターン3: 最初の { から最後の } までを抽出（コードブロックが不完全な場合や、コードブロック除去後もJSONが不完全な場合）
+      if (!jsonText.startsWith('{')) {
+        const firstBrace = jsonText.indexOf('{');
+        if (firstBrace !== -1) {
+          // 最後の } を探す（ネストされたオブジェクトに対応）
+          let braceCount = 0;
+          let lastBrace = -1;
+          for (let i = firstBrace; i < jsonText.length; i++) {
+            if (jsonText[i] === '{') {
+              braceCount++;
+            } else if (jsonText[i] === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                lastBrace = i;
+                break;
+              }
+            }
+          }
+          
+          if (lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+          } else {
+            // ネストが合わない場合は、単純に最後の}を使う
+            const simpleLastBrace = jsonText.lastIndexOf('}');
+            if (simpleLastBrace !== -1 && simpleLastBrace > firstBrace) {
+              jsonText = jsonText.substring(firstBrace, simpleLastBrace + 1);
+            }
+          }
+        }
+      }
+
+      // 最終的なトリム
+      jsonText = jsonText.trim();
+
+      // JSONパース
       const parsed = JSON.parse(jsonText);
       
       // バリデーション
@@ -225,7 +285,8 @@ ${missingAIOElements.length > 0 ? '9. FAQセクションを追加する場合は
       return parsed as ArticleImprovementResult;
     } catch (error: any) {
       console.error("[ArticleImprovementGenerator] Failed to parse response:", error);
-      console.error("[ArticleImprovementGenerator] Response text:", text);
+      console.error("[ArticleImprovementGenerator] Response text (first 500 chars):", text.substring(0, 500));
+      console.error("[ArticleImprovementGenerator] Response text (last 500 chars):", text.substring(Math.max(0, text.length - 500)));
       
       // フォールバック: 空の変更を返す
       return {
