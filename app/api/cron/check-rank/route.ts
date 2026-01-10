@@ -18,9 +18,8 @@ import { getCurrentTimeSlot } from "@/lib/cron/slot-calculator";
  */
 async function handleAuthError(siteId: string, siteUrl: string, errorType: '401' | '403' = '401'): Promise<void> {
   try {
-    await updateSiteAuthError(siteId);
-    
     // 24時間以内に通知を送っていない場合のみメール通知を送る
+    // auth_error_atを更新する前にチェックする必要がある
     const supabase = createSupabaseClient();
     const { data: siteData } = await supabase
       .from('sites')
@@ -28,26 +27,35 @@ async function handleAuthError(siteId: string, siteUrl: string, errorType: '401'
       .eq('id', siteId)
       .single();
     
-    if (siteData) {
-      const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
-      const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
-      
-      if (shouldNotify) {
-        const user = await getUserById(siteData.user_id);
-        if (user?.email) {
-          const notificationService = new NotificationService();
-          const locale = (user.locale || "ja") as "ja" | "en";
-          await notificationService.sendAuthErrorNotification(
-            user.email,
-            siteUrl,
-            locale,
-            errorType
-          );
-          console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${siteId} (error type: ${errorType})`);
-        }
+    if (!siteData) {
+      console.error(`[Cron] Site data not found for site ${siteId}`);
+      return;
+    }
+
+    const authErrorAt = siteData.auth_error_at ? new Date(siteData.auth_error_at) : null;
+    const shouldNotify = !authErrorAt || (Date.now() - authErrorAt.getTime()) > 24 * 60 * 60 * 1000;
+    
+    // auth_error_atを更新（エラー時刻を記録）
+    await updateSiteAuthError(siteId);
+    
+    if (shouldNotify) {
+      const user = await getUserById(siteData.user_id);
+      if (user?.email) {
+        const notificationService = new NotificationService();
+        const locale = (user.locale || "ja") as "ja" | "en";
+        await notificationService.sendAuthErrorNotification(
+          user.email,
+          siteUrl,
+          locale,
+          errorType
+        );
+        console.log(`[Cron] Auth error notification sent to user ${user.email} for site ${siteId} (error type: ${errorType})`);
       } else {
-        console.log(`[Cron] Auth error notification already sent within 24 hours for site ${siteId}, skipping`);
+        console.log(`[Cron] User email not found for site ${siteId}`);
       }
+    } else {
+      const hoursAgo = Math.floor((Date.now() - (authErrorAt?.getTime() || 0)) / (1000 * 60 * 60));
+      console.log(`[Cron] Auth error notification already sent ${hoursAgo} hours ago for site ${siteId}, skipping (24 hour cooldown)`);
     }
   } catch (notifyError: any) {
     console.error(`[Cron] Failed to send auth error notification:`, notifyError);
