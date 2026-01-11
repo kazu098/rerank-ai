@@ -59,7 +59,7 @@
       },
       "feature3": {
         "title": "AI Improvement Suggestions",
-        "description": "Gemini AI compares your articles with competitor articles and proposes specific improvements"
+        "description": "AI compares your articles with competitor articles and proposes specific improvements"
       },
       "feature4": {
         "title": "New Article Suggestions",
@@ -116,7 +116,7 @@
         },
         "3": {
           "question": "How does AI propose improvement suggestions?",
-          "answer": "Gemini AI automatically analyzes articles from top-ranking competitor sites and identifies differences from your own articles. It specifically suggests missing headings, keywords, and content, and automatically generates rewritten drafts."
+          "answer": "AI automatically analyzes articles from top-ranking competitor sites and identifies differences from your own articles. It specifically suggests missing headings, keywords, and content, and automatically generates rewritten drafts."
         },
         "4": {
           "question": "What is the new article suggestion feature?",
