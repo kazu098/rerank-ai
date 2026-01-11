@@ -128,7 +128,7 @@
         },
         "6": {
           "question": "Can I monitor multiple sites?",
-          "answer": "Yes, the number of sites you can monitor varies by plan. The Starter plan allows 1 site, the Standard plan allows 3 sites, and the Business plan allows unlimited sites. You can link Search Console properties for each site."
+          "answer": "Yes, the number of sites you can monitor varies by plan. The Starter plan allows 1 site, the Standard plan allows 3 sites, and the Business plan allows unlimited sites. You can link Search Console properties for each site. The number of monitored articles is limited to 10 for Starter, 50 for Standard, and 300 for Business."
         },
         "7": {
           "question": "Is my data stored securely?",

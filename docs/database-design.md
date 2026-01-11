@@ -82,7 +82,7 @@ INSERT INTO plans (name, display_name, price_monthly, max_articles, max_analyses
 ('free', '無料', 0, 3, 7, 1, 1),
 ('starter', 'スターター', 2980, 20, 20, 1, 1),
 ('standard', 'スタンダード', 9800, 100, 100, 3, 3),
-('business', 'ビジネス', 29800, NULL, NULL, NULL, 10);
+('business', 'ビジネス', 29800, 300, 800, NULL, 10);
 ```
 
 ### 3. sites（サイト - GSC連携用）
