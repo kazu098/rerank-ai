@@ -164,11 +164,14 @@ export async function POST(request: NextRequest) {
     console.error("[Fetch Title] Error fetching article title:", error);
     console.error("[Fetch Title] Error stack:", error.stack);
     
+    // localeを取得（エラーハンドリング用）
+    const { locale: errorLocale } = await getSessionAndLocale(request);
+    
     // 既に404エラーの場合はそのまま返す
     if (error.code === "ARTICLE_NOT_FOUND") {
       return NextResponse.json(
         {
-          error: error.error || getErrorMessage(locale, "errors.articleNotFound"),
+          error: error.error || getErrorMessage(errorLocale, "errors.articleNotFound"),
           code: error.code,
           url: error.url,
         },
@@ -177,7 +180,6 @@ export async function POST(request: NextRequest) {
     }
     
     // エラーの詳細を返す（開発環境でのみ）
-    const { locale: errorLocale } = await getSessionAndLocale(request);
     const errorMessage = error.message || getErrorMessage(errorLocale, "errors.titleFetchFailedDetails");
     const errorDetails = process.env.NODE_ENV === "development" 
       ? { message: errorMessage, stack: error.stack, error: String(error) }

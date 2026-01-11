@@ -77,7 +77,9 @@ export async function analyzeStep2(
         normalizedOwnUrl,
         maxCompetitors,
         5, // retryCount
-        preferSerperApi
+        preferSerperApi, // preferSerperApi
+        false, // isManualScan
+        locale
       );
 
       console.log(

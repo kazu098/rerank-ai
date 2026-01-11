@@ -443,14 +443,14 @@ export class ArticleSuggestionGenerator {
     // LLMが利用可能な場合は使用
     if (process.env.GEMINI_API_KEY) {
       try {
-        return await this.generateTitlesWithLLM(clusters, existingArticles);
+        return await this.generateTitlesWithLLM(clusters, existingArticles, locale);
       } catch (error) {
         console.error("[ArticleSuggestion] LLM generation failed, using fallback:", error);
       }
     }
 
     // LLMが利用できない場合はフォールバック
-    return this.generateTitlesFallback(clusters, existingArticles);
+    return this.generateTitlesFallback(clusters, existingArticles, locale);
   }
 
   /**
@@ -458,7 +458,8 @@ export class ArticleSuggestionGenerator {
    */
   private async generateTitlesWithLLM(
     clusters: KeywordCluster[],
-    existingArticles: Article[]
+    existingArticles: Article[],
+    locale: string = 'ja'
   ): Promise<ArticleSuggestion[]> {
     const topClusters = clusters.slice(0, 10);
 

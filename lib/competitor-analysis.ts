@@ -317,11 +317,9 @@ export class CompetitorAnalyzer {
           normalizedOwnUrl,
           maxCompetitors,
           5, // retryCount
-          false, // preferSerperApi
+          preferSerperApi, // preferSerperApi
           false, // isManualScan
           locale
-          5, // retryCount
-          preferSerperApi
         );
 
         console.log(

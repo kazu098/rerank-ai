@@ -99,7 +99,8 @@ export class CompetitorExtractor {
     maxCompetitors: number = 10,
     retryCount: number = 5, // CAPTCHA対策のため、リトライ回数を増やす
     preferSerperApi: boolean = false, // 手動スキャン時はSerper.devを優先（速度重視）
-    isManualScan: boolean = false // 手動スキャンかどうか（速度優先の判断に使用）
+    isManualScan: boolean = false, // 手動スキャンかどうか（速度優先の判断に使用）
+    locale: string = "ja"
   ): Promise<CompetitorExtractionResult> {
     // 本番環境やSerper API優先設定の場合、まずSerper APIを試行
     // 注意: この時点では自社の順位が不明なため、undefinedを渡す

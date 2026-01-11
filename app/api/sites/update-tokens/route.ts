@@ -127,9 +127,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[Sites Update Tokens] Error:", error);
+    const { locale: errorLocale } = await getSessionAndLocale(request);
     return NextResponse.json(
       { 
-        error: error.message || getErrorMessage(locale, "errors.tokenUpdateFailed"),
+        error: error.message || getErrorMessage(errorLocale, "errors.siteSaveFailed"),
         code: "INTERNAL_ERROR"
       },
       { status: 500 }

@@ -93,8 +93,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error getting latest analysis by URL:", error);
+    const { locale: errorLocale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || getErrorMessage(locale, "errors.analysisResultFetchFailed") },
+      { error: error.message || getErrorMessage(errorLocale, "errors.analysisResultFetchFailed") },
       { status: 500 }
     );
   }
