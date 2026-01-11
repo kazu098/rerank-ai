@@ -69,7 +69,7 @@ export default function SettingsPage() {
       // ユーザー情報を取得（ロケールとタイムゾーンを含む）
       const userResponse = await fetch("/api/users/me");
       if (!userResponse.ok) {
-        throw new Error("設定の取得に失敗しました");
+        throw new Error(t("notification.settings.settingsFetchFailed"));
       }
       const userData = await userResponse.json();
 
@@ -79,7 +79,7 @@ export default function SettingsPage() {
       });
     } catch (err: any) {
       console.error("[Settings] Error:", err);
-      setError(err.message || "エラーが発生しました");
+      setError(err.message || t("errors.errorOccurred"));
     } finally {
       setLoading(false);
     }
@@ -162,7 +162,7 @@ export default function SettingsPage() {
 
       if (!localeResponse.ok) {
         const errorData = await localeResponse.json();
-        throw new Error(errorData.error || "ロケールの更新に失敗しました");
+        throw new Error(errorData.error || t("notification.settings.localeUpdateFailed"));
       }
 
       // タイムゾーンを更新（設定されている場合）
@@ -175,12 +175,12 @@ export default function SettingsPage() {
 
         if (!timezoneResponse.ok) {
           const errorData = await timezoneResponse.json();
-          throw new Error(errorData.error || "タイムゾーンの更新に失敗しました");
+          throw new Error(errorData.error || t("notification.settings.timezoneUpdateFailed"));
         }
       }
 
 
-      setSuccess("設定を保存しました");
+      setSuccess(t("notification.settings.settingsSaved"));
       
       // ロケールが変更された場合、ページをリロード
       if (settings.locale !== locale) {
@@ -190,7 +190,7 @@ export default function SettingsPage() {
       }
     } catch (err: any) {
       console.error("[Settings] Error saving:", err);
-      setError(err.message || "設定の保存に失敗しました");
+      setError(err.message || t("notification.settings.settingsSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -216,7 +216,7 @@ export default function SettingsPage() {
             onClick={fetchSettings}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            再試行
+            {t("notification.settings.retry")}
           </button>
         </div>
       </div>
@@ -227,7 +227,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* 言語設定セクション */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">言語設定</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t("notification.settings.languageSettings")}</h2>
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded">
             {error}
@@ -243,7 +243,7 @@ export default function SettingsPage() {
           {/* 言語設定 */}
           <div className="max-w-md">
             <label htmlFor="locale" className="block text-sm font-medium text-gray-700 mb-2">
-              言語 / Language
+              {t("notification.settings.languageLabel")}
             </label>
             <select
               id="locale"
@@ -251,11 +251,11 @@ export default function SettingsPage() {
               onChange={(e) => setSettings({ ...settings, locale: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="ja">日本語</option>
-              <option value="en">English</option>
+              <option value="ja">{t("notification.settings.japanese")}</option>
+              <option value="en">{t("notification.settings.english")}</option>
             </select>
             <p className="mt-1 text-sm text-gray-500">
-              通知メールの言語が変更されます
+              {t("notification.settings.languageDescription")}
             </p>
           </div>
 
@@ -263,7 +263,7 @@ export default function SettingsPage() {
           {settings.timezone && (
             <div className="max-w-md">
               <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-2">
-                タイムゾーン / Timezone
+                {t("notification.settings.timezoneLabel")}
               </label>
               <input
                 type="text"
@@ -273,7 +273,7 @@ export default function SettingsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500"
               />
               <p className="mt-1 text-sm text-gray-500">
-                タイムゾーンは自動検出されます
+                {t("notification.settings.timezoneDescription")}
               </p>
             </div>
           )}
@@ -287,7 +287,7 @@ export default function SettingsPage() {
             disabled={saving}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "保存中..." : "保存"}
+            {saving ? t("notification.settings.saving") : t("notification.settings.save")}
           </button>
         </div>
       </div>
@@ -388,7 +388,7 @@ export default function SettingsPage() {
                       <span className="font-semibold">{slackWorkspaceName}</span>
                     )}
                     {slackNotificationType === null 
-                      ? slackWorkspaceName ? " - 通知先を選択してください" : "通知先を選択してください"
+                      ? slackWorkspaceName ? ` - ${t("notification.settings.selectNotificationDestinationShort")}` : t("notification.settings.selectNotificationDestinationShort")
                       : slackNotificationType === 'dm' 
                       ? slackWorkspaceName ? ` - ${t("notification.settings.sendingToDM")}` : t("notification.settings.sendingToDM")
                       : slackChannelName 
@@ -430,11 +430,11 @@ export default function SettingsPage() {
               {/* 通知先選択 */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  通知先
+                  {t("notification.settings.notificationDestination")}
                 </label>
                 {slackNotificationType === null && (
                   <div className="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                    通知先（DMまたはチャネル）を選択してください
+                    {t("notification.settings.selectNotificationDestination")}
                   </div>
                 )}
                 <select
@@ -494,7 +494,7 @@ export default function SettingsPage() {
                   ))}
                 </select>
                 {loadingChannels && (
-                  <p className="text-xs text-gray-500 mt-1">チャネル一覧を取得中...</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("notification.settings.loadingChannels")}</p>
                 )}
               </div>
             </div>

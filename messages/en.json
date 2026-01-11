@@ -688,7 +688,24 @@
       "notificationSettings": "Notification Settings",
       "slackSettings": "Slack Notification Settings",
       "goToDashboardToSetup": "Monitor This Article",
-      "goToDashboardToSetupDescription": "Automatically track rankings and notify you with improvement suggestions when rankings drop"
+      "goToDashboardToSetupDescription": "Automatically track rankings and notify you with improvement suggestions when rankings drop",
+      "languageSettings": "Language Settings",
+      "languageLabel": "Language",
+      "japanese": "Japanese",
+      "english": "English",
+      "languageDescription": "The language of notification emails will be changed",
+      "timezoneLabel": "Timezone",
+      "timezoneDescription": "Timezone is automatically detected",
+      "settingsFetchFailed": "Failed to retrieve settings",
+      "localeUpdateFailed": "Failed to update locale",
+      "timezoneUpdateFailed": "Failed to update timezone",
+      "settingsSaved": "Settings saved",
+      "settingsSaveFailed": "Failed to save settings",
+      "retry": "Retry",
+      "notificationDestination": "Notification Destination",
+      "selectNotificationDestination": "Please select a notification destination (DM or Channel)",
+      "selectNotificationDestinationShort": "Please select a notification destination",
+      "loadingChannels": "Loading channel list..."
     }
   },
   "alertSettings": {

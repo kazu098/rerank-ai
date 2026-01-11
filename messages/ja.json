@@ -705,7 +705,24 @@
       "notificationSettings": "通知設定",
       "slackSettings": "Slack通知設定",
       "goToDashboardToSetup": "この記事を監視する",
-      "goToDashboardToSetupDescription": "順位を自動でトラッキングし、順位が下がった際に改善案を通知します"
+      "goToDashboardToSetupDescription": "順位を自動でトラッキングし、順位が下がった際に改善案を通知します",
+      "languageSettings": "言語設定",
+      "languageLabel": "言語 / Language",
+      "japanese": "日本語",
+      "english": "English",
+      "languageDescription": "通知メールの言語が変更されます",
+      "timezoneLabel": "タイムゾーン / Timezone",
+      "timezoneDescription": "タイムゾーンは自動検出されます",
+      "settingsFetchFailed": "設定の取得に失敗しました",
+      "localeUpdateFailed": "ロケールの更新に失敗しました",
+      "timezoneUpdateFailed": "タイムゾーンの更新に失敗しました",
+      "settingsSaved": "設定を保存しました",
+      "settingsSaveFailed": "設定の保存に失敗しました",
+      "retry": "再試行",
+      "notificationDestination": "通知先",
+      "selectNotificationDestination": "通知先（DMまたはチャネル）を選択してください",
+      "selectNotificationDestinationShort": "通知先を選択してください",
+      "loadingChannels": "チャネル一覧を取得中..."
     }
   },
   "alertSettings": {
