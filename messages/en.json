@@ -97,6 +97,45 @@
         "timesPerMonth": "/month"
       }
     },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "subtitle": "Common questions about ReRank AI",
+      "viewMore": "View more",
+      "items": {
+        "0": {
+          "question": "How many articles can I monitor with the free plan?",
+          "answer": "The free plan allows you to monitor up to 3 articles. You can also run article analysis up to 7 times in total. New article suggestions are available once in total."
+        },
+        "1": {
+          "question": "Is Google Search Console integration required?",
+          "answer": "Google Search Console integration is required if you want to use the automatic monitoring feature. It is not required for manual article analysis. Integration can be easily set up by simply logging in with your Google account."
+        },
+        "2": {
+          "question": "How do I receive notifications about ranking drops?",
+          "answer": "When the ranking of a monitored article falls below the set threshold, you will receive an email notification immediately. The notification includes the cause of the ranking drop and improvement suggestions. We also support Slack and LINE notifications (paid plans)."
+        },
+        "3": {
+          "question": "How does AI propose improvement suggestions?",
+          "answer": "Gemini AI automatically analyzes articles from top-ranking competitor sites and identifies differences from your own articles. It specifically suggests missing headings, keywords, and content, and automatically generates rewritten drafts."
+        },
+        "4": {
+          "question": "What is the new article suggestion feature?",
+          "answer": "This feature automatically suggests new article titles and content that are effective for SEO based on Search Console data. Based on keyword gap analysis, it generates 10 article titles and content per suggestion."
+        },
+        "5": {
+          "question": "Can I cancel anytime?",
+          "answer": "Yes, you can cancel at any time. After cancellation, you can continue using the service until the end of the current month. Cancellation can be easily done from the \"Plan Management\" section in the dashboard."
+        },
+        "6": {
+          "question": "Can I monitor multiple sites?",
+          "answer": "Yes, the number of sites you can monitor varies by plan. The Starter plan allows 1 site, the Standard plan allows 3 sites, and the Business plan allows unlimited sites. You can link Search Console properties for each site."
+        },
+        "7": {
+          "question": "Is my data stored securely?",
+          "answer": "Yes, all data is encrypted and stored securely. Google Search Console authentication credentials are also securely managed, and we perform regular backups. We protect your data appropriately in accordance with our privacy policy."
+        }
+      }
+    },
     "selectProperty": "Select Search Console Property",
     "selectPropertyDescription": "Please select the Search Console property of the site you want to analyze.",
     "analyzeArticle": "Analyze Article",
