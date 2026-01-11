@@ -107,32 +107,33 @@ export async function POST(request: NextRequest) {
       
       // 不足しているAIO対応要素を特定
       const missingAIOElements: string[] = [];
+      const isEnglish = locale === 'en';
       if (!aiSEOCheckResult.hasFAQ) {
-        missingAIOElements.push("FAQセクション（よくある質問）");
+        missingAIOElements.push(isEnglish ? "FAQ Section (Frequently Asked Questions)" : "FAQセクション（よくある質問）");
       }
       if (!aiSEOCheckResult.hasSummary) {
-        missingAIOElements.push("要約セクション（主なポイント、まとめ）");
+        missingAIOElements.push(isEnglish ? "Summary Section (Main Points, Summary)" : "要約セクション（主なポイント、まとめ）");
       }
       if (!aiSEOCheckResult.hasUpdateDate) {
-        missingAIOElements.push("更新日の表示");
+        missingAIOElements.push(isEnglish ? "Update Date Display" : "更新日の表示");
       }
       if (!aiSEOCheckResult.hasAuthorInfo) {
-        missingAIOElements.push("著者情報の明記");
+        missingAIOElements.push(isEnglish ? "Author Information" : "著者情報の明記");
       }
       if (!aiSEOCheckResult.hasDataOrStats) {
-        missingAIOElements.push("データ・統計の提示");
+        missingAIOElements.push(isEnglish ? "Data/Statistics Presentation" : "データ・統計の提示");
       }
       if (!aiSEOCheckResult.hasStructuredData) {
-        missingAIOElements.push("構造化データ（JSON-LD）");
+        missingAIOElements.push(isEnglish ? "Structured Data (JSON-LD)" : "構造化データ（JSON-LD）");
       }
       if (!aiSEOCheckResult.hasQuestionHeadings) {
-        missingAIOElements.push("質問形式の見出し（例：〇〇とは？）");
+        missingAIOElements.push(isEnglish ? "Question Format Headings (e.g., What is XX?)" : "質問形式の見出し（例：〇〇とは？）");
       }
       if (!aiSEOCheckResult.hasBulletPoints) {
-        missingAIOElements.push("箇条書きの活用");
+        missingAIOElements.push(isEnglish ? "Use of Bullet Points" : "箇条書きの活用");
       }
       if (!aiSEOCheckResult.hasTables) {
-        missingAIOElements.push("表の活用");
+        missingAIOElements.push(isEnglish ? "Use of Tables" : "表の活用");
       }
 
       // 記事改善案を生成
@@ -142,7 +143,8 @@ export async function POST(request: NextRequest) {
         ownArticleContent,
         whyCompetitorsRankHigher,
         recommendedAdditions,
-        missingAIOElements
+        missingAIOElements,
+        locale
       );
 
       return NextResponse.json({
