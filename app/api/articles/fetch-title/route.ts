@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { ArticleScraper } from "@/lib/article-scraper";
 import { getSitesByUserId } from "@/lib/db/sites";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 個別記事のタイトルを取得
@@ -12,10 +13,10 @@ export async function POST(request: NextRequest) {
   let scraper: ArticleScraper | null = null;
 
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     } catch (parseError: any) {
       console.error("[Fetch Title] Failed to parse request body:", parseError);
       return NextResponse.json(
-        { error: "リクエストボディのパースに失敗しました", details: parseError.message },
+        { error: getErrorMessage(locale, "errors.requestBodyParseFailed"), details: parseError.message },
         { status: 400 }
       );
     }
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
         article = await getArticleById(articleId);
         if (!article) {
           return NextResponse.json(
-            { error: "記事が見つかりません" },
+            { error: getErrorMessage(locale, "errors.articleNotFound") },
             { status: 404 }
           );
         }
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
         // 記事の所有者を確認
         if (article.user_id !== session.userId) {
           return NextResponse.json(
-            { error: "アクセス権限がありません" },
+            { error: getErrorMessage(locale, "errors.accessDenied") },
             { status: 403 }
           );
         }
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
       } catch (dbError: any) {
         console.error("[Fetch Title] Error fetching article by ID:", dbError);
         return NextResponse.json(
-          { error: "記事の取得に失敗しました", details: dbError.message },
+          { error: getErrorMessage(locale, "errors.articleFetchFailedDetails"), details: dbError.message },
           { status: 500 }
         );
       }
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
 
         if (!site) {
           return NextResponse.json(
-            { error: "サイトが見つかりません" },
+            { error: getErrorMessage(locale, "errors.siteNotFound") },
             { status: 404 }
           );
         }
@@ -91,13 +92,13 @@ export async function POST(request: NextRequest) {
       } catch (dbError: any) {
         console.error("[Fetch Title] Error fetching sites:", dbError);
         return NextResponse.json(
-          { error: "サイトの取得に失敗しました", details: dbError.message },
+          { error: getErrorMessage(locale, "errors.siteFetchFailedDetails"), details: dbError.message },
           { status: 500 }
         );
       }
     } else {
       return NextResponse.json(
-        { error: "articleIdまたはurlとsiteUrlパラメータが必要です" },
+        { error: getErrorMessage(locale, "errors.articleIdOrUrlRequired") },
         { status: 400 }
       );
     }
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     const targetUrl = article?.url || url;
     if (!targetUrl) {
       return NextResponse.json(
-        { error: "URLが取得できませんでした" },
+        { error: getErrorMessage(locale, "errors.urlNotRetrieved") },
         { status: 400 }
       );
     }
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
         console.warn(`[Fetch Title] Article URL returned 404: ${targetUrl}`);
         return NextResponse.json(
           {
-            error: "記事が見つかりません（404エラー）。URLが移動または削除された可能性があります。",
+            error: getErrorMessage(locale, "errors.articleNotFound404"),
             code: "ARTICLE_NOT_FOUND",
             url: targetUrl,
           },
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         url: targetUrl,
         title: content.title,
-        warning: "タイトルは取得できましたが、データベースへの保存に失敗しました",
+        warning: getErrorMessage(locale, "errors.titleSaveFailed"),
         error: dbError.message,
       });
     }
@@ -176,7 +177,8 @@ export async function POST(request: NextRequest) {
     }
     
     // エラーの詳細を返す（開発環境でのみ）
-    const errorMessage = error.message || "タイトルの取得に失敗しました";
+    const { locale: errorLocale } = await getSessionAndLocale(request);
+    const errorMessage = error.message || getErrorMessage(errorLocale, "errors.titleFetchFailedDetails");
     const errorDetails = process.env.NODE_ENV === "development" 
       ? { message: errorMessage, stack: error.stack, error: String(error) }
       : { message: errorMessage };

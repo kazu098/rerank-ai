@@ -349,12 +349,12 @@ export default function ArticleDetailPage({
       alert(t("dashboard.articles.improvement.copied"));
     } catch (err) {
       console.error("Failed to copy:", err);
-      alert("コピーに失敗しました");
+      alert(t("dashboard.articles.copyFailed"));
     }
   };
 
   const handleDeleteArticle = async () => {
-    if (!articleId || !confirm("この記事を削除しますか？")) {
+    if (!articleId || !confirm(t("dashboard.articles.confirmDelete"))) {
       return;
     }
 
@@ -511,7 +511,7 @@ export default function ArticleDetailPage({
           {/* 推定残り時間 */}
           {estimatedTimeRemaining !== null && (
             <div className="text-center text-gray-600">
-              <p>あと約{Math.ceil(estimatedTimeRemaining / 60)}分かかります</p>
+              <p>{t("analysis.estimatedTimeRemaining", { minutes: Math.ceil(estimatedTimeRemaining / 60) })}</p>
             </div>
           )}
 
@@ -540,12 +540,12 @@ export default function ArticleDetailPage({
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600">{error || "データが見つかりません"}</p>
+          <p className="text-red-600">{error || t("dashboard.articles.dataNotFound")}</p>
           <button
             onClick={() => router.push(`/dashboard`)}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            ダッシュボードに戻る
+            {t("dashboard.articles.backToDashboard")}
           </button>
         </div>
       </div>
@@ -582,7 +582,7 @@ export default function ArticleDetailPage({
               {article.current_average_position !== null && (
                 <span className="text-gray-600">
                   {t("dashboard.articles.averagePosition")}:{" "}
-                  <span className="font-semibold">{article.current_average_position.toFixed(1)}位</span>
+                  <span className="font-semibold">{article.current_average_position.toFixed(1)}{t("dashboard.articles.rankUnit")}</span>
                 </span>
               )}
               {article.is_monitoring && (
@@ -592,7 +592,7 @@ export default function ArticleDetailPage({
               )}
               {article.is_fixed && (
                 <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                  対応完了
+                  {t("dashboard.articles.fixed")}
                 </span>
               )}
             </div>
@@ -664,7 +664,7 @@ export default function ArticleDetailPage({
                 onClick={handleMarkAsFixed}
                 className="px-4 py-2 bg-white text-green-600 border border-green-600 rounded hover:bg-green-50 text-sm"
               >
-                  対応完了にする
+                {t("dashboard.articles.markAsFixed")}
               </button>
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 whitespace-normal">
                   {t("dashboard.articles.markAsFixedTooltip")}
@@ -678,7 +678,7 @@ export default function ArticleDetailPage({
               onClick={handleDeleteArticle}
               className="px-4 py-2 bg-white text-red-600 border border-red-600 rounded hover:bg-red-50 text-sm"
             >
-              削除
+              {t("dashboard.articles.delete")}
             </button>
           </div>
         </div>
@@ -687,7 +687,7 @@ export default function ArticleDetailPage({
       {/* 分析結果履歴 */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">分析結果履歴</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t("dashboard.articles.analysisHistory")}</h2>
           {analysisResults.length > 0 && (() => {
             // 最新の分析結果を取得
             const latestResult = analysisResults[0];
@@ -715,7 +715,7 @@ export default function ArticleDetailPage({
         <div className="divide-y">
           {analysisResults.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-500">
-              <p>分析結果がありません</p>
+              <p>{t("dashboard.articles.noAnalysisResults")}</p>
             </div>
           ) : (
             analysisResults.map((result) => (
@@ -728,7 +728,7 @@ export default function ArticleDetailPage({
                       </span>
                       {result.average_position !== null && (
                         <span className="text-sm text-gray-600">
-                          {t("dashboard.articles.averagePosition")}: {result.average_position.toFixed(1)}位
+                          {t("dashboard.articles.averagePosition")}: {result.average_position.toFixed(1)}{t("dashboard.articles.rankUnit")}
                         </span>
                       )}
                       {result.position_change !== null && (
@@ -738,18 +738,18 @@ export default function ArticleDetailPage({
                           }`}
                         >
                           {result.position_change > 0 ? "+" : ""}
-                          {result.position_change.toFixed(1)}位
+                          {result.position_change.toFixed(1)}{t("dashboard.articles.rankUnit")}
                         </span>
                       )}
                       {result.competitor_count !== null && (
                         <span className="text-sm text-gray-500">
-                          競合: {result.competitor_count}件
+                          {t("dashboard.articles.competitor")}: {result.competitor_count}{t("results.items")}
                         </span>
                       )}
                     </div>
                     {result.analyzed_keywords && result.analyzed_keywords.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-xs text-gray-500 mb-1">分析キーワード:</p>
+                        <p className="text-xs text-gray-500 mb-1">{t("dashboard.articles.analyzedKeywords")}</p>
                         <div className="flex flex-wrap gap-1">
                           {result.analyzed_keywords.slice(0, 5).map((keyword, i) => (
                             <span
@@ -780,12 +780,12 @@ export default function ArticleDetailPage({
                         }}
                         className="w-full px-4 py-2 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors"
                       >
-                        詳細を見る
+                        {t("dashboard.articles.viewDetailsButton")}
                       </button>
                     ) : loadingDetailed.has(result.id) ? (
                       <div className="text-center py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-2 text-sm text-gray-600">詳細データを読み込み中...</p>
+                        <p className="mt-2 text-sm text-gray-600">{t("dashboard.articles.loadingDetailedData")}</p>
                       </div>
                     ) : detailedData[result.id]?.error ? (
                       <p className="text-sm text-red-600">{detailedData[result.id].error}</p>
@@ -799,7 +799,7 @@ export default function ArticleDetailPage({
                         )}
                         {detailedData[result.id].semanticDiffAnalysis?.semanticAnalysis?.whyCompetitorsRankHigher && (
                           <div>
-                            <h4 className="font-semibold text-sm mb-2">なぜ競合が上位なのか</h4>
+                            <h4 className="font-semibold text-sm mb-2">{t("results.whyCompetitorsRankHigher")}</h4>
                             <p className="text-sm text-gray-700">
                               {detailedData[result.id].semanticDiffAnalysis.semanticAnalysis.whyCompetitorsRankHigher}
                             </p>
@@ -809,7 +809,7 @@ export default function ArticleDetailPage({
                          detailedData[result.id].semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length > 0 && (
                           <div>
                             <h4 className="font-semibold text-sm mb-2">
-                              追加すべき項目 ({detailedData[result.id].semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length}個)
+                              {t("dashboard.articles.recommendedAdditionsCount", { count: detailedData[result.id].semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.length })}
                             </h4>
                             {improvementError[result.id] && (
                               <div className="mt-2 mb-2 p-2 bg-red-50 border border-red-300 rounded text-sm text-red-600">
@@ -820,16 +820,16 @@ export default function ArticleDetailPage({
                               {detailedData[result.id].semanticDiffAnalysis.semanticAnalysis.recommendedAdditions.map(
                                 (rec: any, i: number) => (
                                   <div key={i} className="bg-yellow-50 p-3 rounded border border-yellow-300">
-                                    <p className="font-semibold text-sm">{rec.section || `項目 ${i + 1}`}</p>
+                                    <p className="font-semibold text-sm">{rec.section || `${t("dashboard.articles.item")} ${i + 1}`}</p>
                                     {rec.reason && (
-                                      <p className="text-xs text-gray-600 mt-1">理由: {rec.reason}</p>
+                                      <p className="text-xs text-gray-600 mt-1">{t("dashboard.articles.reasonLabel")} {rec.reason}</p>
                                     )}
                                     {rec.content && (
                                       <p className="text-sm mt-2">{rec.content}</p>
                                     )}
                                     {rec.competitorUrls && rec.competitorUrls.length > 0 && (
                                       <div className="mt-2 pt-2 border-t border-yellow-200">
-                                        <p className="text-xs text-gray-600 font-semibold mb-1">参考: この内容が記載されている競合サイト</p>
+                                        <p className="text-xs text-gray-600 font-semibold mb-1">{t("dashboard.articles.referenceCompetitorSites")}</p>
                                         <ul className="list-none space-y-1">
                                           {rec.competitorUrls.map((url: string, urlIndex: number) => (
                                             <li key={urlIndex}>
@@ -971,7 +971,7 @@ export default function ArticleDetailPage({
                                 {kw.keyword}
                               </td>
                               <td className="px-4 py-3 text-sm text-right text-gray-600">
-                                {kw.position.toFixed(1)}位
+                                {kw.position.toFixed(1)}{t("dashboard.articles.rankUnit")}
                               </td>
                               <td className="px-4 py-3 text-sm text-right text-gray-600">
                                 {kw.impressions.toLocaleString()}

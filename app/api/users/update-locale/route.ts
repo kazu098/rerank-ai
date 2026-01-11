@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { updateUserLocale } from "@/lib/db/users";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * ユーザーのロケールを更新
@@ -9,11 +10,11 @@ import { updateUserLocale } from "@/lib/db/users";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale: userLocale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(userLocale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     if (!locale) {
       return NextResponse.json(
-        { error: "localeが必要です。" },
+        { error: getErrorMessage(userLocale, "errors.localeRequired") },
         { status: 400 }
       );
     }
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     // ロケールの検証
     if (locale !== "ja" && locale !== "en") {
       return NextResponse.json(
-        { error: "無効なロケールです。'ja' または 'en' のみサポートされています。" },
+        { error: getErrorMessage(userLocale, "errors.invalidLocale") },
         { status: 400 }
       );
     }
@@ -44,8 +45,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, locale });
   } catch (error: any) {
     console.error("[Users API] Error updating locale:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "ロケールの更新に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.localeUpdateFailed") },
       { status: 500 }
     );
   }

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getArticleByUrl } from "@/lib/db/articles";
 import { getLatestAnalysisResult } from "@/lib/db/analysis-results";
 import { getDetailedAnalysisData } from "@/lib/db/analysis-results";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 記事URLから最新の分析結果を取得（詳細データ含む）
@@ -11,10 +12,10 @@ import { getDetailedAnalysisData } from "@/lib/db/analysis-results";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     if (!url) {
       return NextResponse.json(
-        { error: "urlパラメータが必要です" },
+        { error: getErrorMessage(locale, "errors.urlParameterRequired") },
         { status: 400 }
       );
     }
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Error getting latest analysis by URL:", error);
     return NextResponse.json(
-      { error: error.message || "分析結果の取得に失敗しました" },
+      { error: error.message || getErrorMessage(locale, "errors.analysisResultFetchFailed") },
       { status: 500 }
     );
   }

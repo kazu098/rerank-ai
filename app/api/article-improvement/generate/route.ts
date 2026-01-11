@@ -6,6 +6,7 @@ import { getDetailedAnalysisData } from "@/lib/db/analysis-results";
 import { ArticleImprovementGenerator } from "@/lib/article-improvement";
 import { ArticleScraper } from "@/lib/article-scraper";
 import { AISEOAnalyzer } from "@/lib/ai-seo-analyzer";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 記事改善案を生成
@@ -13,11 +14,11 @@ import { AISEOAnalyzer } from "@/lib/ai-seo-analyzer";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Gemini API keyが設定されているか確認
     if (!ArticleImprovementGenerator.isAvailable()) {
       return NextResponse.json(
-        { error: "記事改善機能は現在利用できません。GEMINI_API_KEYが設定されていません。" },
+        { error: getErrorMessage(locale, "errors.articleImprovementUnavailable") },
         { status: 503 }
       );
     }
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     if (!analysisResultId) {
       return NextResponse.json(
-        { error: "analysisResultIdが必要です。" },
+        { error: getErrorMessage(locale, "errors.analysisResultIdRequired") },
         { status: 400 }
       );
     }
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     if (analysisError || !analysisResult) {
       return NextResponse.json(
-        { error: "分析結果が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.analysisResultFetchFailed") },
         { status: 404 }
       );
     }
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     const article = await getArticleById(analysisResult.article_id);
     if (!article || article.user_id !== session.userId) {
       return NextResponse.json(
-        { error: "アクセス権限がありません。" },
+        { error: getErrorMessage(locale, "errors.accessDenied") },
         { status: 403 }
       );
     }
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     // 詳細データを取得
     if (!analysisResult.detailed_result_storage_key) {
       return NextResponse.json(
-        { error: "詳細データが見つかりません。" },
+        { error: getErrorMessage(locale, "errors.analysisResultFetchFailed") },
         { status: 404 }
       );
     }
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     if (!detailedData?.semanticDiffAnalysis?.semanticAnalysis?.recommendedAdditions) {
       return NextResponse.json(
-        { error: "追加すべき項目が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.recommendedAdditionsNotFound") },
         { status: 404 }
       );
     }
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     if (!recommendedAdditions || recommendedAdditions.length === 0) {
       return NextResponse.json(
-        { error: "追加すべき項目が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.recommendedAdditionsNotFound") },
         { status: 404 }
       );
     }
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
       console.error("[Article Improvement] Error scraping article:", scrapeError);
       return NextResponse.json(
         {
-          error: "記事の取得に失敗しました。記事が公開されているか、URLが正しいか確認してください。",
+          error: getErrorMessage(locale, "errors.articleScrapeFailed"),
           details: scrapeError.message,
         },
         { status: 500 }
@@ -159,8 +160,9 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error("[Article Improvement API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "記事改善案の生成に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.articleImprovementGenerationFailed") },
       { status: 500 }
     );
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getArticleById } from "@/lib/db/articles";
 import { createSupabaseClient } from "@/lib/supabase";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 記事を修正済みにする
@@ -12,11 +13,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -29,14 +30,14 @@ export async function POST(
 
     if (!article) {
       return NextResponse.json(
-        { error: "記事が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.articleNotFound") },
         { status: 404 }
       );
     }
 
     if (article.user_id !== userId) {
       return NextResponse.json(
-        { error: "アクセス権限がありません。" },
+        { error: getErrorMessage(locale, "errors.accessDenied") },
         { status: 403 }
       );
     }
@@ -59,8 +60,9 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("[Articles API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "修正済みフラグの更新に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.markAsFixedFailed") },
       { status: 500 }
     );
   }
