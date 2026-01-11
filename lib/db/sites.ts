@@ -26,6 +26,8 @@ function extractDomainFromSiteUrl(siteUrl: string): string {
 /**
  * サイトURLを正規化（https://形式に統一）
  * sc-domain:形式をhttps://形式に変換
+ * @deprecated この関数は重複チェック用の比較関数としてのみ使用してください。
+ *             サイト保存時はURLをそのまま保存します。
  */
 function normalizeSiteUrl(siteUrl: string): string {
   // 既にhttps://形式の場合はそのまま返す
@@ -50,6 +52,27 @@ function normalizeSiteUrl(siteUrl: string): string {
   }
   
   return siteUrl;
+}
+
+/**
+ * サイトURLを正規化して比較用のドメインを抽出（重複チェック用）
+ * sc-domain:形式とhttps://形式を同じドメインとして扱う
+ */
+function normalizeSiteUrlForComparison(url: string): string {
+  try {
+    // sc-domain:形式の場合
+    if (url.startsWith("sc-domain:")) {
+      const domain = url.replace("sc-domain:", "");
+      return domain.replace(/^www\./, "").replace(/\/$/, "").toLowerCase();
+    }
+    
+    // URL形式の場合
+    const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return urlObj.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    // URLパースに失敗した場合、単純に正規化
+    return url.replace(/^www\./, "").replace(/\/$/, "").toLowerCase();
+  }
 }
 
 export interface Site {
@@ -81,31 +104,25 @@ export async function saveOrUpdateSite(
 ): Promise<Site> {
   const supabase = createSupabaseClient();
 
-  // URLを正規化（https://形式に統一）
-  const normalizedSiteUrl = normalizeSiteUrl(siteUrl);
-
-  // 既存のサイトを検索（正規化前後の両方の形式で検索）
-  // まず元のURLで検索
-  let { data: existingSite } = await supabase
+  // URLをそのまま保存（sc-domain:形式も保持）
+  // 既存サイトの検索は比較用の正規化関数を使用
+  const normalizedForComparison = normalizeSiteUrlForComparison(siteUrl);
+  
+  // 既存のサイトを検索（比較用正規化で同じドメインかチェック）
+  const { data: allSites } = await supabase
     .from('sites')
     .select('*')
     .eq('user_id', userId)
-    .eq('site_url', siteUrl)
-    .single();
+    .eq('is_active', true);
   
-  // 見つからない場合は正規化されたURLで検索
-  if (!existingSite && siteUrl !== normalizedSiteUrl) {
-    const { data } = await supabase
-      .from('sites')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('site_url', normalizedSiteUrl)
-      .single();
-    existingSite = data;
-  }
+  // 比較用正規化で同じドメインのサイトを検索
+  const existingSite = allSites?.find(s => {
+    const normalizedExisting = normalizeSiteUrlForComparison(s.site_url);
+    return normalizedExisting === normalizedForComparison;
+  });
 
   if (existingSite) {
-    // 更新（URLも正規化して更新）
+    // 更新（URLはそのまま保存、sc-domain:形式も保持）
     // リフレッシュトークンが空文字列の場合は、既存のリフレッシュトークンを保持
     const updateData: {
       site_url: string;
@@ -116,7 +133,7 @@ export async function saveOrUpdateSite(
       is_active: boolean;
       updated_at: string;
     } = {
-      site_url: normalizedSiteUrl, // 正規化されたURLに更新
+      site_url: siteUrl, // ユーザーが選択した形式をそのまま保存（sc-domain:形式も保持）
       gsc_access_token: accessToken,
       gsc_token_expires_at: expiresAt.toISOString(),
       display_name: displayName || existingSite.display_name,
@@ -164,7 +181,7 @@ export async function saveOrUpdateSite(
     return updatedSite as Site;
   }
 
-  // 新規作成（正規化されたURLで保存）
+  // 新規作成（ユーザーが選択した形式をそのまま保存、sc-domain:形式も保持）
   // リフレッシュトークンが空文字列の場合はnullとして保存
   const insertData: {
     user_id: string;
@@ -177,8 +194,8 @@ export async function saveOrUpdateSite(
     is_trial: boolean;
   } = {
     user_id: userId,
-    site_url: normalizedSiteUrl, // 正規化されたURLで保存
-    display_name: displayName || normalizedSiteUrl,
+    site_url: siteUrl, // ユーザーが選択した形式をそのまま保存（sc-domain:形式も保持）
+    display_name: displayName || siteUrl,
     gsc_access_token: accessToken,
     gsc_refresh_token: (refreshToken && refreshToken.trim() !== '') ? refreshToken : null,
     gsc_token_expires_at: expiresAt.toISOString(),
@@ -216,11 +233,8 @@ export async function getSitesByUserId(userId: string): Promise<Site[]> {
     throw new Error(`Failed to get sites: ${error.message}`);
   }
 
-  // 取得したサイトのURLを正規化して返す
-  return (data || []).map((site: Site) => ({
-    ...site,
-    site_url: normalizeSiteUrl(site.site_url),
-  })) as Site[];
+  // 取得したサイトのURLをそのまま返す（sc-domain:形式を保持するため、正規化しない）
+  return (data || []) as Site[];
 }
 
 /**
