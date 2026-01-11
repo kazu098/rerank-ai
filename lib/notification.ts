@@ -136,7 +136,7 @@ export class NotificationService {
   async sendDiffAnalysisNotification(
     options: NotificationOptions
   ): Promise<void> {
-    const { to, subject, siteUrl, pageUrl, analysisResult } = options;
+    const { to, subject, siteUrl, pageUrl, analysisResult, locale = 'ja' } = options;
 
     if (!process.env.RESEND_API_KEY) {
       console.warn("[Notification] RESEND_API_KEY is not set, skipping email notification");
@@ -147,10 +147,12 @@ export class NotificationService {
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     const articleUrl = `${siteUrl}${pageUrl}`;
-    const emailSubject = subject || `【ReRank AI】順位下落を検知: ${analysisResult.prioritizedKeywords[0]?.keyword || "記事分析"}`;
+    const emailSubject = subject || (locale === 'en' 
+      ? `[ReRank AI] Rank drop detected: ${analysisResult.prioritizedKeywords[0]?.keyword || "Article analysis"}`
+      : `【ReRank AI】順位下落を検知: ${analysisResult.prioritizedKeywords[0]?.keyword || "記事分析"}`);
 
     // メール本文を生成
-    const emailBody = this.formatEmailBody(articleUrl, analysisResult);
+    const emailBody = this.formatEmailBody(articleUrl, analysisResult, locale);
 
     try {
       const { data, error } = await resend.emails.send({
@@ -177,8 +179,11 @@ export class NotificationService {
    */
   private formatEmailBody(
     articleUrl: string,
-    analysisResult: CompetitorAnalysisSummary
+    analysisResult: CompetitorAnalysisSummary,
+    locale: string = 'ja'
   ): string {
+    const t = (key: string, params?: Record<string, string | number>) => getMessage(locale, key, params);
+    const isEnglish = locale === 'en';
     let html = `
       <!DOCTYPE html>
       <html>
@@ -202,7 +207,7 @@ export class NotificationService {
       <body>
         <div class="container">
           <div class="header">
-            <h1 style="margin: 0;">ReRank AI - 順位下落検知レポート</h1>
+            <h1 style="margin: 0;">${t('notification.email.header')}</h1>
           </div>
           <div class="content">
     `;
@@ -210,7 +215,7 @@ export class NotificationService {
     // 記事URL
     html += `
       <div class="section">
-        <div class="section-title">📄 分析対象記事</div>
+        <div class="section-title">${t('notification.email.targetArticle')}</div>
         <p><a href="${articleUrl}" style="color: #4F46E5; text-decoration: none;">${articleUrl}</a></p>
       </div>
     `;
@@ -219,13 +224,13 @@ export class NotificationService {
     if (analysisResult.prioritizedKeywords.length > 0) {
       html += `
         <div class="section">
-          <div class="section-title">🔍 分析対象キーワード</div>
+          <div class="section-title">${t('notification.email.targetKeywords')}</div>
       `;
       analysisResult.prioritizedKeywords.forEach((kw) => {
         html += `
           <div class="keyword-item">
             <strong>${kw.keyword}</strong><br>
-            <small>順位: ${kw.position.toFixed(1)}位 | インプレッション: ${kw.impressions} | クリック: ${kw.clicks}</small>
+            <small>${t('notification.email.rank')}: ${kw.position.toFixed(1)}${isEnglish ? '' : '位'} | ${isEnglish ? 'Impressions' : 'インプレッション'}: ${kw.impressions} | ${isEnglish ? 'Clicks' : 'クリック'}: ${kw.clicks}</small>
           </div>
         `;
       });
@@ -236,7 +241,7 @@ export class NotificationService {
     if (analysisResult.uniqueCompetitorUrls.length > 0) {
       html += `
         <div class="section">
-          <div class="section-title">🏆 競合記事（${analysisResult.uniqueCompetitorUrls.length}件）</div>
+          <div class="section-title">${t('notification.email.competitorArticles', { count: analysisResult.uniqueCompetitorUrls.length })}</div>
           <ul class="url-list">
       `;
       analysisResult.uniqueCompetitorUrls.slice(0, 5).forEach((url) => {
@@ -251,7 +256,7 @@ export class NotificationService {
         
         html += `
           <div class="section">
-            <div class="section-title">🔍 なぜ競合が上位なのか</div>
+            <div class="section-title">${t('notification.email.whyCompetitorsRankHigher')}</div>
             <p>${semantic.semanticAnalysis.whyCompetitorsRankHigher}</p>
           </div>
         `;
@@ -259,7 +264,7 @@ export class NotificationService {
         if (semantic.semanticAnalysis.missingContent.length > 0) {
           html += `
             <div class="section">
-              <div class="section-title">❌ 不足している内容（${semantic.semanticAnalysis.missingContent.length}個）</div>
+              <div class="section-title">${t('notification.email.missingContent', { count: semantic.semanticAnalysis.missingContent.length })}</div>
               <ul class="list-disc list-inside space-y-1">
           `;
           semantic.semanticAnalysis.missingContent.forEach((content) => {
@@ -271,17 +276,17 @@ export class NotificationService {
         if (semantic.semanticAnalysis.recommendedAdditions.length > 0) {
           html += `
             <div class="section">
-              <div class="section-title">✨ 追加すべき項目（${semantic.semanticAnalysis.recommendedAdditions.length}個）</div>
+              <div class="section-title">${t('notification.email.recommendedAdditions')} (${semantic.semanticAnalysis.recommendedAdditions.length}${isEnglish ? ' items' : '個'})</div>
           `;
           semantic.semanticAnalysis.recommendedAdditions.forEach((rec) => {
             html += `
               <div class="recommendation">
-                <div class="recommendation-title">📝 ${rec.section}</div>
-                <p class="text-sm" style="color: #6B7280; margin-top: 4px;">理由: ${rec.reason}</p>
+                <div class="recommendation-title">${t('notification.email.section', { section: rec.section })}</div>
+                <p class="text-sm" style="color: #6B7280; margin-top: 4px;">${t('notification.email.reason')}: ${rec.reason}</p>
                 <p class="text-sm" style="margin-top: 4px;">${rec.content}</p>
                 ${rec.competitorUrls && rec.competitorUrls.length > 0 ? `
                   <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">
-                    <p class="text-xs" style="color: #6B7280; font-weight: bold; margin-bottom: 4px;">参考: この内容が記載されている競合サイト</p>
+                    <p class="text-xs" style="color: #6B7280; font-weight: bold; margin-bottom: 4px;">${t('notification.email.referenceCompetitorSites')}</p>
                     <ul style="list-style: none; padding: 0; margin: 0;">
                       ${rec.competitorUrls.map((url: string) => `
                         <li style="margin-bottom: 4px;">
@@ -302,10 +307,10 @@ export class NotificationService {
           semantic.keywordSpecificAnalysis.forEach((kwAnalysis) => {
             html += `
               <div class="section">
-                <div class="section-title">🔑 キーワード「${kwAnalysis.keyword}」の分析</div>
-                <p class="text-sm mb-2"><strong>なぜ順位が下がったか:</strong> ${kwAnalysis.whyRankingDropped}</p>
+                <div class="section-title">🔑 ${isEnglish ? 'Analysis for keyword' : 'キーワード'}「${kwAnalysis.keyword}」${isEnglish ? '' : 'の分析'}</div>
+                <p class="text-sm mb-2"><strong>${isEnglish ? 'Why ranking dropped:' : 'なぜ順位が下がったか:'}</strong> ${kwAnalysis.whyRankingDropped}</p>
                 <div>
-                  <strong>追加すべき項目:</strong>
+                  <strong>${t('notification.email.itemsToAdd')}:</strong>
                   <ul class="list-disc list-inside space-y-2 mt-2">
             `;
             kwAnalysis.whatToAdd.forEach((itemData: any) => {
@@ -317,7 +322,7 @@ export class NotificationService {
               if (competitorUrls && competitorUrls.length > 0) {
                 html += `
                   <div style="margin-left: 24px; margin-top: 4px;">
-                    <p class="text-xs" style="color: #6B7280; font-weight: bold; margin-bottom: 4px;">参考: この項目が記載されている競合サイト</p>
+                    <p class="text-xs" style="color: #6B7280; font-weight: bold; margin-bottom: 4px;">${t('notification.email.referenceCompetitorSites')}</p>
                     <ul style="list-style: none; padding: 0; margin: 0;">
                       ${competitorUrls.map((url: string) => `
                         <li style="margin-bottom: 4px;">
@@ -340,10 +345,10 @@ export class NotificationService {
       
       html += `
         <div class="section">
-          <div class="section-title">📊 分析結果</div>
-          <p><strong>自社記事の文字数:</strong> ${diff.ownArticle.wordCount.toLocaleString()}文字</p>
-          <p><strong>競合記事の平均文字数:</strong> ${diff.wordCountDiff.average.toLocaleString()}文字</p>
-          ${diff.wordCountDiff.diff > 0 ? `<p style="color: #DC2626;"><strong>文字数の差:</strong> +${diff.wordCountDiff.diff.toLocaleString()}文字（競合の方が多い）</p>` : ""}
+          <div class="section-title">📊 ${isEnglish ? 'Analysis Results' : '分析結果'}</div>
+          <p><strong>${isEnglish ? 'Your article word count:' : '自社記事の文字数:'}</strong> ${diff.ownArticle.wordCount.toLocaleString()}${isEnglish ? ' characters' : '文字'}</p>
+          <p><strong>${isEnglish ? 'Average competitor article word count:' : '競合記事の平均文字数:'}</strong> ${diff.wordCountDiff.average.toLocaleString()}${isEnglish ? ' characters' : '文字'}</p>
+          ${diff.wordCountDiff.diff > 0 ? `<p style="color: #DC2626;"><strong>${isEnglish ? 'Word count difference:' : '文字数の差:'}</strong> +${diff.wordCountDiff.diff.toLocaleString()}${isEnglish ? ' characters (competitors have more)' : '文字（競合の方が多い）'}</p>` : ""}
         </div>
       `;
 
@@ -351,13 +356,13 @@ export class NotificationService {
       if (diff.missingHeadings.length > 0) {
         html += `
           <div class="section">
-            <div class="section-title">📝 不足している見出し（${diff.missingHeadings.length}個）</div>
+            <div class="section-title">📝 ${isEnglish ? 'Missing Headings' : '不足している見出し'} (${diff.missingHeadings.length}${isEnglish ? ' items' : '個'})</div>
         `;
         diff.missingHeadings.slice(0, 5).forEach((h) => {
           html += `
             <div style="padding: 8px; margin-bottom: 4px; background: #FEF3C7; border-radius: 4px;">
               <strong>H${h.level}:</strong> ${h.heading}<br>
-              <small style="color: #6B7280;">競合記事${h.foundIn.length}件に含まれる</small>
+              <small style="color: #6B7280;">${isEnglish ? `Found in ${h.foundIn.length} competitor articles` : `競合記事${h.foundIn.length}件に含まれる`}</small>
             </div>
           `;
         });
@@ -368,7 +373,7 @@ export class NotificationService {
       if (diff.recommendations.length > 0) {
         html += `
           <div class="section">
-            <div class="section-title">✨ 追加すべき項目（推奨事項）</div>
+            <div class="section-title">✨ ${t('notification.email.recommendedAdditions')} ${isEnglish ? '(Recommendations)' : '（推奨事項）'}</div>
         `;
         diff.recommendations.forEach((rec) => {
           html += `
@@ -384,8 +389,9 @@ export class NotificationService {
     html += `
           </div>
           <div class="footer">
-            <p>このメールは ReRank AI から自動送信されました。</p>
-            <p>順位下落を検知した際に自動で通知されます。</p>
+            <p>${isEnglish ? 'This email was automatically sent from ReRank AI.' : 'このメールは ReRank AI から自動送信されました。'}</p>
+            <p>${isEnglish ? 'You will be notified automatically when a rank drop is detected.' : '順位下落を検知した際に自動で通知されます。'}</p>
+            <p>${t('notification.email.footer')}</p>
           </div>
         </div>
       </body>
