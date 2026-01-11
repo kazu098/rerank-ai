@@ -9,8 +9,6 @@ import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-
     const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(

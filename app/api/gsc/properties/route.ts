@@ -8,9 +8,7 @@ import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
  */
 export async function GET(request: NextRequest) {
   try {
-    // セッションを取得（JWTコールバックでトークンが自動リフレッシュされる）
-    const session = await auth();
-
+    // セッションとlocaleを取得（JWTコールバックでトークンが自動リフレッシュされる）
     const { session, locale } = await getSessionAndLocale(request);
     if (!session?.accessToken) {
       return NextResponse.json(
