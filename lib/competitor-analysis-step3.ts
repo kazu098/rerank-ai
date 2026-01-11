@@ -345,7 +345,7 @@ export async function analyzeStep3(
                 );
                 keywordSpecificAnalyses.push({
                   keyword: kw.keyword,
-                  whyRankingDropped: "分析結果が取得できませんでした。",
+                  whyRankingDropped: getErrorMessage(locale, "errors.analysisResultNotRetrieved"),
                   whatToAdd: [],
                 });
               }
