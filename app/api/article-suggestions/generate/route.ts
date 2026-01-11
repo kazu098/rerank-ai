@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
       site.site_url,
       userId,
       siteId,
-      existingArticles
+      existingArticles,
+      locale
     );
 
     // DBに保存

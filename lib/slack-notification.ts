@@ -153,7 +153,7 @@ export function formatSlackRankDropNotification(
     const changeDisplay = roundedChange >= 0 ? `+${roundedChange.toFixed(1)}` : roundedChange.toFixed(1);
     return {
       type: 'mrkdwn',
-      text: `*${kw.keyword}*\n${roundedFrom.toFixed(1)}位 → ${roundedTo.toFixed(1)}位 (${changeDisplay}位)`,
+      text: `*${kw.keyword}*\n${roundedFrom.toFixed(1)}${locale === 'en' ? '' : '位'} → ${roundedTo.toFixed(1)}${locale === 'en' ? '' : '位'} (${changeDisplay}${locale === 'en' ? '' : '位'})`,
     };
   });
 
@@ -180,7 +180,7 @@ export function formatSlackRankDropNotification(
             const roundedTo = Math.round(averagePositionChange.to * 10) / 10;
             const roundedChange = roundedFrom - roundedTo; // 順位上昇の場合は負の値、下落の場合は正の値
             const changeDisplay = roundedChange >= 0 ? `+${roundedChange.toFixed(1)}` : roundedChange.toFixed(1);
-            return `*${t.averagePosition}*\n${roundedFrom.toFixed(1)}位 → ${roundedTo.toFixed(1)}位 (${changeDisplay}位)`;
+            return `*${t.averagePosition}*\n${roundedFrom.toFixed(1)}${locale === 'en' ? '' : '位'} → ${roundedTo.toFixed(1)}${locale === 'en' ? '' : '位'} (${changeDisplay}${locale === 'en' ? '' : '位'})`;
           })(),
         },
       ],
@@ -305,7 +305,7 @@ export function formatSlackBulkNotification(
         },
         {
           type: 'mrkdwn',
-          text: `*${t.averagePosition}*\n${roundedFrom.toFixed(1)}位 → ${roundedTo.toFixed(1)}位 (${changeDisplay}位)`,
+          text: `*${t.averagePosition}*\n${roundedFrom.toFixed(1)}${locale === 'en' ? '' : '位'} → ${roundedTo.toFixed(1)}${locale === 'en' ? '' : '位'} (${changeDisplay}${locale === 'en' ? '' : '位'})`,
         },
       ],
     } as any);
@@ -323,11 +323,14 @@ export function formatSlackBulkNotification(
   });
 
   if (articles.length > 10) {
+    const remainingCount = articles.length - 10;
     blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*他 ${articles.length - 10}件の記事で順位変動を検知しました*`,
+        text: locale === 'en' 
+          ? `*${remainingCount} more articles with rank changes detected*`
+          : `*他 ${remainingCount}件の記事で順位変動を検知しました*`,
       },
     });
   }
