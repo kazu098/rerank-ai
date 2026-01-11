@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createUserWithPassword } from "@/lib/db/users";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import { checkRateLimit, getClientIpAddress } from "@/lib/rate-limit";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * ユーザー登録
@@ -10,12 +11,13 @@ import { checkRateLimit, getClientIpAddress } from "@/lib/rate-limit";
  */
 export async function POST(request: NextRequest) {
   try {
+    const { locale } = await getSessionAndLocale(request);
     const body = await request.json();
     const { email, password, name } = body;
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "メールアドレスとパスワードは必須です" },
+        { error: getErrorMessage(locale, "errors.emailAndPasswordRequired") },
         { status: 400 }
       );
     }
@@ -25,10 +27,10 @@ export async function POST(request: NextRequest) {
     if (ipAddress) {
       const rateLimitResult = await checkRateLimit(ipAddress, 'register');
       if (!rateLimitResult.allowed) {
-        const resetTime = new Date(rateLimitResult.resetAt).toLocaleString('ja-JP');
+        const resetTime = new Date(rateLimitResult.resetAt).toLocaleString(locale === 'ja' ? 'ja-JP' : 'en-US');
         return NextResponse.json(
           { 
-            error: `登録試行回数が上限に達しました。${resetTime}に再度お試しください。`,
+            error: getErrorMessage(locale, "errors.registrationRateLimitExceeded", { resetTime }),
           },
           { status: 429 }
         );
@@ -38,10 +40,10 @@ export async function POST(request: NextRequest) {
     // レート制限をチェック（メールアドレスベース）
     const emailRateLimitResult = await checkRateLimit(email, 'register');
     if (!emailRateLimitResult.allowed) {
-      const resetTime = new Date(emailRateLimitResult.resetAt).toLocaleString('ja-JP');
+      const resetTime = new Date(emailRateLimitResult.resetAt).toLocaleString(locale === 'ja' ? 'ja-JP' : 'en-US');
       return NextResponse.json(
         { 
-          error: `このメールアドレスでの登録試行回数が上限に達しました。${resetTime}に再度お試しください。`,
+          error: getErrorMessage(locale, "errors.emailRegistrationRateLimitExceeded", { resetTime }),
         },
         { status: 429 }
       );
@@ -50,13 +52,13 @@ export async function POST(request: NextRequest) {
     // パスワードの強度チェック
     if (password.length < 8) {
       return NextResponse.json(
-        { error: "パスワードは8文字以上である必要があります" },
+        { error: getErrorMessage(locale, "errors.passwordMinLength") },
         { status: 400 }
       );
     }
 
     // ユーザーを作成
-    const user = await createUserWithPassword(email, password, name);
+    const user = await createUserWithPassword(email, password, name, locale);
 
     // 認証メールを送信
     try {
@@ -67,14 +69,26 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: "ユーザー登録が完了しました。認証メールを確認してください。",
+      message: getErrorMessage(locale, "errors.registrationComplete"),
       userId: user.id,
     });
   } catch (error: any) {
     console.error("[Auth] Registration error:", error);
+    const { locale: errorLocale } = await getSessionAndLocale(request);
+    // エラーメッセージが既に多言語対応されているかチェック
+    const errorKey = error.message;
+    let errorMessage = error.message;
+    
+    // 既知のエラーメッセージを多言語対応に変換
+    if (errorKey === "このメールアドレスは既に登録されています") {
+      errorMessage = getErrorMessage(errorLocale, "errors.emailAlreadyRegistered");
+    } else if (errorKey.includes("メール認証が完了していません")) {
+      errorMessage = getErrorMessage(errorLocale, "errors.emailNotVerified");
+    }
+    
     return NextResponse.json(
       {
-        error: error.message || "ユーザー登録に失敗しました",
+        error: errorMessage || getErrorMessage(errorLocale, "errors.registrationFailed"),
       },
       { status: 400 }
     );

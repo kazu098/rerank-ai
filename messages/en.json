@@ -297,7 +297,23 @@
     "step2": "Select Search Console property",
     "step3": "Enter article URL and start analysis",
     "noAccessRightsTitle": "If you don't have access rights to Search Console properties",
-    "noAccessRightsDescription": "Add a site in Search Console or request access rights to existing properties."
+    "noAccessRightsDescription": "Add a site in Search Console or request access rights to existing properties.",
+    "signin": {
+      "title": "Sign In",
+      "signup": "Sign Up",
+      "email": "Email Address",
+      "password": "Password",
+      "forgotPassword": "Forgot Password?",
+      "processing": "Processing...",
+      "login": "Sign In",
+      "signupButton": "Sign Up",
+      "or": "Or",
+      "googleSignIn": "Sign in with Google",
+      "noAccount": "Don't have an account?",
+      "hasAccount": "Already have an account?",
+      "signupLink": "Sign Up",
+      "signinLink": "Sign In"
+    }
   },
   "errors": {
     "propertyNotSelected": "Search Console property is not selected",
@@ -383,7 +399,27 @@
     "tokenUpdateFailed": "Failed to update token",
     "gscPropertiesFetchFailed": "Failed to retrieve Search Console properties",
     "propertiesFetchError": "Error occurred while retrieving properties",
-    "dashboardDataFetchFailed": "Failed to retrieve dashboard data"
+    "dashboardDataFetchFailed": "Failed to retrieve dashboard data",
+    "timeoutApproaching": "Processing is approaching timeout ({seconds} seconds elapsed). Returning intermediate results.",
+    "competitorArticleFetchFailed": "Failed to retrieve competitor articles. Competitor URLs were retrieved, but article content scraping may have failed.",
+    "captchaDetected": "CAPTCHA detected. Retry limit exceeded.",
+    "emailAlreadyRegistered": "This email address is already registered",
+    "emailNotVerified": "Email verification is not complete. Please check your verification email.",
+    "emailAndPasswordRequired": "Email address and password are required",
+    "passwordMinLength": "Password must be at least 8 characters",
+    "registrationComplete": "User registration completed. Please check your verification email.",
+    "registrationFailed": "User registration failed",
+    "registrationRateLimitExceeded": "Registration attempt limit reached. Please try again at {resetTime}.",
+    "emailRegistrationRateLimitExceeded": "Registration attempt limit reached for this email address. Please try again at {resetTime}.",
+    "timeoutError": "Processing timed out. The analysis is taking too long.",
+    "timeoutHint": "Set skipLLMAnalysis to true or try again later.",
+    "timeoutHintCompetitors": "Reduce maxKeywords or maxCompetitorsPerKeyword, or try again later.",
+    "noDiffAnalysisResult": "No diff analysis result. Competitor URLs may not have been retrieved.",
+    "notificationSent": "Notification sent",
+    "analysisResultNotRetrieved": "Failed to retrieve analysis result.",
+    "accountLocked": "Account is locked. Please try again in {minutes} minutes.",
+    "accountLockedGeneric": "Account is locked. Please try again later.",
+    "errorOccurred": "An error occurred"
   },
   "billing": {
     "currentUsage": "Current Usage",

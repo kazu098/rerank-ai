@@ -41,7 +41,15 @@ export default function SignInPage() {
         });
 
         if (result?.error) {
-          setError(result.error);
+          // エラーメッセージを多言語対応に変換
+          let errorMessage = result.error;
+          if (errorMessage === "メール認証が完了していません。認証メールを確認してください。") {
+            errorMessage = t("errors.emailNotVerified");
+          } else if (errorMessage?.includes("ロックされています")) {
+            // アカウントロックエラーはそのまま表示（既に多言語対応されている可能性がある）
+            errorMessage = errorMessage;
+          }
+          setError(errorMessage);
         } else if (result?.ok) {
           // メールアドレスをlocalStorageに保存
           localStorage.setItem("lastEmail", email);
@@ -59,16 +67,26 @@ export default function SignInPage() {
         const data = await response.json();
 
         if (!response.ok) {
-          setError(data.error || "登録に失敗しました");
+          setError(data.error || t("errors.registrationFailed"));
         } else {
           // メールアドレスをlocalStorageに保存
           localStorage.setItem("lastEmail", email);
-          alert("登録が完了しました。認証メールを確認してください。");
+          alert(t("errors.registrationComplete"));
           setAuthMode("signin");
         }
       }
     } catch (err: any) {
-      setError(err.message || "エラーが発生しました");
+      // エラーメッセージを多言語対応に変換
+      let errorMessage = err.message;
+      if (errorMessage === "メール認証が完了していません。認証メールを確認してください。") {
+        errorMessage = t("errors.emailNotVerified");
+      } else if (errorMessage?.includes("ロックされています")) {
+        // アカウントロックエラーはそのまま表示（既に多言語対応されている可能性がある）
+        errorMessage = errorMessage;
+      } else if (!errorMessage) {
+        errorMessage = t("errors.errorOccurred");
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -88,7 +106,7 @@ export default function SignInPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {authMode === "signin" ? "ログイン" : "新規登録"}
+            {authMode === "signin" ? t("auth.signin.title") : t("auth.signin.signup")}
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -101,7 +119,7 @@ export default function SignInPage() {
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email" className="sr-only">
-                メールアドレス
+                {t("auth.signin.email")}
               </label>
               <input
                 id="email"
@@ -112,12 +130,12 @@ export default function SignInPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="メールアドレス"
+                placeholder={t("auth.signin.email")}
               />
             </div>
             <div>
               <label htmlFor="password" className="sr-only">
-                パスワード
+                {t("auth.signin.password")}
               </label>
               <input
                 id="password"
@@ -128,7 +146,7 @@ export default function SignInPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="パスワード"
+                placeholder={t("auth.signin.password")}
               />
             </div>
           </div>
@@ -140,7 +158,7 @@ export default function SignInPage() {
                   href="/auth/forgot-password"
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
-                  パスワードを忘れた場合
+                  {t("auth.signin.forgotPassword")}
                 </Link>
               </div>
             </div>
@@ -152,7 +170,7 @@ export default function SignInPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading ? "処理中..." : authMode === "signin" ? "ログイン" : "登録"}
+              {loading ? t("auth.signin.processing") : authMode === "signin" ? t("auth.signin.login") : t("auth.signin.signupButton")}
             </button>
           </div>
 
@@ -162,7 +180,7 @@ export default function SignInPage() {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-50 text-gray-500">または</span>
+                <span className="px-2 bg-gray-50 text-gray-500">{t("auth.signin.or")}</span>
               </div>
             </div>
 
@@ -190,7 +208,7 @@ export default function SignInPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Googleでログイン
+                {t("auth.signin.googleSignIn")}
               </button>
             </div>
           </div>
@@ -198,7 +216,7 @@ export default function SignInPage() {
           <div className="text-center text-sm">
             {authMode === "signin" ? (
               <span>
-                アカウントをお持ちでない方は{" "}
+                {t("auth.signin.noAccount")}{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -207,12 +225,12 @@ export default function SignInPage() {
                   }}
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
-                  新規登録
+                  {t("auth.signin.signupLink")}
                 </button>
               </span>
             ) : (
               <span>
-                既にアカウントをお持ちの方は{" "}
+                {t("auth.signin.hasAccount")}{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -221,7 +239,7 @@ export default function SignInPage() {
                   }}
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
-                  ログイン
+                  {t("auth.signin.signinLink")}
                 </button>
               </span>
             )}

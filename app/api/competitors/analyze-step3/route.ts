@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeStep3 } from "@/lib/competitor-analysis-step3";
 import { Step1Result, Step2Result } from "@/lib/competitor-analysis";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * Step 3: 記事スクレイピング + LLM分析
@@ -34,13 +35,17 @@ export async function POST(request: NextRequest) {
     // 環境変数でLLM分析をスキップする設定を確認
     const shouldSkipLLM = skipLLMAnalysis || process.env.SKIP_LLM_ANALYSIS === "true";
 
+    // localeを取得
+    const { locale } = await getSessionAndLocale(request);
+
     const result = await analyzeStep3(
       siteUrl,
       pageUrl,
       prioritizedKeywords,
       competitorResults,
       uniqueCompetitorUrls,
-      shouldSkipLLM
+      shouldSkipLLM,
+      locale
     );
 
     const apiTotalTime = Date.now() - apiStartTime;
@@ -51,13 +56,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("Error in Step 3:", error);
+    const { locale } = await getSessionAndLocale(request);
     
     // Vercelのタイムアウトエラーを検出
-    if (error.message?.includes("timeout") || error.message?.includes("Task timed out")) {
+    if (error.message?.includes("timeout") || error.message?.includes("Task timed out") || error.message?.includes(getErrorMessage(locale, "errors.timeoutApproaching"))) {
       return NextResponse.json(
         { 
-          error: "処理がタイムアウトしました。分析に時間がかかりすぎています。",
-          hint: "skipLLMAnalysisをtrueに設定するか、しばらく時間をおいて再度お試しください。"
+          error: getErrorMessage(locale, "errors.timeoutError"),
+          hint: getErrorMessage(locale, "errors.timeoutHint")
         },
         { status: 504 }
       );

@@ -2,6 +2,7 @@ import { createSupabaseClient } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { isAccountLocked, getLockRemainingMinutes, recordLoginAttempt } from '@/lib/db/login-attempts';
+import { getErrorMessage } from '@/lib/api-helpers';
 
 export interface User {
   id: string;
@@ -241,14 +242,15 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 export async function createUserWithPassword(
   email: string,
   password: string,
-  name?: string | null
+  name?: string | null,
+  locale: string = "ja"
 ): Promise<User> {
   const supabase = createSupabaseClient();
 
   // 既存ユーザーをチェック
   const existingUser = await getUserByEmail(email);
   if (existingUser) {
-    throw new Error('このメールアドレスは既に登録されています');
+    throw new Error(getErrorMessage(locale, "errors.emailAlreadyRegistered"));
   }
 
   // パスワードをハッシュ化
@@ -304,7 +306,8 @@ export async function createUserWithPassword(
  */
 export async function authenticateUserWithPassword(
   email: string,
-  password: string
+  password: string,
+  locale: string = "ja"
 ): Promise<User | null> {
   // ログイン試行回数制限をチェック
   const locked = await isAccountLocked(email);
@@ -312,8 +315,8 @@ export async function authenticateUserWithPassword(
     const remainingMinutes = await getLockRemainingMinutes(email);
     throw new Error(
       remainingMinutes 
-        ? `アカウントがロックされています。${remainingMinutes}分後に再度お試しください。`
-        : 'アカウントがロックされています。しばらくしてから再度お試しください。'
+        ? getErrorMessage(locale, "errors.accountLocked", { minutes: remainingMinutes })
+        : getErrorMessage(locale, "errors.accountLockedGeneric")
     );
   }
 

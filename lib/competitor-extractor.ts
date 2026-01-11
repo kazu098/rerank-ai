@@ -1,5 +1,6 @@
 import { chromium, Browser, Page, BrowserContext } from "playwright";
 import { SerperApiClient } from "./serper-api";
+import { getErrorMessage } from "./api-helpers";
 
 export interface SearchResult {
   url: string;
@@ -114,7 +115,7 @@ export class CompetitorExtractor {
 
     // ブラウジングツールで試行
     try {
-      return await this.extractWithBrowser(keyword, ownUrl, maxCompetitors, retryCount, undefined);
+      return await this.extractWithBrowser(keyword, ownUrl, maxCompetitors, retryCount, undefined, locale);
     } catch (error: any) {
       // CAPTCHAが検出された場合、Serper APIにフォールバック
       const isCaptchaError = error.message?.includes("CAPTCHA");
@@ -139,7 +140,8 @@ export class CompetitorExtractor {
     ownUrl: string,
     maxCompetitors: number,
     retryCount: number,
-    ownPosition?: number // GSC APIから取得した順位（オプション）
+    ownPosition?: number, // GSC APIから取得した順位（オプション）
+    locale: string = "ja"
   ): Promise<CompetitorExtractionResult> {
     await this.initialize();
 
@@ -175,7 +177,7 @@ export class CompetitorExtractor {
             await this.delay(delayMs);
             continue;
           }
-          throw new Error("CAPTCHAが検出されました。リトライ回数を超えました。");
+          throw new Error(getErrorMessage(locale, "errors.captchaDetected"));
         }
 
         // 検索結果を取得
@@ -281,7 +283,7 @@ export class CompetitorExtractor {
     console.error(
       `[CompetitorExtractor] All ${retryCount} attempts failed for keyword "${keyword}"`
     );
-    throw new Error("CAPTCHAが検出されました。リトライ回数を超えました。");
+    throw new Error(getErrorMessage(locale, "errors.captchaDetected"));
   }
 
   /**

@@ -300,7 +300,23 @@
     "step2": "Search Consoleプロパティを選択",
     "step3": "記事URLを入力して分析開始",
     "noAccessRightsTitle": "Search Consoleプロパティにアクセス権限がない場合",
-    "noAccessRightsDescription": "Search Consoleでサイトを追加するか、既存のプロパティにアクセス権限を付与してください。"
+    "noAccessRightsDescription": "Search Consoleでサイトを追加するか、既存のプロパティにアクセス権限を付与してください。",
+    "signin": {
+      "title": "ログイン",
+      "signup": "新規登録",
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "forgotPassword": "パスワードを忘れた場合",
+      "processing": "処理中...",
+      "login": "ログイン",
+      "signupButton": "登録",
+      "or": "または",
+      "googleSignIn": "Googleでログイン",
+      "noAccount": "アカウントをお持ちでない方は",
+      "hasAccount": "既にアカウントをお持ちの方は",
+      "signupLink": "新規登録",
+      "signinLink": "ログイン"
+    }
   },
   "errors": {
     "propertyNotSelected": "Search Consoleプロパティが選択されていません",
@@ -387,7 +403,27 @@
     "tokenUpdateFailed": "トークンの更新に失敗しました",
     "gscPropertiesFetchFailed": "Search Consoleプロパティの取得に失敗しました",
     "propertiesFetchError": "プロパティの取得中にエラーが発生しました",
-    "dashboardDataFetchFailed": "ダッシュボードデータの取得に失敗しました"
+    "dashboardDataFetchFailed": "ダッシュボードデータの取得に失敗しました",
+    "timeoutApproaching": "処理がタイムアウトに近づいています（{seconds}秒経過）。中間結果を返します。",
+    "competitorArticleFetchFailed": "競合記事の取得に失敗しました。競合URLは取得できましたが、記事内容のスクレイピングに失敗した可能性があります。",
+    "captchaDetected": "CAPTCHAが検出されました。リトライ回数を超えました。",
+    "emailAlreadyRegistered": "このメールアドレスは既に登録されています",
+    "emailNotVerified": "メール認証が完了していません。認証メールを確認してください。",
+    "emailAndPasswordRequired": "メールアドレスとパスワードは必須です",
+    "passwordMinLength": "パスワードは8文字以上である必要があります",
+    "registrationComplete": "ユーザー登録が完了しました。認証メールを確認してください。",
+    "registrationFailed": "ユーザー登録に失敗しました",
+    "registrationRateLimitExceeded": "登録試行回数が上限に達しました。{resetTime}に再度お試しください。",
+    "emailRegistrationRateLimitExceeded": "このメールアドレスでの登録試行回数が上限に達しました。{resetTime}に再度お試しください。",
+    "timeoutError": "処理がタイムアウトしました。分析に時間がかかりすぎています。",
+    "timeoutHint": "skipLLMAnalysisをtrueに設定するか、しばらく時間をおいて再度お試しください。",
+    "timeoutHintCompetitors": "maxKeywordsやmaxCompetitorsPerKeywordを減らすか、しばらく時間をおいて再度お試しください。",
+    "noDiffAnalysisResult": "差分分析結果がありません。競合URLが取得できなかった可能性があります。",
+    "notificationSent": "通知を送信しました",
+    "analysisResultNotRetrieved": "分析結果が取得できませんでした。",
+    "accountLocked": "アカウントがロックされています。{minutes}分後に再度お試しください。",
+    "accountLockedGeneric": "アカウントがロックされています。しばらくしてから再度お試しください。",
+    "errorOccurred": "エラーが発生しました"
   },
   "billing": {
     "currentUsage": "現在の使用状況",
