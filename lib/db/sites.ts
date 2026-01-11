@@ -331,6 +331,48 @@ export async function updateSiteAuthError(siteId: string): Promise<void> {
 }
 
 /**
+ * URLプロパティ形式（https://example.com/）からドメインプロパティ形式（sc-domain:example.com）に変換
+ */
+export function convertUrlPropertyToDomainProperty(urlProperty: string): string | null {
+  try {
+    // すでにドメインプロパティ形式の場合はnullを返す
+    if (urlProperty.startsWith('sc-domain:')) {
+      return null;
+    }
+    
+    // URLプロパティ形式の場合のみ変換
+    if (urlProperty.startsWith('https://') || urlProperty.startsWith('http://')) {
+      const urlObj = new URL(urlProperty);
+      const domain = urlObj.hostname.replace(/^www\./, '');
+      return `sc-domain:${domain}`;
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * サイトのURLを更新
+ */
+export async function updateSiteUrl(siteId: string, newSiteUrl: string): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  const { error } = await supabase
+    .from('sites')
+    .update({
+      site_url: newSiteUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', siteId);
+
+  if (error) {
+    throw new Error(`Failed to update site URL: ${error.message}`);
+  }
+}
+
+/**
  * ユーザーが実際に分析を実行したドメイン数を取得
  * analysis_runs → articles → sites を経由してドメインを集計
  */

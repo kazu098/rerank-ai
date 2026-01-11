@@ -51,11 +51,31 @@ export async function POST(request: NextRequest) {
     // 既存のサイト一覧を取得
     const existingSites = await getSitesByUserId(session.userId);
 
+    console.log(`[Sites Update Tokens] Found ${existingSites.length} sites for user ${session.userId}`);
+    console.log(`[Sites Update Tokens] Token info:`, {
+      hasAccessToken: !!session.accessToken,
+      accessTokenPrefix: session.accessToken ? `${session.accessToken.substring(0, 20)}...` : 'null',
+      hasRefreshToken: !!newRefreshToken,
+      refreshTokenPrefix: newRefreshToken ? `${newRefreshToken.substring(0, 20)}...` : 'null',
+      tokenExpiresAt: tokenExpiresAt ? new Date(tokenExpiresAt).toISOString() : 'null',
+    });
+
     // リフレッシュトークンがnullまたは空文字列のサイトを更新
+    // また、再認証後はすべてのサイトのアクセストークンを更新（403エラー対策）
     const updatedSites = [];
     for (const site of existingSites) {
-      if (!site.gsc_refresh_token || site.gsc_refresh_token.trim() === '') {
+      // リフレッシュトークンがnull/空文字列の場合、または再認証後のアクセストークン更新のため
+      const shouldUpdate = !site.gsc_refresh_token || site.gsc_refresh_token.trim() === '';
+      
+      if (shouldUpdate) {
         try {
+          console.log(`[Sites Update Tokens] Updating site ${site.id} (${site.site_url}):`, {
+            reason: !site.gsc_refresh_token || site.gsc_refresh_token.trim() === '' 
+              ? 'refresh_token_missing' 
+              : 'access_token_update',
+            existingRefreshToken: site.gsc_refresh_token ? `${site.gsc_refresh_token.substring(0, 20)}...` : 'null',
+          });
+          
           const updatedSite = await saveOrUpdateSite(
             session.userId,
             site.site_url,
@@ -69,9 +89,33 @@ export async function POST(request: NextRequest) {
             site_url: updatedSite.site_url,
             updated: true,
           });
-          console.log(`[Sites Update Tokens] Updated refresh token for site ${site.id} (${site.site_url})`);
+          console.log(`[Sites Update Tokens] Successfully updated refresh token for site ${site.id} (${site.site_url})`);
         } catch (error: any) {
           console.error(`[Sites Update Tokens] Failed to update site ${site.id}:`, error);
+        }
+      } else {
+        // リフレッシュトークンが既に存在する場合でも、アクセストークンを更新（再認証後の403エラー対策）
+        try {
+          console.log(`[Sites Update Tokens] Updating access token only for site ${site.id} (${site.site_url})`);
+          
+          // アクセストークンのみを更新（リフレッシュトークンは既存のものを保持）
+          const updatedSite = await saveOrUpdateSite(
+            session.userId,
+            site.site_url,
+            session.accessToken,
+            site.gsc_refresh_token, // 既存のリフレッシュトークンを保持
+            tokenExpiresAt ? new Date(tokenExpiresAt) : new Date(Date.now() + 3600 * 1000),
+            site.display_name || undefined
+          );
+          updatedSites.push({
+            id: updatedSite.id,
+            site_url: updatedSite.site_url,
+            updated: true,
+            accessTokenOnly: true,
+          });
+          console.log(`[Sites Update Tokens] Successfully updated access token for site ${site.id} (${site.site_url})`);
+        } catch (error: any) {
+          console.error(`[Sites Update Tokens] Failed to update access token for site ${site.id}:`, error);
         }
       }
     }
