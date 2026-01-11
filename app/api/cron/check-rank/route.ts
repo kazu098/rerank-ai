@@ -441,17 +441,43 @@ export async function GET(request: NextRequest) {
                     },
                   });
                 } catch (retryError: any) {
+                  const retryErrorMessage = retryError.message || String(retryError);
                   console.error(
-                    `[Cron] Retry with domain property format also failed for site ${site.id}:`,
-                    retryError.message
+                    `[Cron] Retry with domain property format also failed for site ${site.id}, article ${article.id}:`,
+                    retryErrorMessage
                   );
+                  console.error(`[Cron] Auto-retry failed details:`, {
+                    siteId: site.id,
+                    siteUrl: site.site_url,
+                    domainPropertyUrl: domainPropertyUrl,
+                    articleId: article.id,
+                    articleUrl: article.url,
+                    userId: article.user_id,
+                    userEmail: user.email,
+                    errorMessage: retryErrorMessage,
+                    errorType: retryErrorMessage.includes('403') ? '403' : retryErrorMessage.includes('401') ? '401' : 'unknown',
+                  });
+                  
                   // 再試行も失敗した場合、通常の403エラーハンドリングに進む
+                  console.log(`[Cron] Auto-retry failed, proceeding to handleAuthError for site ${site.id}`);
                   await handleAuthError(site.id, site.site_url, '403');
+                  console.log(`[Cron] handleAuthError completed, skipping article ${article.id}`);
                   continue;
                 }
               } else {
                 // URLプロパティ形式でない場合（すでにドメインプロパティ形式）、通常の403エラーハンドリングに進む
+                console.log(`[Cron] Site URL is not URL property format (already domain property or other format), proceeding to handleAuthError for site ${site.id}`);
+                console.log(`[Cron] Site URL format info:`, {
+                  siteId: site.id,
+                  siteUrl: site.site_url,
+                  isDomainProperty: site.site_url.startsWith('sc-domain:'),
+                  isUrlProperty: site.site_url.startsWith('https://') || site.site_url.startsWith('http://'),
+                  articleId: article.id,
+                  userId: article.user_id,
+                  userEmail: user.email,
+                });
                 await handleAuthError(site.id, site.site_url, '403');
+                console.log(`[Cron] handleAuthError completed, skipping article ${article.id}`);
                 continue;
               }
             }
