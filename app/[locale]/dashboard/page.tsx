@@ -49,6 +49,7 @@ interface UserPlan {
     max_articles: number | null;
     max_analyses_per_month: number | null;
     max_sites: number | null;
+    max_article_suggestions_per_month: number | null;
   } | null;
   plan_ends_at: string | null;
   trial_ends_at: string | null;
@@ -280,12 +281,35 @@ export default function DashboardPage() {
                   />
                   </div>
                 </div>
+
+                {/* 新規記事提案回数 */}
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">
+                      {userPlan.plan.name === "free" ? t("dashboard.billing.articleSuggestionsTotal") : t("dashboard.billing.articleSuggestions")}
+                    </span>
+                    <span className="font-semibold">
+                      {usage.article_suggestions_this_month} / {formatLimit(userPlan.plan.max_article_suggestions_per_month)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${getProgressBarColor(
+                      getUsagePercentage(usage.article_suggestions_this_month, userPlan.plan.max_article_suggestions_per_month)
+                    )}`}
+                    style={{
+                      width: `${getUsagePercentage(usage.article_suggestions_this_month, userPlan.plan.max_article_suggestions_per_month)}%`,
+                    }}
+                  />
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* 制限に近づいている場合の警告 */}
             {(getUsagePercentage(usage.analyses_this_month, userPlan.plan.max_analyses_per_month) >= 90 ||
-              getUsagePercentage(usage.articles, userPlan.plan.max_articles) >= 90) && (
+              getUsagePercentage(usage.articles, userPlan.plan.max_articles) >= 90 ||
+              getUsagePercentage(usage.article_suggestions_this_month, userPlan.plan.max_article_suggestions_per_month) >= 90) && (
               <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-yellow-800">

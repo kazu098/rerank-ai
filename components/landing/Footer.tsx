@@ -30,7 +30,7 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm hover:text-white transition-colors">
+                <a href="#pricing" className="text-sm hover:text-white transition-colors">
                   {t("footer.service.pricing")}
                 </a>
               </li>

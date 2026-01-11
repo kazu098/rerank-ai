@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { getDocPages, getDocNavigation } from "@/lib/content/docs";
 import { getTranslations } from "next-intl/server";
+import { Navigation } from "@/components/landing/Navigation";
 
 export async function generateMetadata({
   params,
@@ -28,6 +29,7 @@ export default async function DocsPage({
 
   return (
     <div className="min-h-screen bg-white">
+      <Navigation />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">ドキュメント</h1>

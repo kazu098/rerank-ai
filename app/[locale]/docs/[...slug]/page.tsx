@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDocPage, getDocPages, getDocNavigation } from "@/lib/content/docs";
 import { getTranslations } from "next-intl/server";
+import { Navigation } from "@/components/landing/Navigation";
 
 export async function generateMetadata({
   params,
@@ -89,6 +90,7 @@ export default async function DocPage({
 
   return (
     <div className="min-h-screen bg-white">
+      <Navigation />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* サイドバー（ナビゲーション） */}
