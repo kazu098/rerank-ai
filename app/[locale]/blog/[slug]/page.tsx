@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBlogPost, getBlogPosts } from "@/lib/content/blog";
 import { getTranslations } from "next-intl/server";
+import { Navigation } from "@/components/landing/Navigation";
 
 export async function generateMetadata({
   params,
@@ -74,6 +75,7 @@ export default async function BlogPostPage({
 
   return (
     <div className="min-h-screen bg-white">
+      <Navigation />
       <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* パンくずリスト */}
         <nav className="mb-8" aria-label="Breadcrumb">
