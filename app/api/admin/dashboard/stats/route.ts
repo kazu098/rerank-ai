@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createSupabaseClient } from "@/lib/supabase";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 import { getPlanById } from "@/lib/db/plans";
 
 /**
@@ -308,9 +309,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ stats });
   } catch (error: any) {
     console.error("[Admin Dashboard] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
       {
-        error: error.message || "統計データの取得に失敗しました。",
+        error: error.message || getErrorMessage(locale, "errors.statsDataFetchFailed"),
       },
       { status: 500 }
     );

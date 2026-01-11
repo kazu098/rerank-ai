@@ -398,7 +398,7 @@ export class CompetitorAnalyzer {
           ownPosition: ownKeywordPosition,
           totalResults: 0,
           error: isCaptchaError 
-            ? "CAPTCHAが検出されました。しばらく時間をおいてから再度お試しください。"
+            ? getErrorMessage(locale, "errors.captchaDetectedWithRetry")
             : errorMessage,
         });
       }

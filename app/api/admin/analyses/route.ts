@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createSupabaseClient } from "@/lib/supabase";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 管理画面用の分析実行履歴を取得（ページネーション対応）
@@ -57,9 +58,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[Admin Analyses] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
       {
-        error: error.message || "分析実行履歴の取得に失敗しました。",
+        error: error.message || getErrorMessage(locale, "errors.analysisHistoryFetchFailed"),
       },
       { status: 500 }
     );

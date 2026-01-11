@@ -424,7 +424,16 @@
     "errorOccurred": "An error occurred",
     "step1Failed": "Step 1 failed",
     "step2Failed": "Step 2 failed",
-    "step3Failed": "Step 3 failed ({status})"
+    "step3Failed": "Step 3 failed ({status})",
+    "userListFetchFailed": "Failed to retrieve user list.",
+    "userDetailFetchFailed": "Failed to retrieve user details.",
+    "statsDataFetchFailed": "Failed to retrieve statistics data.",
+    "trendsDataFetchFailed": "Failed to retrieve trends data.",
+    "analysisHistoryFetchFailed": "Failed to retrieve analysis history.",
+    "tokenNotProvided": "Authentication token is not provided",
+    "invalidOrExpiredToken": "Invalid or expired authentication token",
+    "emailVerificationFailed": "Email verification failed",
+    "captchaDetectedWithRetry": "CAPTCHA detected. Please try again after a while."
   },
   "billing": {
     "currentUsage": "Current Usage",

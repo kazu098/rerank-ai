@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/lib/supabase";
 import { getUserById } from "@/lib/db/users";
 import { getPlanById } from "@/lib/db/plans";
 import { getArticlesByUserId } from "@/lib/db/articles";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 管理画面用のユーザー詳細情報を取得
@@ -126,9 +127,10 @@ export async function GET(
     });
   } catch (error: any) {
     console.error("[Admin User Detail] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
       {
-        error: error.message || "ユーザー詳細情報の取得に失敗しました。",
+        error: error.message || getErrorMessage(locale, "errors.userDetailFetchFailed"),
       },
       { status: 500 }
     );

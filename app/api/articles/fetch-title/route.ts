@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
     if (error.code === "ARTICLE_NOT_FOUND") {
       return NextResponse.json(
         {
-          error: error.error || "記事が見つかりません",
+          error: error.error || getErrorMessage(locale, "errors.articleNotFound"),
           code: error.code,
           url: error.url,
         },

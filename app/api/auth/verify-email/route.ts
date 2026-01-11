@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyEmailToken } from "@/lib/db/users";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * メール認証
@@ -7,12 +8,13 @@ import { verifyEmailToken } from "@/lib/db/users";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { locale } = await getSessionAndLocale(request);
     const searchParams = request.nextUrl.searchParams;
     const token = searchParams.get("token");
 
     if (!token) {
       return NextResponse.json(
-        { error: "認証トークンが指定されていません" },
+        { error: getErrorMessage(locale, "errors.tokenNotProvided") },
         { status: 400 }
       );
     }
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "無効または期限切れの認証トークンです" },
+        { error: getErrorMessage(locale, "errors.invalidOrExpiredToken") },
         { status: 400 }
       );
     }
@@ -32,9 +34,10 @@ export async function GET(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("[Auth] Email verification error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
       {
-        error: error.message || "メール認証に失敗しました",
+        error: error.message || getErrorMessage(locale, "errors.emailVerificationFailed"),
       },
       { status: 500 }
     );

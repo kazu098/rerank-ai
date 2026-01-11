@@ -129,8 +129,9 @@ export async function GET(request: NextRequest) {
         normalizedUrl: normalizedSiteUrl,
         availableSites: sites.map(s => s.site_url),
       });
+      const { locale } = await getSessionAndLocale(request);
       return NextResponse.json(
-        { error: "サイトが見つかりません" },
+        { error: getErrorMessage(locale, "errors.siteNotFound") },
         { status: 404 }
       );
     }
