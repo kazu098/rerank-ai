@@ -437,7 +437,8 @@
     "tokenNotProvided": "認証トークンが指定されていません",
     "invalidOrExpiredToken": "無効または期限切れの認証トークンです",
     "emailVerificationFailed": "メール認証に失敗しました",
-    "captchaDetectedWithRetry": "CAPTCHAが検出されました。しばらく時間をおいてから再度お試しください。"
+    "captchaDetectedWithRetry": "CAPTCHAが検出されました。しばらく時間をおいてから再度お試しください。",
+    "articleSuggestionStatusUpdateFailed": "ステータスの更新に失敗しました"
   },
   "billing": {
     "currentUsage": "現在の使用状況",

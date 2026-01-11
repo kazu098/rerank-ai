@@ -433,7 +433,8 @@
     "tokenNotProvided": "Authentication token is not provided",
     "invalidOrExpiredToken": "Invalid or expired authentication token",
     "emailVerificationFailed": "Email verification failed",
-    "captchaDetectedWithRetry": "CAPTCHA detected. Please try again after a while."
+    "captchaDetectedWithRetry": "CAPTCHA detected. Please try again after a while.",
+    "articleSuggestionStatusUpdateFailed": "Failed to update status"
   },
   "billing": {
     "currentUsage": "Current Usage",
