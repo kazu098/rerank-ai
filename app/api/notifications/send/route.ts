@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       siteUrl,
       pageUrl,
       analysisResult,
+      locale,
     });
 
     console.log(`[Notification] Notification sent successfully to ${email}`);
