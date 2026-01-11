@@ -475,6 +475,8 @@
       "changePlan": "Change Plan",
       "changePlanButton": "Change Plan",
       "changing": "Changing...",
+      "planChangeUpgradeNote": "※ When upgrading your plan, the difference will be charged on a prorated basis, and you can use the new plan features immediately.",
+      "planChangeDowngradeNote": "※ When downgrading your plan, your current plan will continue until the period ends. The new plan will take effect from the next renewal date.",
       "changeAtPeriodEnd": "Change at period end (no proration)",
       "changeAtPeriodEndShort": "Change at period end",
       "noActiveSubscription": "No active subscription found",
