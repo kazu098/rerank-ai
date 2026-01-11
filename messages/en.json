@@ -112,7 +112,7 @@
         },
         "2": {
           "question": "How do I receive notifications about ranking drops?",
-          "answer": "When the ranking of a monitored article falls below the set threshold, you will receive an email notification immediately. The notification includes the cause of the ranking drop and improvement suggestions. We also support Slack and LINE notifications (paid plans)."
+          "answer": "When the ranking of a monitored article falls below the set threshold, you will receive an email notification immediately. The notification includes the cause of the ranking drop and improvement suggestions. We also support Slack notifications, which are available as a standard feature."
         },
         "3": {
           "question": "How does AI propose improvement suggestions?",
