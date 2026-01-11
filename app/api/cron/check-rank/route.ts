@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GSCApiClient } from "@/lib/gsc-api";
 import { NotificationChecker } from "@/lib/notification-checker";
 import { getMonitoringArticles, getMonitoringArticlesForSlot, updateArticleAnalysis } from "@/lib/db/articles";
-import { getSitesByUserId, updateSiteTokens, updateSiteAuthError, convertUrlPropertyToDomainProperty, updateSiteUrl } from "@/lib/db/sites";
+import { getSitesByUserId, getSiteById, updateSiteTokens, updateSiteAuthError, convertUrlPropertyToDomainProperty, updateSiteUrl } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
@@ -120,6 +120,9 @@ export async function GET(request: NextRequest) {
 
     // ユーザーごとにGSCクライアントを管理
     const userGscClients: Map<string, GSCApiClient> = new Map();
+    
+    // サイト情報をキャッシュ（同じサイトの複数記事を処理する際に効率化）
+    const siteCache: Map<string, { site: any; userId: string }> = new Map();
 
     // 各記事に対して通知判定を実行
     for (const article of articles) {
@@ -137,8 +140,19 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        const sites = await getSitesByUserId(article.user_id);
-        const site = sites.find((s) => s.id === article.site_id);
+        // サイト情報をキャッシュから取得、またはDBから取得
+        let site: any;
+        const cachedSite = siteCache.get(article.site_id);
+        if (cachedSite && cachedSite.userId === article.user_id) {
+          site = cachedSite.site;
+        } else {
+          const sites = await getSitesByUserId(article.user_id);
+          site = sites.find((s) => s.id === article.site_id);
+          if (site) {
+            siteCache.set(article.site_id, { site, userId: article.user_id });
+          }
+        }
+        
         if (!site || !site.is_active) {
           console.warn(`[Cron] Site not found or inactive for article ${article.id}`);
           continue;
@@ -414,7 +428,18 @@ export async function GET(request: NextRequest) {
                   // 再試行が成功した場合、サイトURLを更新して通常の処理フローに戻る
                   console.log(`[Cron] Retry successful with domain property format for site ${site.id}, updating site URL from ${site.site_url} to ${domainPropertyUrl}`);
                   await updateSiteUrl(site.id, domainPropertyUrl);
-                  site.site_url = domainPropertyUrl;
+                  // DB更新後、最新のサイト情報を再取得してキャッシュを更新（次の記事処理で正しいURLを使用するため）
+                  const updatedSite = await getSiteById(site.id);
+                  if (updatedSite) {
+                    site.site_url = updatedSite.site_url;
+                    // キャッシュも更新（キーはarticle.site_idで統一）
+                    siteCache.set(article.site_id, { site: updatedSite, userId: article.user_id });
+                    console.log(`[Cron] Site URL updated in memory and cache: ${site.site_url}`);
+                  } else {
+                    site.site_url = domainPropertyUrl;
+                    // キャッシュも更新（キーはarticle.site_idで統一）
+                    siteCache.set(article.site_id, { site: { ...site, site_url: domainPropertyUrl }, userId: article.user_id });
+                  }
                   checkResult = retryCheckResult;
                   
                   // 再試行成功後の通知チェック結果をログ出力

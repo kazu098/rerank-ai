@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getGSCClient, GSCRow } from "@/lib/gsc-api";
-import { getSitesByUserId, getSiteById } from "@/lib/db/sites";
+import { getSitesByUserId, getSiteById, convertUrlPropertyToDomainProperty, updateSiteUrl } from "@/lib/db/sites";
 import { getArticlesBySiteId, getArticleByUrl } from "@/lib/db/articles";
 import { getCache, generateCacheKey } from "@/lib/cache";
 
@@ -156,7 +156,33 @@ export async function GET(request: NextRequest) {
     if (!gscData) {
       // キャッシュにない場合はGSC APIから取得
       const gscClient = await getGSCClient();
-      gscData = await gscClient.getPageUrls(siteUrl, startDate, endDate, 1000);
+      try {
+        gscData = await gscClient.getPageUrls(site.site_url, startDate, endDate, 1000);
+      } catch (error: any) {
+        const errorMessage = error.message || String(error);
+        const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('permission');
+        
+        // 403エラーでURLプロパティ形式の場合、ドメインプロパティ形式に変換して再試行
+        if (is403Error && site.site_url.startsWith('https://')) {
+          const domainPropertyUrl = convertUrlPropertyToDomainProperty(site.site_url);
+          if (domainPropertyUrl) {
+            console.log(`[Articles List] 403 error with URL property format, retrying with domain property format: ${domainPropertyUrl}`);
+            try {
+              gscData = await gscClient.getPageUrls(domainPropertyUrl, startDate, endDate, 1000);
+              // 再試行が成功した場合、サイトURLを更新
+              await updateSiteUrl(site.id, domainPropertyUrl);
+              console.log(`[Articles List] Site URL updated from ${site.site_url} to ${domainPropertyUrl}`);
+            } catch (retryError: any) {
+              // 再試行も失敗した場合、元のエラーを再スロー
+              throw error;
+            }
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
       
       // キャッシュに保存（TTL: 1時間）
       cache.set(cacheKey, gscData, 3600);
@@ -174,15 +200,15 @@ export async function GET(request: NextRequest) {
       .map((row: GSCRow) => {
         // keys[0]がページURL
         const pageUrl = row.keys[0];
-        // 完全なURLに変換
+        // 完全なURLに変換（DBに保存されているsite.site_urlを使用）
         let fullUrl: string;
-        if (siteUrl.startsWith("sc-domain:")) {
-          const domain = siteUrl.replace("sc-domain:", "");
+        if (site.site_url.startsWith("sc-domain:")) {
+          const domain = site.site_url.replace("sc-domain:", "");
           fullUrl = pageUrl.startsWith("http")
             ? pageUrl
             : `https://${domain}${pageUrl.startsWith("/") ? pageUrl : `/${pageUrl}`}`;
         } else {
-          const siteUrlWithoutSlash = siteUrl.replace(/\/$/, "");
+          const siteUrlWithoutSlash = site.site_url.replace(/\/$/, "");
           fullUrl = pageUrl.startsWith("http")
             ? pageUrl
             : `${siteUrlWithoutSlash}${pageUrl.startsWith("/") ? pageUrl : `/${pageUrl}`}`;
