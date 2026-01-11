@@ -230,7 +230,7 @@ export default function ArticleDetailPage({
       const response = await fetch(`/api/analysis/detailed?storageKey=${encodeURIComponent(storageKey)}`);
 
       if (!response.ok) {
-        throw new Error("詳細データの取得に失敗しました");
+        throw new Error(t("errors.detailedDataNotFound"));
       }
 
       const detailed = await response.json();
@@ -258,7 +258,7 @@ export default function ArticleDetailPage({
       // サイト情報を取得
       const siteResponse = await fetch(`/api/sites/${data.article.site_id}`);
       if (!siteResponse.ok) {
-        throw new Error("サイト情報の取得に失敗しました");
+        throw new Error(t("errors.siteFetchFailed"));
       }
       const site = await siteResponse.json();
       const siteUrl = site.site_url.replace(/\/$/, "");
@@ -280,7 +280,7 @@ export default function ArticleDetailPage({
       );
       
       if (!keywordsResponse.ok) {
-        throw new Error("キーワードデータの取得に失敗しました");
+        throw new Error(t("errors.keywordDataFetchFailed"));
       }
       
       const keywordsData = await keywordsResponse.json();
@@ -298,7 +298,7 @@ export default function ArticleDetailPage({
       setKeywords(keywordList);
     } catch (err: any) {
       console.error("[Keyword Select] Error:", err);
-      setError(err.message || "キーワードデータの取得に失敗しました");
+      setError(err.message || t("errors.keywordDataFetchFailed"));
     } finally {
       setLoadingKeywords(false);
     }
@@ -325,7 +325,7 @@ export default function ArticleDetailPage({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "修正案の生成に失敗しました");
+        throw new Error(errorData.error || t("errors.articleImprovementGenerationFailed"));
       }
 
       const result = await response.json();
@@ -365,12 +365,12 @@ export default function ArticleDetailPage({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "記事の削除に失敗しました");
+        throw new Error(errorData.error || t("errors.articleDeleteFailed"));
       }
 
       router.push(`/dashboard`);
     } catch (err: any) {
-      alert(err.message || "記事の削除に失敗しました");
+      alert(err.message || t("errors.articleDeleteFailed"));
     }
   };
 
@@ -412,7 +412,7 @@ export default function ArticleDetailPage({
           };
         });
         const errorData = await response.json();
-        throw new Error(errorData.error || "修正済みフラグの更新に失敗しました");
+        throw new Error(errorData.error || t("errors.markAsFixedFailed"));
       }
 
       // データを再取得して確実に最新の状態にする（キャッシュを無効化）
@@ -430,7 +430,7 @@ export default function ArticleDetailPage({
           },
         };
       });
-      alert(err.message || "修正済みフラグの更新に失敗しました");
+      alert(err.message || t("errors.markAsFixedFailed"));
     }
   };
 

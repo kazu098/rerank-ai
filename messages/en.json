@@ -381,6 +381,7 @@
     "detailedDataExpiryInfoNotFound": "Detailed data expiry information not found",
     "detailedDataFetchFailed": "Failed to retrieve detailed data",
     "siteFetchFailed": "Failed to retrieve site information",
+    "keywordDataFetchFailed": "Failed to retrieve keyword data",
     "userNotFound": "User not found",
     "userFetchFailed": "Failed to retrieve user information",
     "notificationNotFound": "Notification not found",

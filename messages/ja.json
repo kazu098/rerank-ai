@@ -385,6 +385,7 @@
     "detailedDataExpiryInfoNotFound": "詳細データの有効期限情報が見つかりません",
     "detailedDataFetchFailed": "詳細データの取得に失敗しました",
     "siteFetchFailed": "サイト情報の取得に失敗しました",
+    "keywordDataFetchFailed": "キーワードデータの取得に失敗しました",
     "userNotFound": "ユーザーが見つかりません",
     "userFetchFailed": "ユーザー情報の取得に失敗しました",
     "notificationNotFound": "通知が見つかりません",
