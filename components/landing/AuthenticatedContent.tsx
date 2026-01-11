@@ -633,7 +633,7 @@ export function AuthenticatedContent() {
           throw error;
         }
         const errorKey = errorData.errorKey || errorData.error;
-        throw new Error(errorKey ? t(errorKey) : errorData.error || "Step 1に失敗しました");
+        throw new Error(errorKey ? t(errorKey) : errorData.error || t("errors.step1Failed"));
       }
 
       const step1Result = await step1Response.json();
@@ -661,7 +661,7 @@ export function AuthenticatedContent() {
 
       if (!step2Response.ok) {
         const errorData = await step2Response.json();
-        throw new Error(errorData.error || "Step 2に失敗しました");
+        throw new Error(errorData.error || t("errors.step2Failed"));
       }
 
       const step2Result = await step2Response.json();
@@ -732,8 +732,8 @@ export function AuthenticatedContent() {
             console.error("Step 3 failed (non-JSON response):", errorText);
             errorData = {
               error: step3Response.status === 504
-                ? "処理がタイムアウトしました。分析に時間がかかりすぎています。"
-                : `Step 3に失敗しました (${step3Response.status})`,
+                ? t("errors.timeoutError")
+                : t("errors.step3Failed", { status: step3Response.status }),
               timeout: step3Response.status === 504,
             };
           }

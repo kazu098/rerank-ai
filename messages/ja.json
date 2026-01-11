@@ -423,7 +423,10 @@
     "analysisResultNotRetrieved": "分析結果が取得できませんでした。",
     "accountLocked": "アカウントがロックされています。{minutes}分後に再度お試しください。",
     "accountLockedGeneric": "アカウントがロックされています。しばらくしてから再度お試しください。",
-    "errorOccurred": "エラーが発生しました"
+    "errorOccurred": "エラーが発生しました",
+    "step1Failed": "Step 1に失敗しました",
+    "step2Failed": "Step 2に失敗しました",
+    "step3Failed": "Step 3に失敗しました ({status})"
   },
   "billing": {
     "currentUsage": "現在の使用状況",

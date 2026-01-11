@@ -419,7 +419,10 @@
     "analysisResultNotRetrieved": "Failed to retrieve analysis result.",
     "accountLocked": "Account is locked. Please try again in {minutes} minutes.",
     "accountLockedGeneric": "Account is locked. Please try again later.",
-    "errorOccurred": "An error occurred"
+    "errorOccurred": "An error occurred",
+    "step1Failed": "Step 1 failed",
+    "step2Failed": "Step 2 failed",
+    "step3Failed": "Step 3 failed ({status})"
   },
   "billing": {
     "currentUsage": "Current Usage",
