@@ -90,7 +90,7 @@ export default function ArticleDetailPage({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "記事の取得に失敗しました");
+        throw new Error(errorData.error || t("errors.articleFetchFailed"));
       }
 
       const articleData = await response.json();
@@ -146,7 +146,7 @@ export default function ArticleDetailPage({
       // 初期表示時は基本情報のみを取得して高速化
     } catch (err: any) {
       console.error("[Article Detail] Error:", err);
-      setError(err.message || "エラーが発生しました");
+      setError(err.message || t("errors.errorOccurred"));
     } finally {
       setLoading(false);
     }
