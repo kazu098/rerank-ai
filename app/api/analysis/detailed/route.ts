@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseClient } from "@/lib/supabase";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 詳細分析データを取得
@@ -8,11 +9,11 @@ import { createSupabaseClient } from "@/lib/supabase";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     if (!storageKey) {
       return NextResponse.json(
-        { error: "storageKeyが必要です。" },
+        { error: getErrorMessage(locale, "errors.storageKeyRequired") },
         { status: 400 }
       );
     }
@@ -37,14 +38,14 @@ export async function GET(request: NextRequest) {
 
     if (resultError || !result) {
       return NextResponse.json(
-        { error: "分析結果が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.analysisResultNotFound") },
         { status: 404 }
       );
     }
 
     if (!result.detailed_result_expires_at) {
       return NextResponse.json(
-        { error: "詳細データの有効期限情報が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.detailedDataExpiryInfoNotFound") },
         { status: 404 }
       );
     }
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     const expiresAt = new Date(result.detailed_result_expires_at);
     if (expiresAt < new Date()) {
       return NextResponse.json(
-        { error: "詳細データの有効期限が切れています。" },
+        { error: getErrorMessage(locale, "errors.detailedDataExpired") },
         { status: 410 }
       );
     }
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: "詳細データの取得に失敗しました。" },
+        { error: getErrorMessage(locale, "errors.detailedDataFetchFailed") },
         { status: 500 }
       );
     }
@@ -72,8 +73,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(detailedData);
   } catch (error: any) {
     console.error("[Analysis Detailed API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "詳細データの取得に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.detailedDataFetchFailed") },
       { status: 500 }
     );
   }

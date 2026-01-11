@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getToken } from "next-auth/jwt";
 import { getSitesByUserId } from "@/lib/db/sites";
 import { saveOrUpdateSite } from "@/lib/db/sites";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 既存サイトのリフレッシュトークンを更新
@@ -11,12 +12,12 @@ import { saveOrUpdateSite } from "@/lib/db/sites";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.accessToken || !session?.userId) {
       return NextResponse.json(
         { 
-          error: "認証が必要です。Googleアカウントでログインしてください。",
+          error: getErrorMessage(locale, "errors.authenticationRequiredWithGoogle"),
           code: "UNAUTHORIZED"
         },
         { status: 401 }
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (!newRefreshToken || newRefreshToken.trim() === '') {
       return NextResponse.json(
         { 
-          error: "リフレッシュトークンが取得できませんでした。再ログインしてください。",
+          error: getErrorMessage(locale, "errors.refreshTokenNotRetrieved"),
           code: "NO_REFRESH_TOKEN"
         },
         { status: 400 }
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
     console.error("[Sites Update Tokens] Error:", error);
     return NextResponse.json(
       { 
-        error: error.message || "トークンの更新に失敗しました。",
+        error: error.message || getErrorMessage(locale, "errors.tokenUpdateFailed"),
         code: "INTERNAL_ERROR"
       },
       { status: 500 }

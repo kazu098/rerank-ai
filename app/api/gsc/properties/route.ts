@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * GSCプロパティ一覧を取得
@@ -10,10 +11,11 @@ export async function GET(request: NextRequest) {
     // セッションを取得（JWTコールバックでトークンが自動リフレッシュされる）
     const session = await auth();
 
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.accessToken) {
       return NextResponse.json(
         { 
-          error: "認証が必要です。Googleアカウントでログインしてください。",
+          error: getErrorMessage(locale, "errors.authenticationRequiredWithGoogle"),
           code: "UNAUTHORIZED"
         },
         { status: 401 }
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
       if (response.status === 401) {
         return NextResponse.json(
           {
-            error: "認証トークンが期限切れです。再度ログインしてください。",
+            error: getErrorMessage(locale, "errors.tokenExpiredReLogin"),
             code: "TOKEN_EXPIRED",
             details: errorData,
           },
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest) {
         if (isScopeError) {
           return NextResponse.json(
             {
-              error: "Search Console APIのアクセス権限が不足しています。再度ログインして権限を付与してください。",
+              error: getErrorMessage(locale, "errors.insufficientScopes"),
               code: "INSUFFICIENT_SCOPES",
               details: errorData,
             },
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
         
         return NextResponse.json(
           {
-            error: "Search Consoleプロパティへのアクセス権限がありません。",
+            error: getErrorMessage(locale, "errors.gscPermissionDenied"),
             code: "GSC_PERMISSION_DENIED",
             details: errorData,
           },
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: "Search Consoleプロパティの取得に失敗しました。",
+          error: getErrorMessage(locale, "errors.gscPropertiesFetchFailed"),
           code: "GSC_API_ERROR",
           details: errorData,
         },
@@ -98,9 +100,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ properties: data.siteEntry || [] });
   } catch (error: any) {
     console.error("[GSC] Error fetching properties:", error);
+    const { locale: errorLocale } = await getSessionAndLocale(request);
     return NextResponse.json(
       { 
-        error: error.message || "プロパティの取得中にエラーが発生しました。",
+        error: error.message || getErrorMessage(errorLocale, "errors.propertiesFetchError"),
         code: "INTERNAL_ERROR"
       },
       { status: 500 }

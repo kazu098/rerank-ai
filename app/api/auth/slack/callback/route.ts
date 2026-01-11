@@ -4,6 +4,7 @@ import { exchangeSlackCodeForToken, getSlackUserId } from "@/lib/slack-oauth";
 import { saveOrUpdateNotificationSettings } from "@/lib/db/notification-settings";
 import { routing } from "@/src/i18n/routing";
 import { getUserById } from "@/lib/db/users";
+import { getErrorMessage } from "@/lib/api-helpers";
 
 // 動的ルートとして明示（request.urlを使用するため）
 export const dynamic = 'force-dynamic';
@@ -79,10 +80,18 @@ export async function GET(request: NextRequest) {
         ? new URL(`/${locale}/dashboard/settings?slack_connected=true`, request.url)
         : new URL(`/${locale}/dashboard/settings?error=slack_oauth_error&message=${encodeURIComponent(error || message || "Unknown error")}`, request.url);
       
+      const title = success 
+        ? getErrorMessage(locale, "errors.slackConnectionComplete")
+        : getErrorMessage(locale, "errors.slackConnectionError");
+      const successMessage = getErrorMessage(locale, "errors.slackConnectionCompleted");
+      const errorMessageText = error || message || "Unknown error";
+      const errorMessage = getErrorMessage(locale, "errors.slackConnectionErrorOccurred", { error: errorMessageText });
+      const clickHereText = getErrorMessage(locale, "errors.clickHereToContinue");
+      
       return `<!DOCTYPE html>
 <html>
 <head>
-  <title>${success ? "Slack連携完了" : "Slack連携エラー"}</title>
+  <title>${title}</title>
 </head>
 <body>
   <script>
@@ -147,8 +156,8 @@ export async function GET(request: NextRequest) {
       }, 5000);
     })();
   </script>
-  <p>${success ? "Slack連携が完了しました。このウィンドウは自動的に閉じられます。" : `エラーが発生しました: ${error || message}。このウィンドウは自動的に閉じられます。`}</p>
-  <p><a href="${redirectUrl.toString()}">ここをクリック</a>して続行してください。</p>
+  <p>${success ? successMessage : errorMessage}</p>
+  <p><a href="${redirectUrl.toString()}">${clickHereText}</a>${locale === 'ja' ? 'して続行してください。' : ' to continue.'}</p>
 </body>
 </html>`;
     };
@@ -164,7 +173,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!code) {
-      return new NextResponse(getRedirectHtml(false, undefined, "認証コードが取得できませんでした"), {
+      return new NextResponse(getRedirectHtml(false, undefined, getErrorMessage(locale, "errors.authCodeNotRetrieved")), {
         status: 200,
         headers: {
           'Content-Type': 'text/html',
@@ -174,7 +183,7 @@ export async function GET(request: NextRequest) {
 
     // セッションが取得できているか確認（ユーザーがログインしている必要がある）
     if (!session?.userId) {
-      return new NextResponse(getRedirectHtml(false, undefined, "認証が必要です"), {
+      return new NextResponse(getRedirectHtml(false, undefined, getErrorMessage(locale, "errors.authenticationRequired")), {
         status: 200,
         headers: {
           'Content-Type': 'text/html',
@@ -194,7 +203,7 @@ export async function GET(request: NextRequest) {
         stack: tokenError.stack,
         requestUrl: request.url,
       });
-      return new NextResponse(getRedirectHtml(false, undefined, `トークン交換に失敗しました: ${tokenError.message}`), {
+      return new NextResponse(getRedirectHtml(false, undefined, getErrorMessage(locale, "errors.tokenExchangeFailed", { error: tokenError.message })), {
         status: 200,
         headers: {
           'Content-Type': 'text/html',
@@ -267,11 +276,14 @@ export async function GET(request: NextRequest) {
     const errorMessage = error.message || "Unknown error";
     const errorRedirectUrl = new URL(`/${locale}/dashboard/settings?error=slack_oauth_error&message=${encodeURIComponent(errorMessage)}`, request.url);
     console.error("[Slack OAuth] Redirecting to error URL:", errorRedirectUrl.toString());
+    const errorTitle = getErrorMessage(locale, "errors.slackConnectionError");
+    const errorMessageText = getErrorMessage(locale, "errors.slackConnectionErrorOccurred", { error: error.message });
+    
     return new NextResponse(
       `<!DOCTYPE html>
 <html>
 <head>
-  <title>Slack連携エラー</title>
+  <title>${errorTitle}</title>
 </head>
 <body>
   <script>
@@ -286,7 +298,7 @@ export async function GET(request: NextRequest) {
       window.location.href = '${errorRedirectUrl.toString()}';
     }
   </script>
-  <p>エラーが発生しました: ${error.message}。このウィンドウは自動的に閉じられます。</p>
+  <p>${errorMessageText}</p>
 </body>
 </html>`,
       {

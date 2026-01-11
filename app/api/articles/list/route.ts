@@ -4,6 +4,7 @@ import { getGSCClient, GSCRow } from "@/lib/gsc-api";
 import { getSitesByUserId, getSiteById, convertUrlPropertyToDomainProperty, updateSiteUrl } from "@/lib/db/sites";
 import { getArticlesBySiteId, getArticleByUrl } from "@/lib/db/articles";
 import { getCache, generateCacheKey } from "@/lib/cache";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * URLからハッシュフラグメント（#以降）を除去して正規化
@@ -75,10 +76,10 @@ function isArticleUrl(url: string): boolean {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     if (!siteUrl) {
       return NextResponse.json(
-        { error: "siteUrlパラメータが必要です" },
+        { error: getErrorMessage(locale, "errors.siteUrlParameterRequired") },
         { status: 400 }
       );
     }

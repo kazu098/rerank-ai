@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getSiteById } from "@/lib/db/sites";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * サイト情報を取得
@@ -11,11 +12,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -27,7 +28,7 @@ export async function GET(
 
     if (!site) {
       return NextResponse.json(
-        { error: "サイトが見つかりません。" },
+        { error: getErrorMessage(locale, "errors.siteNotFound") },
         { status: 404 }
       );
     }
@@ -35,7 +36,7 @@ export async function GET(
     // ユーザーが所有しているか確認
     if (site.user_id !== session.userId) {
       return NextResponse.json(
-        { error: "アクセス権限がありません。" },
+        { error: getErrorMessage(locale, "errors.accessDenied") },
         { status: 403 }
       );
     }
@@ -43,8 +44,9 @@ export async function GET(
     return NextResponse.json(site);
   } catch (error: any) {
     console.error("[Sites API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "サイト情報の取得に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.siteFetchFailed") },
       { status: 500 }
     );
   }
