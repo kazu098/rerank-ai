@@ -307,7 +307,7 @@ export async function analyzeStep3(
                   } else {
                     keywordSpecificAnalyses.push({
                       keyword,
-                      whyRankingDropped: "LLM分析の結果が取得できませんでした。APIのレスポンス形式が不正な可能性があります。",
+                      whyRankingDropped: getErrorMessage(locale, "errors.llmAnalysisResultInvalid"),
                       whatToAdd: [],
                     });
                   }

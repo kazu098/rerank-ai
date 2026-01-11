@@ -418,6 +418,7 @@
     "noDiffAnalysisResult": "No diff analysis result. Competitor URLs may not have been retrieved.",
     "notificationSent": "Notification sent",
     "analysisResultNotRetrieved": "Failed to retrieve analysis result.",
+    "llmAnalysisResultInvalid": "Failed to retrieve LLM analysis result. The API response format may be invalid.",
     "accountLocked": "Account is locked. Please try again in {minutes} minutes.",
     "accountLockedGeneric": "Account is locked. Please try again later.",
     "errorOccurred": "An error occurred",
