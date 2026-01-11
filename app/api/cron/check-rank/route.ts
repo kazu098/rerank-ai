@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GSCApiClient } from "@/lib/gsc-api";
 import { NotificationChecker } from "@/lib/notification-checker";
 import { getMonitoringArticles, getMonitoringArticlesForSlot, updateArticleAnalysis } from "@/lib/db/articles";
-import { getSitesByUserId, updateSiteTokens, updateSiteAuthError } from "@/lib/db/sites";
+import { getSitesByUserId, updateSiteTokens, updateSiteAuthError, convertUrlPropertyToDomainProperty, updateSiteUrl } from "@/lib/db/sites";
 import { getUserById } from "@/lib/db/users";
 import { NotificationService, BulkNotificationItem } from "@/lib/notification";
 import { createSupabaseClient } from "@/lib/supabase";
@@ -259,6 +259,15 @@ export async function GET(request: NextRequest) {
         // 通知は1日1回実行時に送信される（ユーザーが設定した時刻とは異なる可能性がある）
         let checkResult;
         try {
+          // デバッグログ: GSC API呼び出し前の情報を出力
+          console.log(`[Cron] Calling GSC API for site ${site.id}, article ${article.id}:`, {
+            siteUrl: site.site_url,
+            articleUrl: article.url,
+            accessTokenPrefix: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
+            hasRefreshToken: !!refreshToken,
+            tokenExpiresAt: site.gsc_token_expires_at,
+          });
+          
           const checker = new NotificationChecker(gscClient);
           checkResult = await checker.checkNotificationNeeded(
             article.user_id,
@@ -372,11 +381,55 @@ export async function GET(request: NextRequest) {
                 `[Cron] Site URL: ${site.site_url}, Error message: ${errorMessage}`
               );
               
-              // 認証エラーを記録して通知を送る（403も再認証が必要、所有権確認も案内）
-              console.log(`[Cron] Calling handleAuthError for site ${site.id} due to 403 error`);
-              await handleAuthError(site.id, site.site_url, '403');
-              console.log(`[Cron] handleAuthError completed for site ${site.id}`);
-              continue;
+              // デバッグ情報: トークンとサイト情報を出力
+              console.error(`[Cron] 403 Error Debug Info:`, {
+                siteId: site.id,
+                siteUrl: site.site_url,
+                userId: article.user_id,
+                userEmail: user.email,
+                hasAccessToken: !!accessToken,
+                accessTokenPrefix: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
+                hasRefreshToken: !!refreshToken,
+                refreshTokenPrefix: refreshToken ? `${refreshToken.substring(0, 20)}...` : 'null',
+                tokenExpiresAt: site.gsc_token_expires_at,
+                authErrorAt: site.auth_error_at,
+                errorMessage: errorMessage,
+              });
+              
+              // URLプロパティ形式の場合、ドメインプロパティ形式に変換して再試行
+              const domainPropertyUrl = convertUrlPropertyToDomainProperty(site.site_url);
+              if (domainPropertyUrl) {
+                console.log(`[Cron] Attempting to retry with domain property format: ${domainPropertyUrl}`);
+                try {
+                  // ドメインプロパティ形式でGSC APIを再試行
+                  const retryGscClient = new GSCApiClient(accessToken);
+                  const retryChecker = new NotificationChecker(retryGscClient);
+                  const retryCheckResult = await retryChecker.checkNotificationNeeded(
+                    article.user_id,
+                    article.id,
+                    domainPropertyUrl,
+                    article.url
+                  );
+                  
+                  // 再試行が成功した場合、サイトURLを更新して通常の処理フローに戻る
+                  console.log(`[Cron] Retry successful with domain property format for site ${site.id}, updating site URL from ${site.site_url} to ${domainPropertyUrl}`);
+                  await updateSiteUrl(site.id, domainPropertyUrl);
+                  site.site_url = domainPropertyUrl;
+                  checkResult = retryCheckResult;
+                } catch (retryError: any) {
+                  console.error(
+                    `[Cron] Retry with domain property format also failed for site ${site.id}:`,
+                    retryError.message
+                  );
+                  // 再試行も失敗した場合、通常の403エラーハンドリングに進む
+                  await handleAuthError(site.id, site.site_url, '403');
+                  continue;
+                }
+              } else {
+                // URLプロパティ形式でない場合（すでにドメインプロパティ形式）、通常の403エラーハンドリングに進む
+                await handleAuthError(site.id, site.site_url, '403');
+                continue;
+              }
             }
           } else {
             // その他のGSC APIエラー
