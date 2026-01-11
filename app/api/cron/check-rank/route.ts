@@ -416,18 +416,68 @@ export async function GET(request: NextRequest) {
                   await updateSiteUrl(site.id, domainPropertyUrl);
                   site.site_url = domainPropertyUrl;
                   checkResult = retryCheckResult;
+                  
+                  // 再試行成功後の通知チェック結果をログ出力
+                  console.log(`[Cron] Notification check result after domain property retry for article ${article.id}:`, {
+                    shouldNotify: checkResult.shouldNotify,
+                    notificationType: checkResult.notificationType,
+                    reason: checkResult.reason,
+                    settings: {
+                      drop_threshold: checkResult.settings.drop_threshold,
+                      keyword_drop_threshold: checkResult.settings.keyword_drop_threshold,
+                      consecutive_drop_days: checkResult.settings.consecutive_drop_days,
+                      min_impressions: checkResult.settings.min_impressions,
+                      comparison_days: checkResult.settings.comparison_days,
+                    },
+                    rankDropResult: {
+                      hasDrop: checkResult.rankDropResult?.hasDrop,
+                      dropAmount: checkResult.rankDropResult?.dropAmount,
+                      droppedKeywordsCount: checkResult.rankDropResult?.droppedKeywords?.length || 0,
+                    },
+                    rankRiseResult: {
+                      hasRise: checkResult.rankRiseResult?.hasRise,
+                      riseAmount: checkResult.rankRiseResult?.riseAmount,
+                      risenKeywordsCount: checkResult.rankRiseResult?.risenKeywords?.length || 0,
+                    },
+                  });
                 } catch (retryError: any) {
+                  const retryErrorMessage = retryError.message || String(retryError);
                   console.error(
-                    `[Cron] Retry with domain property format also failed for site ${site.id}:`,
-                    retryError.message
+                    `[Cron] Retry with domain property format also failed for site ${site.id}, article ${article.id}:`,
+                    retryErrorMessage
                   );
+                  console.error(`[Cron] Auto-retry failed details:`, {
+                    siteId: site.id,
+                    siteUrl: site.site_url,
+                    domainPropertyUrl: domainPropertyUrl,
+                    articleId: article.id,
+                    articleUrl: article.url,
+                    userId: article.user_id,
+                    userEmail: user.email,
+                    errorMessage: retryErrorMessage,
+                    errorType: retryErrorMessage.includes('403') ? '403' : retryErrorMessage.includes('401') ? '401' : 'unknown',
+                  });
+                  
                   // 再試行も失敗した場合、通常の403エラーハンドリングに進む
+                  console.log(`[Cron] Auto-retry failed, proceeding to handleAuthError for site ${site.id}`);
                   await handleAuthError(site.id, site.site_url, '403');
+                  console.log(`[Cron] handleAuthError completed, skipping article ${article.id}`);
                   continue;
                 }
               } else {
                 // URLプロパティ形式でない場合（すでにドメインプロパティ形式）、通常の403エラーハンドリングに進む
+                console.log(`[Cron] Site URL is not URL property format (already domain property or other format), proceeding to handleAuthError for site ${site.id}`);
+                console.log(`[Cron] Site URL format info:`, {
+                  siteId: site.id,
+                  siteUrl: site.site_url,
+                  isDomainProperty: site.site_url.startsWith('sc-domain:'),
+                  isUrlProperty: site.site_url.startsWith('https://') || site.site_url.startsWith('http://'),
+                  articleId: article.id,
+                  userId: article.user_id,
+                  userEmail: user.email,
+                });
                 await handleAuthError(site.id, site.site_url, '403');
+                console.log(`[Cron] handleAuthError completed, skipping article ${article.id}`);
                 continue;
               }
             }
@@ -478,11 +528,19 @@ export async function GET(request: NextRequest) {
         }
 
         // 通知が必要な場合、ユーザーごとにまとめる
+        console.log(`[Cron] Adding notification item for article ${article.id} (user: ${user.email}):`, {
+          articleUrl: article.url,
+          articleTitle: article.title,
+          notificationType: checkResult.notificationType,
+          shouldNotify: checkResult.shouldNotify,
+        });
+        
         if (!notificationsByUser.has(article.user_id)) {
           notificationsByUser.set(article.user_id, {
             user: user, // 完全なUserオブジェクトを保存（localeを含む）
             items: [],
           });
+          console.log(`[Cron] Created notification group for user ${user.email}`);
         }
 
         const userNotifications = notificationsByUser.get(article.user_id)!;
@@ -622,7 +680,12 @@ export async function GET(request: NextRequest) {
                 emailNotificationError
               );
             } else {
-              console.log(`[Cron] Email notification record created for user ${user.email}`);
+              console.log(`[Cron] Email notification record created for user ${user.email}:`, {
+                articleId: item.articleId,
+                articleUrl: item.articleUrl,
+                notificationType: notificationType,
+                subject: subject,
+              });
             }
           } else {
             console.log(`[Cron] Email notification disabled for user ${user.email}, skipping`);
@@ -717,6 +780,20 @@ export async function GET(request: NextRequest) {
     };
 
     console.log("[Cron] Rank check job completed:", result);
+    console.log("[Cron] Detailed summary:", {
+      slot: currentSlot,
+      totalSlots: totalSlots,
+      articlesChecked: articles.length,
+      usersWithNotifications: notificationsByUser.size,
+      notificationsByUser: Array.from(notificationsByUser.entries()).map(([userId, { user, items }]) => ({
+        userId,
+        userEmail: user.email,
+        notificationCount: items.length,
+        notificationTypes: items.map(item => item.notificationType),
+      })),
+      errors: errorCount,
+      totalNotifications: result.totalNotifications,
+    });
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("[Cron] Error in rank check job:", error);
