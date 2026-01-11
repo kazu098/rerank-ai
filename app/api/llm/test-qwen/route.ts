@@ -55,10 +55,12 @@ export async function GET(request: NextRequest) {
     // LLM差分分析を実行
     console.log(`[TestQwen] Running LLM diff analysis with Qwen API...`);
     const llmAnalyzer = new LLMDiffAnalyzer();
+    // テスト用なのでデフォルトの日本語ロケールを使用
     const result = await llmAnalyzer.analyzeSemanticDiff(
       keyword,
       ownArticle,
-      [competitorArticle]
+      [competitorArticle],
+      "ja"
     );
 
     console.log(`[TestQwen] Analysis complete`);

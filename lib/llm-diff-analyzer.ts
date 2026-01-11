@@ -29,7 +29,8 @@ export interface LLMProvider {
   analyzeSemanticDiff(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string
   ): Promise<LLMDiffAnalysisResult>;
 }
 
@@ -79,7 +80,8 @@ export class LLMDiffAnalyzer {
   async analyzeSemanticDiff(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): Promise<LLMDiffAnalysisResult> {
     if (!this.provider || !this.provider.isAvailable()) {
       throw new Error("No LLM provider is available. Please set LLM_API_KEY or GEMINI_API_KEY");
@@ -88,7 +90,8 @@ export class LLMDiffAnalyzer {
     return await this.provider.analyzeSemanticDiff(
       keyword,
       ownArticle,
-      competitorArticles
+      competitorArticles,
+      locale
     );
   }
 }
@@ -115,13 +118,18 @@ class GroqLLMProvider implements LLMProvider {
   async analyzeSemanticDiff(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): Promise<LLMDiffAnalysisResult> {
     if (!this.apiKey) {
       throw new Error("GROQ_API_KEY is not set");
     }
 
-    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles);
+    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles, locale);
+    const isEnglish = locale === "en";
+    const languageInstruction = isEnglish 
+      ? "Analyze the differences between articles and provide recommendations in English."
+      : "記事の違いを分析し、日本語で推奨事項を提供してください。";
 
     try {
       const response = await fetch(this.baseUrl, {
@@ -135,7 +143,7 @@ class GroqLLMProvider implements LLMProvider {
           messages: [
             {
               role: "system",
-              content: "You are an SEO content analysis expert. Analyze the differences between articles and provide recommendations in Japanese. Always respond in valid JSON format.",
+              content: `You are an SEO content analysis expert. ${languageInstruction} Always respond in valid JSON format.`,
             },
             {
               role: "user",
@@ -169,11 +177,28 @@ class GroqLLMProvider implements LLMProvider {
   private buildPrompt(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): string {
+    const isEnglish = locale === "en";
+    
     const competitorSummaries = competitorArticles
       .map(
-        (comp, index) => `
+        (comp, index) => isEnglish
+          ? `
+Competitor Article ${index + 1}:
+- URL: ${comp.url}
+- Title: ${comp.title}
+- Word Count: ${comp.wordCount} characters
+- Heading Structure:
+${comp.headings.map((h) => `  H${h.level}: ${h.text}`).join("\n")}
+- Main Paragraphs (first 3):
+${comp.paragraphs
+  .slice(0, 3)
+  .map((p) => `  ${p.substring(0, 200)}...`)
+  .join("\n\n")}
+`
+          : `
 競合記事${index + 1}:
 - URL: ${comp.url}
 - タイトル: ${comp.title}
@@ -188,6 +213,76 @@ ${comp.paragraphs
 `
       )
       .join("\n");
+
+    if (isEnglish) {
+      return `You are an SEO content analysis expert. Please analyze and compare your company's article with competitor articles for the search keyword "${keyword}".
+
+## Your Company's Article
+- URL: ${ownArticle.url}
+- Title: ${ownArticle.title}
+- Word Count: ${ownArticle.wordCount} characters
+- Heading Structure:
+${ownArticle.headings.map((h) => `  H${h.level}: ${h.text}`).join("\n")}
+- Main Paragraphs (first 5):
+${ownArticle.paragraphs
+  .slice(0, 5)
+  .map((p) => `  ${p.substring(0, 200)}...`)
+  .join("\n\n")}
+
+## Competitor Articles (Top ${competitorArticles.length} sites)
+${competitorSummaries}
+
+## Analysis Tasks
+1. **Why competitors rank higher**: Analyze why competitor articles rank higher for the search keyword "${keyword}".
+2. **Missing content**: List specific content that is missing from your company's article.
+3. **Recommended additions**: Specifically suggest sections or content that should be added to your company's article to meet the search intent for the keyword "${keyword}". For each item, include the URLs of competitor articles where this content is found (use an empty array if no competitor articles are applicable).
+
+**Important**: 
+- The whatToAdd in keywordSpecificAnalysis should list specific items tailored to the search keyword.
+- Each item must accurately reflect the **actual content** found in competitor articles. Do not speculate about formats (e.g., "comparison table") that are not actually present in competitor articles.
+- Example: "Listing of Poketomo device price, monthly fee, and initial cost" - reflect the actual content as it appears.
+- For each item, include the URLs of competitor articles where this content is found.
+
+## Output Format (JSON)
+Please output in the following JSON format:
+
+{
+  "semanticAnalysis": {
+    "whyCompetitorsRankHigher": "Reason why competitors rank higher (explain in 2-3 sentences)",
+    "missingContent": [
+      "Missing content 1 (be specific)",
+      "Missing content 2 (be specific)",
+      "Missing content 3 (be specific)"
+    ],
+    "recommendedAdditions": [
+      {
+        "section": "Section name to add (e.g., Price Comparison Table)",
+        "reason": "Why it should be added (relevance to search intent)",
+        "content": "Overview of content to add (2-3 sentences)",
+        "competitorUrls": [
+          "URL of competitor article where this content is found (only applicable ones)"
+        ]
+      }
+    ]
+  },
+  "keywordSpecificAnalysis": [
+    {
+      "keyword": "${keyword}",
+      "whyRankingDropped": "Why ranking dropped for this keyword (2-3 sentences)",
+      "whatToAdd": [
+        {
+          "item": "Item to add 1 (content tailored to search keyword. Accurately reflect actual content found in competitor articles. Do not speculate about formats)",
+          "competitorUrls": ["URL of competitor article where this item is found (only applicable ones)"]
+        },
+        {
+          "item": "Item to add 2 (content tailored to search keyword. Accurately reflect actual content found in competitor articles)",
+          "competitorUrls": []
+        }
+      ]
+    }
+  ]
+}`;
+    }
 
     return `あなたはSEOコンテンツ分析の専門家です。検索キーワード「${keyword}」で、自社記事と競合記事を比較分析してください。
 
@@ -294,13 +389,18 @@ class OpenRouterLLMProvider implements LLMProvider {
   async analyzeSemanticDiff(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): Promise<LLMDiffAnalysisResult> {
     if (!this.apiKey) {
       throw new Error("OPENROUTER_API_KEY is not set");
     }
 
-    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles);
+    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles, locale);
+    const isEnglish = locale === "en";
+    const languageInstruction = isEnglish 
+      ? "Analyze the differences between articles and provide recommendations in English."
+      : "記事の違いを分析し、日本語で推奨事項を提供してください。";
 
     try {
       const response = await fetch(this.baseUrl, {
@@ -316,7 +416,7 @@ class OpenRouterLLMProvider implements LLMProvider {
           messages: [
             {
               role: "system",
-              content: "You are an SEO content analysis expert. Analyze the differences between articles and provide recommendations in Japanese. Always respond in valid JSON format.",
+              content: `You are an SEO content analysis expert. ${languageInstruction} Always respond in valid JSON format.`,
             },
             {
               role: "user",
@@ -349,10 +449,11 @@ class OpenRouterLLMProvider implements LLMProvider {
   private buildPrompt(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): string {
     // Groqと同じプロンプトを使用
-    return new GroqLLMProvider()["buildPrompt"](keyword, ownArticle, competitorArticles);
+    return new GroqLLMProvider()["buildPrompt"](keyword, ownArticle, competitorArticles, locale);
   }
 
   private parseResponse(text: string): LLMDiffAnalysisResult {
@@ -391,13 +492,18 @@ class QwenLLMProvider implements LLMProvider {
   async analyzeSemanticDiff(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): Promise<LLMDiffAnalysisResult> {
     if (!this.apiKey) {
       throw new Error("QWEN_API_KEY is not set");
     }
 
-    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles);
+    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles, locale);
+    const isEnglish = locale === "en";
+    const languageInstruction = isEnglish 
+      ? "Analyze the differences between articles and provide recommendations in English."
+      : "記事の違いを分析し、日本語で推奨事項を提供してください。";
 
     try {
       const response = await fetch(this.baseUrl, {
@@ -412,7 +518,7 @@ class QwenLLMProvider implements LLMProvider {
             messages: [
               {
                 role: "system",
-                content: "You are an SEO content analysis expert. Analyze the differences between articles and provide recommendations in Japanese. Always respond in valid JSON format.",
+                content: `You are an SEO content analysis expert. ${languageInstruction} Always respond in valid JSON format.`,
               },
               {
                 role: "user",
@@ -449,10 +555,11 @@ class QwenLLMProvider implements LLMProvider {
   private buildPrompt(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): string {
     // Groqと同じプロンプトを使用
-    return new GroqLLMProvider()["buildPrompt"](keyword, ownArticle, competitorArticles);
+    return new GroqLLMProvider()["buildPrompt"](keyword, ownArticle, competitorArticles, locale);
   }
 
   private parseResponse(text: string): LLMDiffAnalysisResult {
@@ -498,7 +605,8 @@ class GeminiLLMProvider implements LLMProvider {
   async analyzeSemanticDiff(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): Promise<LLMDiffAnalysisResult> {
     if (!this.genAI) {
       throw new Error("GEMINI_API_KEY is not set or failed to initialize");
@@ -507,7 +615,7 @@ class GeminiLLMProvider implements LLMProvider {
     // 環境変数でモデルを選択可能（デフォルト: gemini-2.0-flash-lite）
     const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
     const model = this.genAI.getGenerativeModel({ model: modelName });
-    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles);
+    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles, locale);
 
     try {
       const result = await model.generateContent(prompt);
@@ -524,9 +632,10 @@ class GeminiLLMProvider implements LLMProvider {
   private buildPrompt(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): string {
-    return new GroqLLMProvider()["buildPrompt"](keyword, ownArticle, competitorArticles);
+    return new GroqLLMProvider()["buildPrompt"](keyword, ownArticle, competitorArticles, locale);
   }
 
   private parseResponse(text: string): LLMDiffAnalysisResult {

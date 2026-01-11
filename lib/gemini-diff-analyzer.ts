@@ -43,11 +43,13 @@ export class GeminiDiffAnalyzer {
    * @param keyword 検索キーワード
    * @param ownArticle 自社記事
    * @param competitorArticles 競合記事
+   * @param locale ロケール（'ja' | 'en'）
    */
   async analyzeSemanticDiff(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): Promise<GeminiDiffAnalysisResult> {
     if (!this.genAI) {
       throw new Error("GEMINI_API_KEY is not set");
@@ -59,7 +61,7 @@ export class GeminiDiffAnalyzer {
     });
 
     // プロンプトを構築
-    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles);
+    const prompt = this.buildPrompt(keyword, ownArticle, competitorArticles, locale);
 
     try {
       const result = await model.generateContent(prompt);
@@ -85,9 +87,23 @@ export class GeminiDiffAnalyzer {
   private buildPrompt(
     keyword: string,
     ownArticle: ArticleContent,
-    competitorArticles: ArticleContent[]
+    competitorArticles: ArticleContent[],
+    locale: string = "ja"
   ): string {
-    const competitorSummaries = competitorArticles.map((comp, index) => `
+    const isEnglish = locale === "en";
+    
+    const competitorSummaries = competitorArticles.map((comp, index) => isEnglish
+      ? `
+Competitor Article ${index + 1}:
+- URL: ${comp.url}
+- Title: ${comp.title}
+- Word Count: ${comp.wordCount} characters
+- Heading Structure:
+${comp.headings.map((h) => `  H${h.level}: ${h.text}`).join("\n")}
+- Main Paragraphs (first 3):
+${comp.paragraphs.slice(0, 3).map((p) => `  ${p.substring(0, 200)}...`).join("\n\n")}
+`
+      : `
 競合記事${index + 1}:
 - URL: ${comp.url}
 - タイトル: ${comp.title}
@@ -96,7 +112,64 @@ export class GeminiDiffAnalyzer {
 ${comp.headings.map((h) => `  H${h.level}: ${h.text}`).join("\n")}
 - 主要な段落（最初の3つ）:
 ${comp.paragraphs.slice(0, 3).map((p) => `  ${p.substring(0, 200)}...`).join("\n\n")}
-`).join("\n");
+`
+    ).join("\n");
+
+    if (isEnglish) {
+      return `You are an SEO content analysis expert. Please analyze and compare your company's article with competitor articles for the search keyword "${keyword}".
+
+## Your Company's Article
+- URL: ${ownArticle.url}
+- Title: ${ownArticle.title}
+- Word Count: ${ownArticle.wordCount} characters
+- Heading Structure:
+${ownArticle.headings.map((h) => `  H${h.level}: ${h.text}`).join("\n")}
+- Main Paragraphs (first 5):
+${ownArticle.paragraphs.slice(0, 5).map((p) => `  ${p.substring(0, 200)}...`).join("\n\n")}
+
+## Competitor Articles (Top ${competitorArticles.length} sites)
+${competitorSummaries}
+
+## Analysis Tasks
+1. **Why competitors rank higher**: Analyze why competitor articles rank higher for the search keyword "${keyword}".
+2. **Missing content**: List specific content that is missing from your company's article.
+3. **Recommended additions**: Specifically suggest sections or content that should be added to your company's article to meet the search intent for the keyword "${keyword}".
+
+## Output Format (JSON)
+Please output in the following JSON format:
+
+\`\`\`json
+{
+  "semanticAnalysis": {
+    "whyCompetitorsRankHigher": "Reason why competitors rank higher (explain in 2-3 sentences)",
+    "missingContent": [
+      "Missing content 1 (be specific)",
+      "Missing content 2 (be specific)",
+      "Missing content 3 (be specific)"
+    ],
+    "recommendedAdditions": [
+      {
+        "section": "Section name to add (e.g., Price Comparison Table)",
+        "reason": "Why it should be added (relevance to search intent)",
+        "content": "Overview of content to add (2-3 sentences)"
+      }
+    ]
+  },
+  "keywordSpecificAnalysis": [
+    {
+      "keyword": "${keyword}",
+      "whyRankingDropped": "Why ranking dropped for this keyword (2-3 sentences)",
+      "whatToAdd": [
+        "Item to add 1 (content tailored to search keyword)",
+        "Item to add 2 (content tailored to search keyword)"
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Important: Output only JSON, do not include any explanatory text.`;
+    }
 
     return `あなたはSEOコンテンツ分析の専門家です。検索キーワード「${keyword}」で、自社記事と競合記事を比較分析してください。
 

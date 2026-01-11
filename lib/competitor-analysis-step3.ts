@@ -201,7 +201,8 @@ export async function analyzeStep3(
                 const keywordAnalysis = await llmDiffAnalyzer.analyzeSemanticDiff(
                   prioritizedKeyword.keyword,
                   ownArticleContent,
-                  keywordCompetitorArticles
+                  keywordCompetitorArticles,
+                  locale
                 );
 
                 console.log(

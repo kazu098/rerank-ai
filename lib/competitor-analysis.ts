@@ -558,7 +558,8 @@ export class CompetitorAnalyzer {
                   const keywordAnalysis = await this.llmDiffAnalyzer.analyzeSemanticDiff(
                     prioritizedKeyword.keyword,
                     ownArticleContent,
-                    keywordCompetitorArticles
+                    keywordCompetitorArticles,
+                    locale
                   );
 
                   console.log(
