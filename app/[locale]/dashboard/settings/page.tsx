@@ -294,7 +294,7 @@ export default function SettingsPage() {
 
       {/* 通知設定セクション */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">通知設定</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t("notification.settings.notificationSettings")}</h2>
 
         {/* 通知時刻設定 */}
         <div className="mb-6 pb-6 border-b border-gray-200">
