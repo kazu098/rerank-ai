@@ -7,6 +7,7 @@ import { DiffAnalyzer, DiffAnalysisResult } from "./diff-analyzer";
 import { LLMDiffAnalyzer, LLMDiffAnalysisResult } from "./llm-diff-analyzer";
 import { AISEOAnalyzer, AISEOAnalysisResult } from "./ai-seo-analyzer";
 import { filterCompetitorUrls } from "./competitor-filter";
+import { getErrorMessage } from "./api-helpers";
 
 export interface CompetitorAnalysisResult {
   keyword: string;
@@ -129,13 +130,16 @@ export class CompetitorAnalyzer {
    * @param pageUrl ページURL
    * @param maxKeywords 分析する最大キーワード数（デフォルト: 3）
    * @param maxCompetitorsPerKeyword キーワードあたりの最大競合URL数（デフォルト: 10、1ページ目の上限）
+   * @param skipLLMAnalysis LLM分析をスキップするか
+   * @param locale ロケール（'ja' | 'en'）
    */
   async analyzeCompetitors(
     siteUrl: string,
     pageUrl: string,
     maxKeywords: number = 3,
     maxCompetitorsPerKeyword: number = 10,
-    skipLLMAnalysis: boolean = false
+    skipLLMAnalysis: boolean = false,
+    locale: string = "ja"
   ): Promise<CompetitorAnalysisSummary> {
     const startTime = Date.now();
     console.log(`[CompetitorAnalysis] ⏱️ Starting analysis at ${new Date().toISOString()}`);
@@ -313,7 +317,9 @@ export class CompetitorAnalyzer {
           normalizedOwnUrl,
           maxCompetitors,
           5, // retryCount
-          preferSerperApi
+          preferSerperApi, // preferSerperApi
+          false, // isManualScan
+          locale
         );
 
         console.log(
@@ -390,7 +396,7 @@ export class CompetitorAnalyzer {
           ownPosition: ownKeywordPosition,
           totalResults: 0,
           error: isCaptchaError 
-            ? "CAPTCHAが検出されました。しばらく時間をおいてから再度お試しください。"
+            ? getErrorMessage(locale, "errors.captchaDetectedWithRetry")
             : errorMessage,
         });
       }
@@ -542,7 +548,7 @@ export class CompetitorAnalyzer {
                     return {
                       keyword: prioritizedKeyword.keyword,
                       analysis: null,
-                      error: "競合記事の取得に失敗しました。競合URLは取得できましたが、記事内容のスクレイピングに失敗した可能性があります。",
+                      error: getErrorMessage(locale, "errors.competitorArticleFetchFailed"),
                     };
                   }
 
@@ -550,7 +556,8 @@ export class CompetitorAnalyzer {
                   const keywordAnalysis = await this.llmDiffAnalyzer.analyzeSemanticDiff(
                     prioritizedKeyword.keyword,
                     ownArticleContent,
-                    keywordCompetitorArticles
+                    keywordCompetitorArticles,
+                    locale
                   );
 
                   console.log(
@@ -603,7 +610,7 @@ export class CompetitorAnalyzer {
                     } else {
                       keywordSpecificAnalyses.push({
                         keyword,
-                        whyRankingDropped: "LLM分析の結果が取得できませんでした。APIのレスポンス形式が不正な可能性があります。",
+                        whyRankingDropped: getErrorMessage(locale, "errors.llmAnalysisResultInvalid"),
                         whatToAdd: [],
                       });
                     }
@@ -636,7 +643,7 @@ export class CompetitorAnalyzer {
                   );
                   keywordSpecificAnalyses.push({
                     keyword: kw.keyword,
-                    whyRankingDropped: "分析結果が取得できませんでした。",
+                    whyRankingDropped: getErrorMessage(locale, "errors.analysisResultNotRetrieved"),
                     whatToAdd: [],
                   });
                 }

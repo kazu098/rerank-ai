@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getUserById } from "@/lib/db/users";
 import { getPlanById } from "@/lib/db/plans";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 現在のユーザー情報を取得
@@ -9,11 +10,11 @@ import { getPlanById } from "@/lib/db/plans";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "ユーザーが見つかりません。" },
+        { error: getErrorMessage(locale, "errors.userNotFound") },
         { status: 404 }
       );
     }
@@ -87,8 +88,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[Users API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "ユーザー情報の取得に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.userFetchFailed") },
       { status: 500 }
     );
   }

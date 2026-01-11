@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeStep2 } from "@/lib/competitor-analysis-step2";
 import { Step1Result } from "@/lib/competitor-analysis";
+import { getSessionAndLocale } from "@/lib/api-helpers";
 
 /**
  * Step 2: 競合URL抽出
@@ -29,11 +30,15 @@ export async function POST(request: NextRequest) {
       `[API] ⏱️ Step 2 starting for ${siteUrl}${pageUrl}, ${prioritizedKeywords.length} keywords at ${new Date().toISOString()}`
     );
 
+    // localeを取得
+    const { locale } = await getSessionAndLocale(request);
+
     const result = await analyzeStep2(
       siteUrl,
       pageUrl,
       prioritizedKeywords,
-      maxCompetitorsPerKeyword
+      maxCompetitorsPerKeyword,
+      locale
     );
 
     const apiTotalTime = Date.now() - apiStartTime;

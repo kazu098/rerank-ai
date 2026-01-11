@@ -5,6 +5,7 @@ import { saveOrUpdateArticle, getArticleByUrl } from "@/lib/db/articles";
 import { getSitesByUserId } from "@/lib/db/sites";
 import { createSupabaseClient } from "@/lib/supabase";
 import { CompetitorAnalysisSummary } from "@/lib/competitor-analysis";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 分析結果をDBに保存
@@ -14,12 +15,12 @@ import { CompetitorAnalysisSummary } from "@/lib/competitor-analysis";
 export async function POST(request: NextRequest) {
   console.log("[Analysis Save] POST /api/analysis/save called");
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
     console.log("[Analysis Save] Session:", session ? "authenticated" : "not authenticated");
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。Googleアカウントでログインしてください。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequiredWithGoogle") },
         { status: 401 }
       );
     }
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
         availableSites: sites.map(s => s.site_url),
       });
       return NextResponse.json(
-        { error: "サイトが見つかりません" },
+        { error: getErrorMessage(locale, "errors.siteNotFound") },
         { status: 404 }
       );
     }
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
     // articleがnullの場合はエラー
     if (!article) {
       return NextResponse.json(
-        { error: "記事の作成または取得に失敗しました" },
+        { error: getErrorMessage(locale, "errors.articleCreateOrGetFailed") },
         { status: 500 }
       );
     }
@@ -130,9 +131,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[Analysis Save] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
       {
-        error: error.message || "分析結果の保存に失敗しました。",
+        error: error.message || getErrorMessage(locale, "errors.analysisResultSaveFailed"),
       },
       { status: 500 }
     );

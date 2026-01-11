@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getArticleSuggestionsByUserId } from "@/lib/db/article-suggestions";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 記事提案一覧を取得
@@ -8,10 +9,10 @@ import { getArticleSuggestionsByUserId } from "@/lib/db/article-suggestions";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }

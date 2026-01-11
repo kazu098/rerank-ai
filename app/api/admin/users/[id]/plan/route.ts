@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getUserById, updateUserPlan } from "@/lib/db/users";
 import { getPlanByName } from "@/lib/db/plans";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 管理者によるユーザーのプラン変更
@@ -69,9 +70,10 @@ export async function POST(
       null  // pending_plan_id
     );
 
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json({
       success: true,
-      message: "プランを変更しました",
+      message: getErrorMessage(locale, "billing.planChangeSuccess"),
       user: {
         id: user.id,
         email: user.email,
@@ -81,9 +83,10 @@ export async function POST(
     });
   } catch (error: any) {
     console.error("[Admin User Plan Change] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
       {
-        error: error.message || "プランの変更に失敗しました。",
+        error: error.message || getErrorMessage(locale, "billing.planChangeFailed"),
       },
       { status: 500 }
     );

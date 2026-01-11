@@ -87,14 +87,14 @@ export default function ArticleSuggestionsPage() {
           setLoading(false);
         }
       } else {
-        const errorData = await response.json().catch(() => ({ error: "サイトの取得に失敗しました" }));
-        setError(errorData.error || "サイトの取得に失敗しました");
+        const errorData = await response.json().catch(() => ({ error: t("errors.siteFetchFailed") }));
+        setError(errorData.error || t("errors.siteFetchFailed"));
         setLoadingSites(false);
         setLoading(false);
       }
     } catch (err: any) {
       console.error("[ArticleSuggestions] Error fetching sites:", err);
-      setError(err.message || "サイトの取得に失敗しました");
+      setError(err.message || t("errors.siteFetchFailed"));
       setLoadingSites(false);
       setLoading(false);
     }
@@ -117,7 +117,7 @@ export default function ArticleSuggestionsPage() {
       const response = await fetch(`/api/article-suggestions?${params.toString()}`);
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "提案の取得に失敗しました");
+        throw new Error(errorData.error || t("errors.suggestionGenerationFailed"));
       }
 
       const data = await response.json();
@@ -125,7 +125,7 @@ export default function ArticleSuggestionsPage() {
       setError(null);
     } catch (err: any) {
       console.error("[ArticleSuggestions] Error:", err);
-      setError(err.message || "エラーが発生しました");
+      setError(err.message || t("errors.errorOccurred"));
     } finally {
       setLoading(false);
       setLoadingSites(false);
@@ -142,14 +142,14 @@ export default function ArticleSuggestionsPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "ステータスの更新に失敗しました");
+        throw new Error(errorData.error || t("errors.articleSuggestionStatusUpdateFailed"));
       }
 
       // 提案一覧を再読み込み
       await fetchSuggestions();
     } catch (err: any) {
       console.error("[ArticleSuggestions] Error updating status:", err);
-      setError(err.message || "ステータスの更新に失敗しました");
+      setError(err.message || t("errors.articleSuggestionStatusUpdateFailed"));
     }
   };
 

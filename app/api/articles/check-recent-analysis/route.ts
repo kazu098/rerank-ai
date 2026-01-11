@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getArticleByUrl } from "@/lib/db/articles";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 記事が今日既に分析されているかチェック
@@ -9,10 +10,10 @@ import { getArticleByUrl } from "@/lib/db/articles";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     if (!url) {
       return NextResponse.json(
-        { error: "urlパラメータが必要です" },
+        { error: getErrorMessage(locale, "errors.urlParameterRequired") },
         { status: 400 }
       );
     }
@@ -54,8 +55,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error checking recent analysis:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "チェックに失敗しました" },
+      { error: error.message || getErrorMessage(locale, "errors.checkFailed") },
       { status: 500 }
     );
   }

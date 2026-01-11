@@ -4,6 +4,7 @@ import { ArticleSuggestionGenerator } from "@/lib/article-suggestion";
 import { getArticlesBySiteId } from "@/lib/db/articles";
 import { saveArticleSuggestions, deletePendingSuggestionsBySiteId } from "@/lib/db/article-suggestions";
 import { getSitesByUserId } from "@/lib/db/sites";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 記事提案を生成
@@ -12,10 +13,10 @@ import { getSitesByUserId } from "@/lib/db/sites";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -61,7 +62,8 @@ export async function POST(request: NextRequest) {
       site.site_url,
       userId,
       siteId,
-      existingArticles
+      existingArticles,
+      locale
     );
 
     // DBに保存
@@ -79,12 +81,14 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Error generating article suggestions:", error);
     
+    const { locale: errorLocale } = await getSessionAndLocale(request);
+    
     // キーワードが取得できない場合の特別なエラーハンドリング
     if (error.message === "NO_KEYWORDS_FOUND") {
       return NextResponse.json(
         { 
           error: "NO_KEYWORDS_FOUND",
-          message: "Search Consoleからキーワードデータを取得できませんでした。このサイトにはまだインプレッションやクリックがない可能性があります。"
+          message: getErrorMessage(errorLocale, "errors.noKeywordsFound")
         },
         { status: 400 }
       );
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: "NO_GAP_KEYWORDS_FOUND",
-          message: "新規記事として提案できるキーワードが見つかりませんでした。既存の記事で十分にカバーされているか、インプレッション数が少ない可能性があります。"
+          message: getErrorMessage(errorLocale, "errors.noGapKeywordsFound")
         },
         { status: 400 }
       );

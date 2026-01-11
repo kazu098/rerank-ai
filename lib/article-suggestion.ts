@@ -437,19 +437,20 @@ export class ArticleSuggestionGenerator {
    */
   private async generateTitles(
     clusters: KeywordCluster[],
-    existingArticles: Article[]
+    existingArticles: Article[],
+    locale: string = 'ja'
   ): Promise<ArticleSuggestion[]> {
     // LLMが利用可能な場合は使用
     if (process.env.GEMINI_API_KEY) {
       try {
-        return await this.generateTitlesWithLLM(clusters, existingArticles);
+        return await this.generateTitlesWithLLM(clusters, existingArticles, locale);
       } catch (error) {
         console.error("[ArticleSuggestion] LLM generation failed, using fallback:", error);
       }
     }
 
     // LLMが利用できない場合はフォールバック
-    return this.generateTitlesFallback(clusters, existingArticles);
+    return this.generateTitlesFallback(clusters, existingArticles, locale);
   }
 
   /**
@@ -457,7 +458,8 @@ export class ArticleSuggestionGenerator {
    */
   private async generateTitlesWithLLM(
     clusters: KeywordCluster[],
-    existingArticles: Article[]
+    existingArticles: Article[],
+    locale: string = 'ja'
   ): Promise<ArticleSuggestion[]> {
     const topClusters = clusters.slice(0, 10);
 
@@ -476,7 +478,7 @@ export class ArticleSuggestionGenerator {
     }));
 
     // プロンプトを構築
-    const prompt = this.buildLLMPrompt(clusterInfo, existingTitles);
+      const prompt = this.buildLLMPrompt(clusterInfo, existingTitles, locale);
 
     try {
       // Gemini APIを直接呼び出す
@@ -499,10 +501,13 @@ export class ArticleSuggestionGenerator {
 
       // タイトルが生成できた場合は使用、できなかった場合はフォールバック
       if (titles.length > 0 && titles.length === topClusters.length) {
+        const isEnglish = locale === 'en';
         return topClusters.map((cluster, index) => ({
           title: titles[index] || cluster.representativeKeyword,
           keywords: cluster.keywords.map((kw) => kw.keyword),
-          reason: `インプレッション数: ${cluster.totalImpressions.toLocaleString()}、平均順位: ${cluster.averagePosition.toFixed(1)}位`,
+          reason: isEnglish
+            ? `Impressions: ${cluster.totalImpressions.toLocaleString()}, Average Position: ${cluster.averagePosition.toFixed(1)}`
+            : `インプレッション数: ${cluster.totalImpressions.toLocaleString()}、平均順位: ${cluster.averagePosition.toFixed(1)}位`,
           estimatedImpressions: cluster.totalImpressions,
           priority: Math.floor(cluster.totalImpressions / 100),
         }));
@@ -512,7 +517,7 @@ export class ArticleSuggestionGenerator {
     }
 
     // フォールバック
-    return this.generateTitlesFallback(clusters, existingArticles);
+    return this.generateTitlesFallback(clusters, existingArticles, locale);
   }
 
   /**
@@ -525,8 +530,44 @@ export class ArticleSuggestionGenerator {
       impressions: number;
       averagePosition: number;
     }>,
-    existingTitles: string[]
+    existingTitles: string[],
+    locale: string = 'ja'
   ): string {
+    const isEnglish = locale === 'en';
+    
+    if (isEnglish) {
+      return `You are an SEO content strategy expert.
+
+Please propose ${clusters.length} new article titles based on the following information.
+
+## Keyword Cluster Information
+${clusters
+  .map(
+    (cluster, index) => `
+${index + 1}. Representative Keyword: ${cluster.representativeKeyword}
+   - Related Keywords: ${cluster.keywords.slice(0, 5).join(", ")}
+   - Impressions: ${cluster.impressions.toLocaleString()}
+   - Average Position: ${cluster.averagePosition.toFixed(1)}`
+  )
+  .join("\n")}
+
+## Existing Article Title Examples
+${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "(No existing articles)"}
+
+## Requirements
+1. Propose one natural and attractive article title for each keyword cluster
+2. Titles should be within 30 characters and match the search intent
+3. Maintain consistency with existing article title patterns
+4. Create titles that are expected to have SEO effectiveness
+
+## Output Format
+Output only the titles in ${clusters.length} lines (no numbering):
+Title 1
+Title 2
+Title 3
+...`;
+    }
+    
     return `あなたはSEOコンテンツ戦略の専門家です。
 
 以下の情報を基に、新規記事のタイトルを${clusters.length}個提案してください。
@@ -569,7 +610,7 @@ ${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "（既�
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
       .filter((line) => !/^\d+[\.\)]/.test(line)) // 番号付きの行を除去
-      .filter((line) => !line.startsWith("タイトル"))
+      .filter((line) => !line.startsWith("タイトル") && !line.startsWith("Title"))
       .slice(0, 10);
 
     return lines;
@@ -580,7 +621,8 @@ ${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "（既�
    */
   private generateTitlesFallback(
     clusters: KeywordCluster[],
-    existingArticles: Article[]
+    existingArticles: Article[],
+    locale: string = 'ja'
   ): ArticleSuggestion[] {
     const suggestions: ArticleSuggestion[] = [];
 
@@ -595,6 +637,7 @@ ${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "（既�
     // 上位10個のクラスターからタイトル案を生成
     const topClusters = clusters.slice(0, 10);
 
+    const isEnglish = locale === 'en';
     for (const cluster of topClusters) {
       // 代表キーワードからタイトルを生成
       const title = this.generateTitleFromKeyword(
@@ -605,7 +648,9 @@ ${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "（既�
       suggestions.push({
         title,
         keywords: cluster.keywords.map((kw) => kw.keyword),
-        reason: `インプレッション数: ${cluster.totalImpressions.toLocaleString()}、平均順位: ${cluster.averagePosition.toFixed(1)}位`,
+        reason: isEnglish
+          ? `Impressions: ${cluster.totalImpressions.toLocaleString()}, Average Position: ${cluster.averagePosition.toFixed(1)}`
+          : `インプレッション数: ${cluster.totalImpressions.toLocaleString()}、平均順位: ${cluster.averagePosition.toFixed(1)}位`,
         estimatedImpressions: cluster.totalImpressions,
         priority: Math.floor(cluster.totalImpressions / 100),
       });
@@ -650,7 +695,8 @@ ${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "（既�
     siteUrl: string,
     userId: string,
     siteId: string,
-    existingArticles: Article[]
+    existingArticles: Article[],
+    locale: string = 'ja'
   ): Promise<ArticleSuggestion[]> {
     // 1. サイトURLを正規化
     const normalizedSiteUrl = this.normalizeSiteUrl(siteUrl);
@@ -694,7 +740,7 @@ ${existingTitles.length > 0 ? existingTitles.slice(0, 10).join("\n") : "（既�
     const clusters = this.clusterKeywords(gaps);
 
     // 8. タイトル案を生成（LLMなし、フェーズ1）
-    const suggestions = this.generateTitles(clusters, existingArticles);
+    const suggestions = this.generateTitles(clusters, existingArticles, locale);
 
     return suggestions;
   }

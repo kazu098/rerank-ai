@@ -4,6 +4,7 @@ import { getArticlesByUserIdWithPagination, getArticlesStatsByUserId } from "@/l
 import { getLatestAnalysesByArticleIds, getPreviousAnalysesByArticleIds } from "@/lib/db/analysis-results";
 import { createSupabaseClient } from "@/lib/supabase";
 import { getNotificationSettingsForArticles } from "@/lib/db/notification-settings";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * ダッシュボード用データを取得
@@ -11,11 +12,10 @@ import { getNotificationSettingsForArticles } from "@/lib/db/notification-settin
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。Googleアカウントでログインしてください。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequiredWithGoogle") },
         { status: 401 }
       );
     }
@@ -113,9 +113,10 @@ export async function GET(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("[Dashboard] Error:", error);
+    const { locale: errorLocale } = await getSessionAndLocale(request);
     return NextResponse.json(
       {
-        error: error.message || "ダッシュボードデータの取得に失敗しました。",
+        error: error.message || getErrorMessage(errorLocale, "errors.dashboardDataFetchFailed"),
       },
       { status: 500 }
     );

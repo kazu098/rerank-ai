@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getToken } from "next-auth/jwt";
 import { saveOrUpdateSite } from "@/lib/db/sites";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * GSC連携情報を保存
@@ -10,12 +11,12 @@ import { saveOrUpdateSite } from "@/lib/db/sites";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.accessToken || !session?.userId) {
       return NextResponse.json(
         { 
-          error: "認証が必要です。Googleアカウントでログインしてください。",
+          error: getErrorMessage(locale, "errors.authenticationRequiredWithGoogle"),
           code: "UNAUTHORIZED"
         },
         { status: 401 }
@@ -130,9 +131,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ site });
   } catch (error: any) {
     console.error("[Sites] Error saving site:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
       { 
-        error: error.message || "サイト情報の保存に失敗しました。",
+        error: error.message || getErrorMessage(locale, "errors.siteSaveFailed"),
         code: "INTERNAL_ERROR"
       },
       { status: 500 }

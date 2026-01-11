@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getArticleById, deleteArticle } from "@/lib/db/articles";
 import { getAnalysisResultsByArticleId, getAnalysisRunsByArticleId } from "@/lib/db/analysis-results";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 記事詳細を取得
@@ -12,11 +13,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -29,7 +30,7 @@ export async function GET(
 
     if (!article) {
       return NextResponse.json(
-        { error: "記事が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.articleNotFound") },
         { status: 404 }
       );
     }
@@ -37,7 +38,7 @@ export async function GET(
     // ユーザーが所有しているか確認
     if (article.user_id !== userId) {
       return NextResponse.json(
-        { error: "アクセス権限がありません。" },
+        { error: getErrorMessage(locale, "errors.accessDenied") },
         { status: 403 }
       );
     }
@@ -60,8 +61,9 @@ export async function GET(
     );
   } catch (error: any) {
     console.error("[Articles API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "記事の取得に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.articleFetchFailed") },
       { status: 500 }
     );
   }
@@ -76,11 +78,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth();
+    const { session, locale } = await getSessionAndLocale(request);
 
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -93,14 +95,14 @@ export async function DELETE(
 
     if (!article) {
       return NextResponse.json(
-        { error: "記事が見つかりません。" },
+        { error: getErrorMessage(locale, "errors.articleNotFound") },
         { status: 404 }
       );
     }
 
     if (article.user_id !== userId) {
       return NextResponse.json(
-        { error: "アクセス権限がありません。" },
+        { error: getErrorMessage(locale, "errors.accessDenied") },
         { status: 403 }
       );
     }
@@ -111,8 +113,9 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("[Articles API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "記事の削除に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.articleDeleteFailed") },
       { status: 500 }
     );
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CompetitorExtractor } from "@/lib/competitor-extractor";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 競合URLを抽出
@@ -23,12 +24,18 @@ export async function POST(request: NextRequest) {
     extractor = new CompetitorExtractor();
     // 本番環境ではSerper.devを優先（速度重視）
     const preferSerperApi = process.env.PREFER_SERPER_API === "true" || process.env.NODE_ENV === "production";
+    
+    // localeを取得
+    const { locale } = await getSessionAndLocale(request);
+    
     const result = await extractor.extractCompetitors(
       keyword,
       ownUrl,
       maxCompetitors,
       5, // retryCount
-      preferSerperApi
+      preferSerperApi,
+      false, // isManualScan
+      locale
     );
 
     return NextResponse.json(result);

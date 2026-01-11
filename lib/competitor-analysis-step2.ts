@@ -1,6 +1,7 @@
 import { CompetitorExtractor, SearchResult } from "./competitor-extractor";
 import { CompetitorAnalysisResult, Step1Result, Step2Result } from "./competitor-analysis";
 import { filterCompetitorUrls } from "./competitor-filter";
+import { getErrorMessage } from "./api-helpers";
 
 /**
  * Step 2: 競合URL抽出
@@ -9,7 +10,8 @@ export async function analyzeStep2(
   siteUrl: string,
   pageUrl: string,
   prioritizedKeywords: Step1Result["prioritizedKeywords"],
-  maxCompetitorsPerKeyword: number = 10
+  maxCompetitorsPerKeyword: number = 10,
+  locale: string = "ja"
 ): Promise<Step2Result> {
   const startTime = Date.now();
   console.log(`[CompetitorAnalysis] ⏱️ Step 2 starting at ${new Date().toISOString()}`);
@@ -75,7 +77,9 @@ export async function analyzeStep2(
         normalizedOwnUrl,
         maxCompetitors,
         5, // retryCount
-        preferSerperApi
+        preferSerperApi, // preferSerperApi
+        false, // isManualScan
+        locale
       );
 
       console.log(
@@ -150,7 +154,7 @@ export async function analyzeStep2(
         ownPosition: ownKeywordPosition,
         totalResults: 0,
         error: isCaptchaError 
-          ? "CAPTCHAが検出されました。しばらく時間をおいてから再度お試しください。"
+          ? getErrorMessage(locale, "errors.captchaDetectedWithRetry")
           : errorMessage,
       });
     }

@@ -1,5 +1,6 @@
 import { chromium, Browser, Page, BrowserContext } from "playwright";
 import { SerperApiClient } from "./serper-api";
+import { getErrorMessage } from "./api-helpers";
 
 export interface SearchResult {
   url: string;
@@ -98,7 +99,8 @@ export class CompetitorExtractor {
     maxCompetitors: number = 10,
     retryCount: number = 5, // CAPTCHA対策のため、リトライ回数を増やす
     preferSerperApi: boolean = false, // 手動スキャン時はSerper.devを優先（速度重視）
-    isManualScan: boolean = false // 手動スキャンかどうか（速度優先の判断に使用）
+    isManualScan: boolean = false, // 手動スキャンかどうか（速度優先の判断に使用）
+    locale: string = "ja"
   ): Promise<CompetitorExtractionResult> {
     // 本番環境やSerper API優先設定の場合、まずSerper APIを試行
     // 注意: この時点では自社の順位が不明なため、undefinedを渡す
@@ -114,7 +116,7 @@ export class CompetitorExtractor {
 
     // ブラウジングツールで試行
     try {
-      return await this.extractWithBrowser(keyword, ownUrl, maxCompetitors, retryCount, undefined);
+      return await this.extractWithBrowser(keyword, ownUrl, maxCompetitors, retryCount, undefined, locale);
     } catch (error: any) {
       // CAPTCHAが検出された場合、Serper APIにフォールバック
       const isCaptchaError = error.message?.includes("CAPTCHA");
@@ -139,7 +141,8 @@ export class CompetitorExtractor {
     ownUrl: string,
     maxCompetitors: number,
     retryCount: number,
-    ownPosition?: number // GSC APIから取得した順位（オプション）
+    ownPosition?: number, // GSC APIから取得した順位（オプション）
+    locale: string = "ja"
   ): Promise<CompetitorExtractionResult> {
     await this.initialize();
 
@@ -175,7 +178,7 @@ export class CompetitorExtractor {
             await this.delay(delayMs);
             continue;
           }
-          throw new Error("CAPTCHAが検出されました。リトライ回数を超えました。");
+          throw new Error(getErrorMessage(locale, "errors.captchaDetected"));
         }
 
         // 検索結果を取得
@@ -281,7 +284,7 @@ export class CompetitorExtractor {
     console.error(
       `[CompetitorExtractor] All ${retryCount} attempts failed for keyword "${keyword}"`
     );
-    throw new Error("CAPTCHAが検出されました。リトライ回数を超えました。");
+    throw new Error(getErrorMessage(locale, "errors.captchaDetected"));
   }
 
   /**

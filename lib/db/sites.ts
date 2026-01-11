@@ -122,10 +122,9 @@ export async function saveOrUpdateSite(
   });
 
   if (existingSite) {
-    // 更新（URLはそのまま保存、sc-domain:形式も保持）
+    // 更新（既存のsite_urlを保持してユニーク制約違反を防ぐ）
     // リフレッシュトークンが空文字列の場合は、既存のリフレッシュトークンを保持
     const updateData: {
-      site_url: string;
       gsc_access_token: string;
       gsc_refresh_token?: string | null;
       gsc_token_expires_at: string;
@@ -133,7 +132,6 @@ export async function saveOrUpdateSite(
       is_active: boolean;
       updated_at: string;
     } = {
-      site_url: siteUrl, // ユーザーが選択した形式をそのまま保存（sc-domain:形式も保持）
       gsc_access_token: accessToken,
       gsc_token_expires_at: expiresAt.toISOString(),
       display_name: displayName || existingSite.display_name,

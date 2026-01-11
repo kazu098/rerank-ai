@@ -3,6 +3,7 @@ import { DiffAnalyzer, type DiffAnalysisResult } from "./diff-analyzer";
 import { LLMDiffAnalyzer, type LLMDiffAnalysisResult } from "./llm-diff-analyzer";
 import { AISEOAnalyzer, type AISEOAnalysisResult } from "./ai-seo-analyzer";
 import type { Step1Result, Step2Result, Step3Result } from "./competitor-analysis";
+import { getErrorMessage } from "./api-helpers";
 
 /**
  * Step 3: 記事スクレイピング + LLM分析
@@ -13,7 +14,8 @@ export async function analyzeStep3(
   prioritizedKeywords: Step1Result["prioritizedKeywords"],
   competitorResults: Step2Result["competitorResults"],
   uniqueCompetitorUrls: Step2Result["uniqueCompetitorUrls"],
-  skipLLMAnalysis: boolean = false
+  skipLLMAnalysis: boolean = false,
+  locale: string = "ja"
 ): Promise<Step3Result> {
   const startTime = Date.now();
   const MAX_EXECUTION_TIME = 58000; // 58秒（60秒タイムアウトの前に安全に終了）
@@ -23,7 +25,7 @@ export async function analyzeStep3(
   const checkTimeout = () => {
     const elapsed = Date.now() - startTime;
     if (elapsed > MAX_EXECUTION_TIME) {
-      throw new Error(`処理がタイムアウトに近づいています（${(elapsed / 1000).toFixed(1)}秒経過）。中間結果を返します。`);
+      throw new Error(getErrorMessage(locale, "errors.timeoutApproaching", { seconds: (elapsed / 1000).toFixed(1) }));
     }
   };
 
@@ -191,7 +193,7 @@ export async function analyzeStep3(
                   return {
                     keyword: prioritizedKeyword.keyword,
                     analysis: null,
-                    error: "競合記事の取得に失敗しました。競合URLは取得できましたが、記事内容のスクレイピングに失敗した可能性があります。",
+                    error: getErrorMessage(locale, "errors.competitorArticleFetchFailed"),
                   };
                 }
 
@@ -199,7 +201,8 @@ export async function analyzeStep3(
                 const keywordAnalysis = await llmDiffAnalyzer.analyzeSemanticDiff(
                   prioritizedKeyword.keyword,
                   ownArticleContent,
-                  keywordCompetitorArticles
+                  keywordCompetitorArticles,
+                  locale
                 );
 
                 console.log(
@@ -304,7 +307,7 @@ export async function analyzeStep3(
                   } else {
                     keywordSpecificAnalyses.push({
                       keyword,
-                      whyRankingDropped: "LLM分析の結果が取得できませんでした。APIのレスポンス形式が不正な可能性があります。",
+                      whyRankingDropped: getErrorMessage(locale, "errors.llmAnalysisResultInvalid"),
                       whatToAdd: [],
                     });
                   }
@@ -342,7 +345,7 @@ export async function analyzeStep3(
                 );
                 keywordSpecificAnalyses.push({
                   keyword: kw.keyword,
-                  whyRankingDropped: "分析結果が取得できませんでした。",
+                  whyRankingDropped: getErrorMessage(locale, "errors.analysisResultNotRetrieved"),
                   whatToAdd: [],
                 });
               }

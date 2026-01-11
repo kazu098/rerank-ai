@@ -60,13 +60,15 @@ export class ArticleImprovementGenerator {
    * @param whyCompetitorsRankHigher なぜ競合が上位なのか
    * @param recommendedAdditions 追加すべき項目
    * @param missingAIOElements AI検索最適化（AIO対応）で不足している要素
+   * @param locale ロケール（'ja' | 'en'）
    */
   async generateImprovement(
     articleUrl: string,
     ownArticle: ArticleContent,
     whyCompetitorsRankHigher: string,
     recommendedAdditions: RecommendedAddition[],
-    missingAIOElements: string[] = []
+    missingAIOElements: string[] = [],
+    locale: string = 'ja'
   ): Promise<ArticleImprovementResult> {
     if (!this.genAI) {
       throw new Error("GEMINI_API_KEY is not set");
@@ -82,7 +84,8 @@ export class ArticleImprovementGenerator {
       ownArticle,
       whyCompetitorsRankHigher,
       recommendedAdditions,
-      missingAIOElements
+      missingAIOElements,
+      locale
     );
 
     try {
@@ -108,8 +111,10 @@ export class ArticleImprovementGenerator {
     ownArticle: ArticleContent,
     whyCompetitorsRankHigher: string,
     recommendedAdditions: RecommendedAddition[],
-    missingAIOElements: string[] = []
+    missingAIOElements: string[] = [],
+    locale: string = 'ja'
   ): string {
+    const isEnglish = locale === 'en';
     // 既存記事の見出し一覧
     const ownHeadingsList = ownArticle.headings
       .map((h) => `${"#".repeat(h.level)} ${h.text}`)
@@ -120,6 +125,15 @@ export class ArticleImprovementGenerator {
 
     const additionsList = recommendedAdditions
       .map((add, i) => {
+        if (isEnglish) {
+          let text = `${i + 1}. Section Name: ${add.section}\n`;
+          text += `   Reason: ${add.reason}\n`;
+          text += `   Content Summary: ${add.content}\n`;
+          if (add.competitorUrls && add.competitorUrls.length > 0) {
+            text += `   Reference URLs: ${add.competitorUrls.join(", ")}\n`;
+          }
+          return text;
+        }
         let text = `${i + 1}. セクション名: ${add.section}\n`;
         text += `   理由: ${add.reason}\n`;
         text += `   内容概要: ${add.content}\n`;
@@ -129,6 +143,83 @@ export class ArticleImprovementGenerator {
         return text;
       })
       .join("\n\n");
+
+    if (isEnglish) {
+      return `You are an SEO article improvement expert.
+Generate practical article improvement text (only the changed parts) that can be copy-pasted directly, based on the existing article content and analysis results.
+
+[Existing Article]
+- URL: ${articleUrl}
+- Title: ${ownArticle.title}
+- Heading Structure:
+${ownHeadingsList}
+- Article Content (first 3000 characters):
+${ownArticleFullText}
+
+[Why Competitors Rank Higher (Analysis Results)]
+${whyCompetitorsRankHigher}
+
+[Recommended Additions (Analysis Results)]
+${additionsList}
+
+${missingAIOElements.length > 0 ? `[Missing AI Search Optimization (AIO) Elements]
+The following elements are missing. These are characteristics of pages that are easily cited by LLMs (AI Overview):
+${missingAIOElements.map((elem, i) => `${i + 1}. ${elem}`).join('\n')}
+
+Adding these elements will make the page more likely to appear in AI search results. FAQ sections, summary sections, and data/statistics presentation are particularly important.
+
+` : ''}[Requirements]
+1. Check the existing article's heading structure and propose adding new sections at appropriate positions (before or after existing headings)
+2. For each item in "Recommended Additions", generate specific and practical text based on the "Reason" and "Content Summary" from the analysis results, matching the existing article's style and tone
+${missingAIOElements.length > 0 ? `3. If there are missing AI Search Optimization (AIO) elements, include them in the improvement proposal. Prioritize adding FAQ sections, summary sections, and data/statistics presentation.
+4. ` : '3. '}Output in complete Markdown format including headings (## or ###)
+${missingAIOElements.length > 0 ? '5. ' : '4. '}Each item should be an independent section that can be inserted directly into the article
+${missingAIOElements.length > 0 ? '6. ' : '5. '}Reference the existing article's writing style and tone to integrate naturally with the existing content
+${missingAIOElements.length > 0 ? '7. ' : '6. '}Include natural, readable, and specific content that responds to search intent
+${missingAIOElements.length > 0 ? '8. ' : '7. '}Output in complete Markdown format that can be copy-pasted and used directly
+${missingAIOElements.length > 0 ? '9. When adding FAQ sections, include specific questions and answers related to the article content\n10. When adding summary sections, concisely summarize the main points of the article' : ''}
+
+[Output Format]
+Output the changes in the following JSON format:
+{
+  "changes": [
+    {
+      "type": "insert",
+      "position": "after" | "before",
+      "target": "Existing heading (e.g., '## What is emo?')",
+      "content": "Complete Markdown content to add (including heading)",
+      "simpleFormat": {
+        "section": "Heading of the section to add",
+        "position": "After/Before existing heading",
+        "content": "Markdown body text"
+      }
+    }
+  ]
+}
+
+Example:
+{
+  "changes": [
+    {
+      "type": "insert",
+      "position": "after",
+      "target": "## What is emo?",
+      "content": "## Japanese Voice Commands List\\n\\nList of Japanese voice commands that emo robot can understand, categorized by function.\\n\\n### Basic Operations\\n\\n- \"emo, take a photo\": Takes a photo\\n- \"emo, dance\": Starts dancing\\n...",
+      "simpleFormat": {
+        "section": "Japanese Voice Commands List",
+        "position": "After ## What is emo?",
+        "content": "List of Japanese voice commands that emo robot can understand, categorized by function.\\n\\n### Basic Operations\\n\\n- \"emo, take a photo\": Takes a photo\\n- \"emo, dance\": Starts dancing\\n..."
+      }
+    }
+  ]
+}
+
+Important: 
+- Output only JSON, do not include any explanatory text
+- For each item, generate specific and practical text based on the "Reason" and "Content Summary" from the analysis results
+- Output in complete Markdown format including headings (##)
+- Express line breaks as \\n`;
+    }
 
     return `あなたはSEO記事の改善専門家です。
 既存記事の内容と分析結果に基づいて、実際にコピペできる改善記事の文章（変更部分のみ）を生成してください。

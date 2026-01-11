@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getNotificationsByUserId } from "@/lib/db/notifications";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 通知一覧を取得
@@ -8,11 +9,10 @@ import { getNotificationsByUserId } from "@/lib/db/notifications";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-
+    const { session, locale } = await getSessionAndLocale(request);
     if (!session?.userId) {
       return NextResponse.json(
-        { error: "認証が必要です。" },
+        { error: getErrorMessage(locale, "errors.authenticationRequired") },
         { status: 401 }
       );
     }
@@ -40,8 +40,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ notifications });
   } catch (error: any) {
     console.error("[Notifications API] Error:", error);
+    const { locale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "通知の取得に失敗しました。" },
+      { error: error.message || getErrorMessage(locale, "errors.notificationFetchFailed") },
       { status: 500 }
     );
   }

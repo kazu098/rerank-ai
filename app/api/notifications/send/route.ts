@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NotificationService } from "@/lib/notification";
 import { CompetitorAnalyzer } from "@/lib/competitor-analysis";
+import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
 
 /**
  * 競合分析を実行して通知を送信
@@ -32,20 +33,25 @@ export async function POST(request: NextRequest) {
       `[Notification] Starting analysis and notification for ${siteUrl}${pageUrl} to ${email}`
     );
 
+    // localeを取得
+    const { locale } = await getSessionAndLocale(request);
+
     // 競合分析を実行
     const analyzer = new CompetitorAnalyzer();
     const analysisResult = await analyzer.analyzeCompetitors(
       siteUrl,
       pageUrl,
       maxKeywords,
-      maxCompetitorsPerKeyword
+      maxCompetitorsPerKeyword,
+      false, // skipLLMAnalysis
+      locale
     );
 
     // 差分分析結果がない場合は通知を送信しない
     if (!analysisResult.diffAnalysis) {
       return NextResponse.json({
         success: false,
-        message: "差分分析結果がありません。競合URLが取得できなかった可能性があります。",
+        message: getErrorMessage(locale, "errors.noDiffAnalysisResult"),
         analysisResult,
       });
     }
@@ -57,19 +63,21 @@ export async function POST(request: NextRequest) {
       siteUrl,
       pageUrl,
       analysisResult,
+      locale,
     });
 
     console.log(`[Notification] Notification sent successfully to ${email}`);
 
     return NextResponse.json({
       success: true,
-      message: "通知を送信しました",
+      message: getErrorMessage(locale, "errors.notificationSent"),
       analysisResult,
     });
   } catch (error: any) {
     console.error("Error sending notification:", error);
+    const { locale: errorLocale } = await getSessionAndLocale(request);
     return NextResponse.json(
-      { error: error.message || "Failed to send notification" },
+      { error: error.message || getErrorMessage(errorLocale, "errors.notificationFailed") },
       { status: 500 }
     );
   }
