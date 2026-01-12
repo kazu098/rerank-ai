@@ -296,33 +296,44 @@ export async function GET(request: NextRequest) {
             }
 
             const slackPayload = formatSlackBulkNotification(
-              items.filter((item) => item.rankDropInfo || item.rankRiseInfo).map((item) => {
-                const rankInfo = item.rankRiseInfo
-                  ? {
-                      from: item.rankRiseInfo.baseAveragePosition,
-                      to: item.rankRiseInfo.currentAveragePosition,
-                      change: item.rankRiseInfo.riseAmount,
-                    }
-                  : item.rankDropInfo
-                  ? {
-                      from: item.rankDropInfo.baseAveragePosition,
-                      to: item.rankDropInfo.currentAveragePosition,
-                      change: item.rankDropInfo.dropAmount,
-                    }
-                  : null;
+              items.filter((item) => item.rankDropInfo || item.rankRiseInfo)
+                .map((item) => {
+                  const rankInfo = item.rankRiseInfo
+                    ? {
+                        from: item.rankRiseInfo.baseAveragePosition,
+                        to: item.rankRiseInfo.currentAveragePosition,
+                        change: item.rankRiseInfo.riseAmount,
+                      }
+                    : item.rankDropInfo
+                    ? {
+                        from: item.rankDropInfo.baseAveragePosition,
+                        to: item.rankDropInfo.currentAveragePosition,
+                        change: item.rankDropInfo.dropAmount,
+                      }
+                    : null;
 
-                if (!rankInfo) {
-                  throw new Error(`Missing rank info for article ${item.articleUrl}`);
-                }
+                  if (!rankInfo) {
+                    throw new Error(`Missing rank info for article ${item.articleUrl}`);
+                  }
 
-                return {
-                  url: item.articleUrl,
-                  title: item.articleTitle ?? null,
-                  articleId: item.articleId,
-                  notificationType: item.notificationType,
-                  averagePositionChange: rankInfo,
-                };
-              }),
+                  // fromまたはtoがnullの場合は、データが不十分なのでスキップ
+                  if (rankInfo.from === null || rankInfo.to === null) {
+                    return null;
+                  }
+
+                  return {
+                    url: item.articleUrl,
+                    title: item.articleTitle ?? null,
+                    articleId: item.articleId,
+                    notificationType: item.notificationType,
+                    averagePositionChange: {
+                      from: rankInfo.from,
+                      to: rankInfo.to,
+                      change: rankInfo.change,
+                    },
+                  };
+                })
+                .filter((item): item is NonNullable<typeof item> => item !== null),
               locale
             );
 
