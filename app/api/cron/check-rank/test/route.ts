@@ -504,10 +504,10 @@ async function handleRequest(request: NextRequest) {
           const previousPosition = article.current_average_position;
           
           // currentPositionがnullの場合は、データが不十分なので更新しない
-          if (currentPosition !== null && currentPosition !== undefined) {
+          if (currentPosition !== null && currentPosition !== undefined && typeof currentPosition === 'number') {
             await updateArticleAnalysis(
               article.id,
-              currentPosition,
+              currentPosition, // この時点でcurrentPositionはnumber型として扱われる
               previousPosition !== null ? previousPosition : undefined
             );
             
