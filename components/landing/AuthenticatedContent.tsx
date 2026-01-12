@@ -7,8 +7,12 @@ import { useRouter, Link } from "@/src/i18n/routing";
 import { KeywordTimeSeriesChart } from "@/components/landing/KeywordTimeSeriesChart";
 
 // 順位をフォーマット（整数の場合は整数表示、小数がある場合は少数第2位まで）
-function formatPosition(position: number | string): string {
+// 順位が0の場合は、データが不十分としてnullを返す（呼び出し側で"-"を表示）
+function formatPosition(position: number | string | null | undefined): string | null {
+  if (position === null || position === undefined) return null;
   if (typeof position !== 'number') return String(position);
+  // 順位が0の場合は、データが不十分としてnullを返す
+  if (position === 0) return null;
   return Number.isInteger(position) ? position.toFixed(0) : position.toFixed(2);
 }
 
@@ -1326,9 +1330,14 @@ export function AuthenticatedContent() {
                                               {article.clicks ? article.clicks.toLocaleString() : "0"}
                                             </td>
                                             <td className="px-2 py-2 text-right text-sm text-gray-700 whitespace-nowrap">
-                                              {article.position ? (
-                                                <span>{formatPosition(article.position)}{t("results.rankSuffix")}</span>
-                                              ) : (
+                                              {article.position && article.position > 0 ? (() => {
+                                                const formatted = formatPosition(article.position);
+                                                return formatted ? (
+                                                  <span>{formatted}{t("results.rankSuffix")}</span>
+                                                ) : (
+                                                  <span className="text-gray-400">-</span>
+                                                );
+                                              })() : (
                                                 <span className="text-gray-400">-</span>
                                               )}
                                             </td>
@@ -1605,7 +1614,13 @@ export function AuthenticatedContent() {
                                 <div className="flex items-center justify-between">
                                   <span className="font-semibold text-sm">{kw.keyword}</span>
                                   <span className="text-xs text-green-600 font-bold">
-                                    {typeof kw.position === 'number' ? formatPosition(kw.position) : kw.position}{t("results.rankSuffix")}
+                                    {(() => {
+                                      if (typeof kw.position === 'number' && kw.position > 0) {
+                                        const formatted = formatPosition(kw.position);
+                                        return formatted ? `${formatted}${t("results.rankSuffix")}` : '-';
+                                      }
+                                      return kw.position ? `${kw.position}${t("results.rankSuffix")}` : '-';
+                                    })()}
                                   </span>
                                 </div>
                                 <div className="text-xs text-gray-600 mt-1">
@@ -2008,7 +2023,14 @@ export function AuthenticatedContent() {
                                 <div className="mb-3">
                                   <p className="font-semibold text-sm mb-1">{t("results.keyword")}: {result.keyword}</p>
                                   <div className="text-xs text-gray-600">
-                                    <span>{t("results.ownUrlRank")}: {result.ownPosition ? `${typeof result.ownPosition === 'number' ? formatPosition(result.ownPosition) : result.ownPosition}${t("results.rankSuffix")}` : t("results.unknown")}</span>
+                                    <span>{t("results.ownUrlRank")}: {(() => {
+                                      if (!result.ownPosition) return t("results.unknown");
+                                      if (typeof result.ownPosition === 'number' && result.ownPosition > 0) {
+                                        const formatted = formatPosition(result.ownPosition);
+                                        return formatted ? `${formatted}${t("results.rankSuffix")}` : t("results.unknown");
+                                      }
+                                      return `${result.ownPosition}${t("results.rankSuffix")}`;
+                                    })()}</span>
                                     <span className="ml-4">{t("results.competitorUrlCount")}: {result.competitors.length}{t("results.items")}</span>
                                   </div>
                                   {result.error && (
@@ -2032,7 +2054,13 @@ export function AuthenticatedContent() {
                                             {comp.url}
                                           </a>
                                           <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                                            {typeof comp.position === 'number' ? formatPosition(comp.position) : comp.position}{t("results.rankSuffix")}
+                                            {(() => {
+                                              if (typeof comp.position === 'number' && comp.position > 0) {
+                                                const formatted = formatPosition(comp.position);
+                                                return formatted ? `${formatted}${t("results.rankSuffix")}` : '-';
+                                              }
+                                              return comp.position ? `${comp.position}${t("results.rankSuffix")}` : '-';
+                                            })()}
                                           </span>
                                         </div>
                                         {comp.title && (

@@ -97,8 +97,8 @@ export interface BulkNotificationItem {
   articleId?: string; // 記事詳細ページへのリンク用
   analysisResult?: CompetitorAnalysisSummary;
   rankDropInfo?: {
-    baseAveragePosition: number;
-    currentAveragePosition: number;
+    baseAveragePosition: number | null;
+    currentAveragePosition: number | null;
     dropAmount: number;
     droppedKeywords: Array<{
       keyword: string;
@@ -107,8 +107,8 @@ export interface BulkNotificationItem {
     }>;
   };
   rankRiseInfo?: {
-    baseAveragePosition: number;
-    currentAveragePosition: number;
+    baseAveragePosition: number | null;
+    currentAveragePosition: number | null;
     riseAmount: number;
     risenKeywords: Array<{
       keyword: string;
@@ -550,11 +550,11 @@ export class NotificationService {
       const isRise = notificationType === 'rank_rise' && rankRiseInfo && rankRiseInfo.riseAmount > 0;
       // rankRiseInfoが存在するがriseAmountが負の値の場合は、rankDropInfoとして扱う
       const effectiveRankDropInfo = rankDropInfo || (rankRiseInfo && rankRiseInfo.riseAmount <= 0 ? {
-        baseAveragePosition: rankRiseInfo.baseAveragePosition,
-        currentAveragePosition: rankRiseInfo.currentAveragePosition,
+        baseAveragePosition: rankRiseInfo.baseAveragePosition ?? null,
+        currentAveragePosition: rankRiseInfo.currentAveragePosition ?? null,
         dropAmount: Math.abs(rankRiseInfo.riseAmount),
         droppedKeywords: [],
-      } : null);
+      } : undefined);
       const rankInfo = isRise ? rankRiseInfo : effectiveRankDropInfo;
 
       html += `
@@ -570,11 +570,11 @@ export class NotificationService {
           <!-- 順位情報 -->
           <div class="rank-info" style="background: ${isRise ? '#D1FAE5' : '#FEF3C7'}; border-left-color: ${isRise ? '#10B981' : '#F59E0B'};">
             <div class="rank-change" style="color: ${isRise ? '#065F46' : '#92400E'};">
-              ${isRise && rankRiseInfo ? t('notification.email.rankRise', {
+              ${isRise && rankRiseInfo && rankRiseInfo.baseAveragePosition !== null && rankRiseInfo.currentAveragePosition !== null ? t('notification.email.rankRise', {
                 from: rankRiseInfo.baseAveragePosition.toFixed(1),
                 to: rankRiseInfo.currentAveragePosition.toFixed(1),
                 change: rankRiseInfo.riseAmount.toFixed(1),
-              }) : effectiveRankDropInfo ? t('notification.email.rankChange', {
+              }) : effectiveRankDropInfo && effectiveRankDropInfo.baseAveragePosition !== null && effectiveRankDropInfo.currentAveragePosition !== null ? t('notification.email.rankChange', {
                 from: effectiveRankDropInfo.baseAveragePosition.toFixed(1),
                 to: effectiveRankDropInfo.currentAveragePosition.toFixed(1),
                 change: effectiveRankDropInfo.dropAmount.toFixed(1),

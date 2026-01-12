@@ -3,8 +3,8 @@ import { GSCApiClient } from "./gsc-api";
 export interface RankDropResult {
   hasDrop: boolean;
   dropAmount: number;
-  baseAveragePosition: number;
-  currentAveragePosition: number;
+  baseAveragePosition: number | null;
+  currentAveragePosition: number | null;
   baseDate: string;
   currentDate: string;
   droppedKeywords: DroppedKeyword[];
@@ -14,8 +14,8 @@ export interface RankDropResult {
 export interface RankRiseResult {
   hasRise: boolean;
   riseAmount: number;
-  baseAveragePosition: number;
-  currentAveragePosition: number;
+  baseAveragePosition: number | null;
+  currentAveragePosition: number | null;
   baseDate: string;
   currentDate: string;
   risenKeywords: RisenKeyword[];
@@ -110,7 +110,8 @@ export class RankDropDetector {
       1
     );
 
-    const dropAmount = currentAveragePosition - baseAveragePosition;
+    // 順位がnullの場合は、dropAmountを0として扱う（データが不十分な場合は下落判定をしない）
+    const dropAmount = (currentAveragePosition ?? 0) - (baseAveragePosition ?? 0);
 
     // キーワードデータを取得（より長い期間を使用）
     const keywordData = await this.client.getKeywordData(
@@ -134,9 +135,12 @@ export class RankDropDetector {
       dropThreshold
     );
 
+    // 順位がnullの場合は、hasDropをfalseにする（データが不十分な場合は下落判定をしない）
+    const hasDrop = (baseAveragePosition !== null && currentAveragePosition !== null) &&
+      (dropAmount >= dropThreshold || droppedKeywords.length > 0);
+
     return {
-      hasDrop:
-        dropAmount >= dropThreshold || droppedKeywords.length > 0,
+      hasDrop,
       dropAmount,
       baseAveragePosition,
       currentAveragePosition,
@@ -149,6 +153,8 @@ export class RankDropDetector {
 
   /**
    * 平均順位を計算
+   * データが不十分な場合（impressionsが少ない、またはデータが存在しない）はnullを返す
+   * @param minImpressions 最小インプレッション数（デフォルト: 10）。これ未満の場合はnullを返す
    */
   private calculateAveragePosition(
     rows: Array<{
@@ -158,13 +164,14 @@ export class RankDropDetector {
       clicks: number;
       ctr: number;
     }>,
-    days: number
-  ): number {
-    if (rows.length === 0) return 0;
+    days: number,
+    minImpressions: number = 10
+  ): number | null {
+    if (rows.length === 0) return null;
 
     // 直近N日間のデータを取得
     const recentRows = rows.slice(-days);
-    if (recentRows.length === 0) return 0;
+    if (recentRows.length === 0) return null;
 
     // インプレッション数で重み付けした平均順位を計算
     let totalWeightedPosition = 0;
@@ -175,9 +182,14 @@ export class RankDropDetector {
       totalImpressions += row.impressions;
     }
 
+    // インプレッション数が少ない場合は、データが不十分としてnullを返す
+    if (totalImpressions < minImpressions) {
+      return null;
+    }
+
     return totalImpressions > 0
       ? totalWeightedPosition / totalImpressions
-      : 0;
+      : null;
   }
 
   /**
@@ -279,7 +291,8 @@ export class RankDropDetector {
       1
     );
 
-    const riseAmount = baseAveragePosition - currentAveragePosition; // 上昇なので base - current
+    // 順位がnullの場合は、riseAmountを0として扱う（データが不十分な場合は上昇判定をしない）
+    const riseAmount = (baseAveragePosition ?? 0) - (currentAveragePosition ?? 0); // 上昇なので base - current
 
     // キーワードデータを取得
     const keywordDataStartDate = new Date(
@@ -298,9 +311,11 @@ export class RankDropDetector {
     const keywordRows = Array.isArray(keywordData?.rows) ? keywordData.rows : [];
     const risenKeywords = this.identifyRisenKeywords(keywordRows);
 
+    // 順位がnullの場合は、hasRiseをfalseにする（データが不十分な場合は上昇判定をしない）
     // riseAmountが負の値（順位が下がっている）場合は、hasRiseをfalseにする
     // 順位上昇は、riseAmountが正の値で閾値以上の場合のみ
-    const hasRise = riseAmount > 0 && (riseAmount >= riseThreshold || risenKeywords.length > 0);
+    const hasRise = (baseAveragePosition !== null && currentAveragePosition !== null) &&
+      riseAmount > 0 && (riseAmount >= riseThreshold || risenKeywords.length > 0);
 
     return {
       hasRise,

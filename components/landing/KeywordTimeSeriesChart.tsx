@@ -5,8 +5,12 @@ import { useTranslations, useLocale } from "next-intl";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // 順位をフォーマット（整数の場合は整数表示、小数がある場合は少数第2位まで）
-function formatPosition(position: number | string): string {
+// 順位が0の場合は、データが不十分として"-"を返す
+function formatPosition(position: number | string | null | undefined): string {
+  if (position === null || position === undefined) return '-';
   if (typeof position !== 'number') return String(position);
+  // 順位が0の場合は、データが不十分として"-"を返す
+  if (position === 0) return '-';
   return Number.isInteger(position) ? position.toFixed(0) : position.toFixed(2);
 }
 

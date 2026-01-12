@@ -528,7 +528,8 @@ export async function GET(request: NextRequest) {
             ?? checkResult.rankRiseResult?.currentAveragePosition;
           const previousPosition = article.current_average_position;
           
-          if (currentPosition !== undefined) {
+          // currentPositionがnullの場合は、データが不十分なので更新しない
+          if (currentPosition !== null && currentPosition !== undefined) {
             await updateArticleAnalysis(
               article.id,
               currentPosition,
@@ -539,6 +540,8 @@ export async function GET(request: NextRequest) {
               currentPosition,
               previousPosition,
             });
+          } else {
+            console.log(`[Cron] Skipping article analysis update for article ${article.id}: insufficient data (currentPosition is null)`);
           }
         } catch (updateError: any) {
           console.error(`[Cron] Failed to update article analysis for article ${article.id}:`, updateError);
