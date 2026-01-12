@@ -9,6 +9,19 @@ export function HeroSection() {
   const locale = useLocale();
   const { data: session } = useSession();
 
+  // localeに応じて動画のパスを決定
+  // ja (jp) の場合は demo-jp.mp4、en の場合は demo-en.mp4
+  // それ以外のlocaleの場合は demo-en.mp4 をデフォルトとして使用
+  const getDemoVideoPath = (locale: string): string => {
+    if (locale === 'ja' || locale === 'jp') {
+      return '/videos/demo-jp.mp4';
+    }
+    // en またはその他のlocaleの場合は demo-en.mp4 を使用
+    return '/videos/demo-en.mp4';
+  };
+
+  const demoVideoPath = getDemoVideoPath(locale);
+
   return (
     <section className="py-12 md:py-16">
       <div className="text-center mb-8">
@@ -67,7 +80,7 @@ export function HeroSection() {
             playsInline
             preload="auto"
           >
-            <source src="/videos/demo.mp4" type="video/mp4" />
+            <source src={demoVideoPath} type="video/mp4" />
             {t("home.videoNotSupported")}
           </video>
         </div>

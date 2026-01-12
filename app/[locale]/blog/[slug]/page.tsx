@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getBlogPost, getBlogPosts } from "@/lib/content/blog";
 import { getTranslations } from "next-intl/server";
 import { Navigation } from "@/components/landing/Navigation";
+import { Footer } from "@/components/landing/Footer";
 
 export async function generateMetadata({
   params,
@@ -12,10 +13,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, slug } = await params;
   const post = await getBlogPost(slug, locale);
+  const t = await getTranslations({ locale, namespace: "blog" });
 
   if (!post) {
     return {
-      title: "記事が見つかりません",
+      title: t("notFound"),
     };
   }
 
@@ -50,6 +52,7 @@ export default async function BlogPostPage({
 }) {
   const { locale, slug } = await params;
   const post = await getBlogPost(slug, locale);
+  const t = await getTranslations({ locale, namespace: "blog" });
 
   if (!post) {
     notFound();
@@ -82,13 +85,13 @@ export default async function BlogPostPage({
           <ol className="flex items-center space-x-2 text-sm text-gray-500">
             <li>
               <Link href={`/${locale}`} className="hover:text-gray-700">
-                ホーム
+                {t("home")}
               </Link>
             </li>
             <li>/</li>
             <li>
               <Link href={`/${locale}/blog`} className="hover:text-gray-700">
-                ブログ
+                {t("title")}
               </Link>
             </li>
             <li>/</li>
@@ -148,7 +151,7 @@ export default async function BlogPostPage({
             href={`/${locale}/blog`}
             className="text-blue-600 hover:text-blue-700 font-medium"
           >
-            ← ブログ一覧に戻る
+            {t("backToList")}
           </Link>
         </div>
 
@@ -158,6 +161,7 @@ export default async function BlogPostPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </article>
+      <Footer />
     </div>
   );
 }
