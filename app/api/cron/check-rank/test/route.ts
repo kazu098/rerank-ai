@@ -503,10 +503,11 @@ async function handleRequest(request: NextRequest) {
             ?? checkResult.rankRiseResult?.currentAveragePosition;
           const previousPosition = article.current_average_position;
           
-          if (currentPosition !== undefined) {
+          // currentPositionがnullの場合は、データが不十分なので更新しない
+          if (currentPosition !== null && currentPosition !== undefined && typeof currentPosition === 'number') {
             await updateArticleAnalysis(
               article.id,
-              currentPosition,
+              currentPosition, // この時点でcurrentPositionはnumber型として扱われる
               previousPosition !== null ? previousPosition : undefined
             );
             
@@ -514,6 +515,8 @@ async function handleRequest(request: NextRequest) {
               currentPosition,
               previousPosition,
             });
+          } else {
+            console.log(`[Test Cron] Skipping article analysis update for article ${article.id}: insufficient data (currentPosition is null)`);
           }
         } catch (updateError: any) {
           console.error(`[Test Cron] Failed to update article analysis for article ${article.id}:`, updateError);

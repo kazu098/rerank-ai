@@ -167,14 +167,24 @@ export async function GET(request: NextRequest) {
                       throw new Error(`Missing rank info for article ${item.articleUrl}`);
                     }
 
+                    // fromまたはtoがnullの場合は、データが不十分なのでスキップ
+                    if (rankInfo.from === null || rankInfo.to === null) {
+                      return null;
+                    }
+
                     return {
                       url: item.articleUrl,
                       title: item.articleTitle ?? null,
                       articleId: item.articleId,
                       notificationType: item.notificationType,
-                      averagePositionChange: rankInfo,
+                      averagePositionChange: {
+                        from: rankInfo.from,
+                        to: rankInfo.to,
+                        change: rankInfo.change,
+                      },
                     };
-                  }),
+                  })
+                  .filter((item): item is NonNullable<typeof item> => item !== null),
                 locale
               );
 

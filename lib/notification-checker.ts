@@ -118,8 +118,8 @@ export class NotificationChecker {
               reason: {
                 key: 'notification.checker.rankRiseDetected',
                 params: {
-                  from: rankRiseResult.baseAveragePosition.toFixed(1),
-                  to: rankRiseResult.currentAveragePosition.toFixed(1),
+                  from: rankRiseResult.baseAveragePosition !== null ? rankRiseResult.baseAveragePosition.toFixed(1) : 'N/A',
+                  to: rankRiseResult.currentAveragePosition !== null ? rankRiseResult.currentAveragePosition.toFixed(1) : 'N/A',
                   rise: rankRiseResult.riseAmount.toFixed(1),
                 },
               },
@@ -295,8 +295,8 @@ export class NotificationChecker {
         reason: {
           key: 'notification.checker.rankRiseDetected',
           params: {
-            from: rankRiseResult.baseAveragePosition.toFixed(1),
-            to: rankRiseResult.currentAveragePosition.toFixed(1),
+            from: rankRiseResult.baseAveragePosition !== null ? rankRiseResult.baseAveragePosition.toFixed(1) : 'N/A',
+            to: rankRiseResult.currentAveragePosition !== null ? rankRiseResult.currentAveragePosition.toFixed(1) : 'N/A',
             rise: rankRiseResult.riseAmount.toFixed(1),
           },
         },
@@ -320,8 +320,8 @@ export class NotificationChecker {
       reason: {
         key: 'notification.checker.rankDropDetected',
         params: {
-          from: rankDropResult.baseAveragePosition.toFixed(1),
-          to: rankDropResult.currentAveragePosition.toFixed(1),
+          from: rankDropResult.baseAveragePosition !== null ? rankDropResult.baseAveragePosition.toFixed(1) : 'N/A',
+          to: rankDropResult.currentAveragePosition !== null ? rankDropResult.currentAveragePosition.toFixed(1) : 'N/A',
           drop: rankDropResult.dropAmount.toFixed(1),
         },
       },
