@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getDocPages, getDocNavigation } from "@/lib/content/docs";
 import { getTranslations } from "next-intl/server";
 import { Navigation } from "@/components/landing/Navigation";
+import { Footer } from "@/components/landing/Footer";
 
 export async function generateMetadata({
   params,
@@ -13,8 +14,8 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "docs" });
 
   return {
-    title: t("title") || "ドキュメント",
-    description: t("description") || "ReRank AIの使い方ガイド",
+    title: t("title"),
+    description: t("description"),
   };
 }
 
@@ -26,15 +27,16 @@ export default async function DocsPage({
   const { locale } = await params;
   const pages = await getDocPages(locale);
   const navigation = getDocNavigation(pages);
+  const t = await getTranslations({ locale, namespace: "docs" });
 
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">ドキュメント</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">{t("title")}</h1>
           <p className="text-xl text-gray-600">
-            ReRank AIの使い方や機能について詳しく説明します
+            {t("description")}
           </p>
         </div>
 
@@ -70,11 +72,10 @@ export default async function DocsPage({
           <main className="lg:col-span-3">
             <div className="bg-white border border-gray-200 rounded-lg p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                はじめに
+                {t("introduction.title")}
               </h2>
               <p className="text-gray-600 mb-6">
-                ReRank AIは、Google Search Consoleと連携して、検索順位の下落を自動検知し、
-                AIが改善案を提案するSEO自動化ツールです。
+                {t("introduction.description")}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -101,7 +102,7 @@ export default async function DocsPage({
                             href={`/${locale}/docs?category=${encodeURIComponent(section.category)}`}
                             className="text-gray-500 hover:text-gray-700 text-sm"
                           >
-                            もっと見る ({section.pages.length - 5}件)
+                            {t("introduction.viewMore")} ({section.pages.length - 5})
                           </Link>
                         </li>
                       )}
@@ -113,6 +114,7 @@ export default async function DocsPage({
           </main>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

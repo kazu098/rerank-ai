@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getDocPage, getDocPages, getDocNavigation } from "@/lib/content/docs";
 import { getTranslations } from "next-intl/server";
 import { Navigation } from "@/components/landing/Navigation";
+import { Footer } from "@/components/landing/Footer";
 
 export async function generateMetadata({
   params,
@@ -13,15 +14,16 @@ export async function generateMetadata({
   const { locale, slug } = await params;
   const slugString = slug.join("/");
   const page = await getDocPage(slugString, locale);
+  const t = await getTranslations({ locale, namespace: "docs" });
 
   if (!page) {
     return {
-      title: "ページが見つかりません",
+      title: locale === 'ja' ? "ページが見つかりません" : "Page Not Found",
     };
   }
 
   return {
-    title: `${page.title} - ドキュメント`,
+    title: `${page.title} - ${t("documentation")}`,
     description: page.description,
   };
 }
@@ -47,6 +49,7 @@ export default async function DocPage({
   const { locale, slug } = await params;
   const slugString = slug.join("/");
   const page = await getDocPage(slugString, locale);
+  const t = await getTranslations({ locale, namespace: "docs" });
 
   if (!page) {
     notFound();
@@ -58,8 +61,8 @@ export default async function DocPage({
   // パンくずリスト用のパスを構築
   const breadcrumbPaths = slugString.split("/");
   const breadcrumbs = [
-    { name: "ホーム", href: `/${locale}` },
-    { name: "ドキュメント", href: `/${locale}/docs` },
+    { name: t("home"), href: `/${locale}` },
+    { name: t("documentation"), href: `/${locale}/docs` },
   ];
 
   let currentPath = "";
@@ -169,14 +172,14 @@ export default async function DocPage({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-900 mb-2">
-                      この記事は役に立ちましたか？
+                      {t("feedback.title")}
                     </p>
                     <div className="flex gap-2">
                       <button className="px-4 py-2 bg-green-50 text-green-700 rounded-md text-sm font-medium hover:bg-green-100 transition-colors">
-                        はい
+                        {t("feedback.yes")}
                       </button>
                       <button className="px-4 py-2 bg-red-50 text-red-700 rounded-md text-sm font-medium hover:bg-red-100 transition-colors">
-                        いいえ
+                        {t("feedback.no")}
                       </button>
                     </div>
                   </div>
@@ -184,7 +187,7 @@ export default async function DocPage({
                     href={`/${locale}/docs`}
                     className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                   >
-                    ← ドキュメント一覧に戻る
+                    {t("backToList")}
                   </Link>
                 </div>
               </div>
@@ -200,6 +203,7 @@ export default async function DocPage({
           __html: JSON.stringify(breadcrumbStructuredData),
         }}
       />
+      <Footer />
     </div>
   );
 }

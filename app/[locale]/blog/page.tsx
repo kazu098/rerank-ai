@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getBlogPosts, getBlogCategories, getBlogTags } from "@/lib/content/blog";
 import { getTranslations } from "next-intl/server";
 import { Navigation } from "@/components/landing/Navigation";
+import { Footer } from "@/components/landing/Footer";
 
 export async function generateMetadata({
   params,
@@ -30,6 +31,7 @@ export default async function BlogPage({
   const posts = await getBlogPosts(locale);
   const categories = await getBlogCategories(locale);
   const tags = await getBlogTags(locale);
+  const t = await getTranslations({ locale, namespace: "blog" });
 
   // フィルタリング
   let filteredPosts = posts;
@@ -45,9 +47,9 @@ export default async function BlogPage({
       <Navigation />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Blog</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">{t("title")}</h1>
           <p className="text-xl text-gray-600">
-            SEO対策やツールの使い方、業界トレンドなどの情報をお届けします
+            {t("description")}
           </p>
         </div>
 
@@ -57,7 +59,7 @@ export default async function BlogPage({
             <div className="sticky top-8 space-y-6">
               {/* カテゴリー */}
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">カテゴリー</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">{t("category")}</h2>
                 <ul className="space-y-2">
                   <li>
                     <Link
@@ -68,7 +70,7 @@ export default async function BlogPage({
                           : "text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      すべて
+                      {t("all")}
                     </Link>
                   </li>
                   {categories.map((cat) => (
@@ -90,7 +92,7 @@ export default async function BlogPage({
 
               {/* タグ */}
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">タグ</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">{t("tags")}</h2>
                 <div className="flex flex-wrap gap-2">
                   {tags.map((tagName) => (
                     <Link
@@ -114,7 +116,7 @@ export default async function BlogPage({
           <main className="lg:col-span-3">
             {filteredPosts.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">記事が見つかりませんでした</p>
+                <p className="text-gray-500">{t("noPosts")}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -177,7 +179,7 @@ export default async function BlogPage({
                           href={`/${locale}/blog/${post.slug}`}
                           className="text-blue-600 hover:text-blue-700 font-medium text-sm whitespace-nowrap"
                         >
-                          続きを読む →
+                          {t("readMore")}
                         </Link>
                       </div>
                     </div>
@@ -188,6 +190,7 @@ export default async function BlogPage({
           </main>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

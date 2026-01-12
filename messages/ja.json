@@ -630,7 +630,6 @@
       "articleSuggestions": "新規提案記事",
       "notifications": "通知",
       "settings": "設定",
-      "billing": "課金",
       "contact": "お問い合わせ"
     },
     "articleSuggestions": {
@@ -1057,6 +1056,35 @@
         "value": "システム障害等によりサービスの提供が一時的に停止する場合の損害については一切の責任を負いません"
       }
     }
+  },
+  "docs": {
+    "title": "ドキュメント",
+    "description": "ReRank AIの使い方ガイド",
+    "home": "ホーム",
+    "documentation": "ドキュメント",
+    "backToList": "← ドキュメント一覧に戻る",
+    "feedback": {
+      "title": "この記事は役に立ちましたか？",
+      "yes": "はい",
+      "no": "いいえ"
+    },
+    "introduction": {
+      "title": "はじめに",
+      "description": "ReRank AIは、Google Search Consoleと連携して、検索順位の下落を自動検知し、AIが改善案を提案するSEO自動化ツールです。",
+      "viewMore": "もっと見る"
+    }
+  },
+  "blog": {
+    "title": "ブログ",
+    "description": "SEO対策やツールの使い方、業界トレンドなどの情報をお届けします",
+    "home": "ホーム",
+    "backToList": "← ブログ一覧に戻る",
+    "notFound": "記事が見つかりません",
+    "noPosts": "記事が見つかりませんでした",
+    "category": "カテゴリー",
+    "all": "すべて",
+    "tags": "タグ",
+    "readMore": "続きを読む →"
   }
 }
 

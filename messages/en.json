@@ -1042,6 +1042,35 @@
         "value": "We are not responsible for any damages resulting from temporary suspension of service due to system failures or other reasons"
       }
     }
+  },
+  "docs": {
+    "title": "Documentation",
+    "description": "ReRank AI User Guide",
+    "home": "Home",
+    "documentation": "Documentation",
+    "backToList": "← Back to Documentation",
+    "feedback": {
+      "title": "Was this article helpful?",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "introduction": {
+      "title": "Introduction",
+      "description": "ReRank AI is an SEO automation tool that integrates with Google Search Console to automatically detect ranking drops and propose improvement suggestions using AI.",
+      "viewMore": "View More"
+    }
+  },
+  "blog": {
+    "title": "Blog",
+    "description": "Information about SEO strategies, tool usage, and industry trends",
+    "home": "Home",
+    "backToList": "← Back to Blog",
+    "notFound": "Post not found",
+    "noPosts": "No posts found",
+    "category": "Category",
+    "all": "All",
+    "tags": "Tags",
+    "readMore": "Read More →"
   }
 }
 
