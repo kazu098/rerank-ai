@@ -8,12 +8,24 @@
       "maxDuration": 60
     },
     "app/api/competitors/analyze/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
+    },
+    "app/api/competitors/analyze-step1/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/competitors/analyze-step2/route.ts": {
+      "maxDuration": 300
     },
     "app/api/competitors/analyze-step3/route.ts": {
       "maxDuration": 300
     },
+    "app/api/articles/list/route.ts": {
+      "maxDuration": 300
+    },
     "app/api/cron/check-rank/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/send-notifications/route.ts": {
       "maxDuration": 300
     },
     "app/api/cron/check-rank/test/route.ts": {
