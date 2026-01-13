@@ -414,31 +414,80 @@ export async function GET(request: NextRequest) {
               const domainPropertyUrl = convertUrlPropertyToDomainProperty(site.site_url);
               if (domainPropertyUrl) {
                 console.log(`[Cron] Attempting to retry with domain property format: ${domainPropertyUrl}`);
+                
+                // GSC APIのリトライ
+                let gscRetrySucceeded = false;
+                let retryCheckResult: any = null;
                 try {
                   // ドメインプロパティ形式でGSC APIを再試行
                   const retryGscClient = new GSCApiClient(accessToken);
                   const retryChecker = new NotificationChecker(retryGscClient);
-                  const retryCheckResult = await retryChecker.checkNotificationNeeded(
+                  retryCheckResult = await retryChecker.checkNotificationNeeded(
                     article.user_id,
                     article.id,
                     domainPropertyUrl,
                     article.url
                   );
+                  gscRetrySucceeded = true;
+                  console.log(`[Cron] GSC API retry succeeded with domain property format for site ${site.id}`);
+                } catch (gscRetryError: any) {
+                  // GSC APIリトライが失敗した場合のエラーハンドリング
+                  const retryErrorMessage = gscRetryError.message || String(gscRetryError);
+                  console.error(
+                    `[Cron] Retry with domain property format also failed for site ${site.id}, article ${article.id}:`,
+                    retryErrorMessage
+                  );
+                  console.error(`[Cron] Auto-retry failed details:`, {
+                    siteId: site.id,
+                    siteUrl: site.site_url,
+                    domainPropertyUrl: domainPropertyUrl,
+                    articleId: article.id,
+                    articleUrl: article.url,
+                    userId: article.user_id,
+                    userEmail: user.email,
+                    errorMessage: retryErrorMessage,
+                    errorType: retryErrorMessage.includes('403') ? '403' : retryErrorMessage.includes('401') ? '401' : 'unknown',
+                  });
                   
-                  // 再試行が成功した場合、サイトURLを更新して通常の処理フローに戻る
-                  console.log(`[Cron] Retry successful with domain property format for site ${site.id}, updating site URL from ${site.site_url} to ${domainPropertyUrl}`);
-                  await updateSiteUrl(site.id, domainPropertyUrl);
+                  // 再試行も失敗した場合、通常の403エラーハンドリングに進む
+                  console.log(`[Cron] Auto-retry failed, proceeding to handleAuthError for site ${site.id}`);
+                  await handleAuthError(site.id, site.site_url, '403');
+                  console.log(`[Cron] handleAuthError completed, skipping article ${article.id}`);
+                  continue;
+                }
+                
+                // GSC APIが成功した場合のみ、サイトURLの更新を試みる
+                if (gscRetrySucceeded && retryCheckResult) {
+                  console.log(`[Cron] Retry successful with domain property format for site ${site.id}, attempting to update site URL from ${site.site_url} to ${domainPropertyUrl}`);
+                  
+                  try {
+                    await updateSiteUrl(site.id, domainPropertyUrl);
+                    console.log(`[Cron] Site URL updated in DB`);
+                  } catch (updateError: any) {
+                    // updateSiteUrl のエラーは警告のみ（GSC APIは成功しているため処理を続行）
+                    console.warn(`[Cron] Failed to update site URL, but GSC API succeeded. Continuing...`, updateError.message);
+                  }
+                  
                   // DB更新後、最新のサイト情報を再取得してキャッシュを更新（次の記事処理で正しいURLを使用するため）
                   const updatedSite = await getSiteById(site.id);
-                  if (updatedSite) {
+                  if (updatedSite && updatedSite.is_active) {
                     site.site_url = updatedSite.site_url;
                     // キャッシュも更新（キーはarticle.site_idで統一）
                     siteCache.set(article.site_id, { site: updatedSite, userId: article.user_id });
                     console.log(`[Cron] Site URL updated in memory and cache: ${site.site_url}`);
                   } else {
-                    site.site_url = domainPropertyUrl;
-                    // キャッシュも更新（キーはarticle.site_idで統一）
-                    siteCache.set(article.site_id, { site: { ...site, site_url: domainPropertyUrl }, userId: article.user_id });
+                    // 元のサイトが非アクティブにされた場合（重複エントリがあった場合）
+                    // sc-domain: 形式のサイトを検索してキャッシュを更新
+                    const userSites = await getSitesByUserId(article.user_id);
+                    const scDomainSite = userSites.find(s => s.site_url === domainPropertyUrl && s.is_active);
+                    if (scDomainSite) {
+                      site = scDomainSite;
+                      siteCache.set(article.site_id, { site: scDomainSite, userId: article.user_id });
+                      console.log(`[Cron] Found active sc-domain site, updated cache: ${scDomainSite.site_url}`);
+                    } else {
+                      site.site_url = domainPropertyUrl;
+                      siteCache.set(article.site_id, { site: { ...site, site_url: domainPropertyUrl }, userId: article.user_id });
+                    }
                   }
                   checkResult = retryCheckResult;
                   
@@ -465,29 +514,6 @@ export async function GET(request: NextRequest) {
                       risenKeywordsCount: checkResult.rankRiseResult?.risenKeywords?.length || 0,
                     },
                   });
-                } catch (retryError: any) {
-                  const retryErrorMessage = retryError.message || String(retryError);
-                  console.error(
-                    `[Cron] Retry with domain property format also failed for site ${site.id}, article ${article.id}:`,
-                    retryErrorMessage
-                  );
-                  console.error(`[Cron] Auto-retry failed details:`, {
-                    siteId: site.id,
-                    siteUrl: site.site_url,
-                    domainPropertyUrl: domainPropertyUrl,
-                    articleId: article.id,
-                    articleUrl: article.url,
-                    userId: article.user_id,
-                    userEmail: user.email,
-                    errorMessage: retryErrorMessage,
-                    errorType: retryErrorMessage.includes('403') ? '403' : retryErrorMessage.includes('401') ? '401' : 'unknown',
-                  });
-                  
-                  // 再試行も失敗した場合、通常の403エラーハンドリングに進む
-                  console.log(`[Cron] Auto-retry failed, proceeding to handleAuthError for site ${site.id}`);
-                  await handleAuthError(site.id, site.site_url, '403');
-                  console.log(`[Cron] handleAuthError completed, skipping article ${article.id}`);
-                  continue;
                 }
               } else {
                 // URLプロパティ形式でない場合（すでにドメインプロパティ形式）、通常の403エラーハンドリングに進む

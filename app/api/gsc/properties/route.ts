@@ -95,7 +95,49 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    return NextResponse.json({ properties: data.siteEntry || [] });
+    const properties = data.siteEntry || [];
+    
+    // 同じドメインに対して sc-domain: と https:// の両方がある場合、sc-domain: を優先
+    // sc-domain: 形式の方がGSC APIで403エラーが発生しにくいため
+    const domainMap = new Map<string, any>();
+    
+    for (const property of properties) {
+      const siteUrl = property.siteUrl;
+      
+      // ドメインを抽出して正規化
+      let domain: string;
+      if (siteUrl.startsWith("sc-domain:")) {
+        domain = siteUrl.replace("sc-domain:", "").replace(/^www\./, "").toLowerCase();
+      } else {
+        try {
+          const urlObj = new URL(siteUrl);
+          domain = urlObj.hostname.replace(/^www\./, "").toLowerCase();
+        } catch {
+          domain = siteUrl.replace(/^www\./, "").toLowerCase();
+        }
+      }
+      
+      const existing = domainMap.get(domain);
+      if (!existing) {
+        // 初めてのドメイン
+        domainMap.set(domain, property);
+      } else if (siteUrl.startsWith("sc-domain:") && !existing.siteUrl.startsWith("sc-domain:")) {
+        // sc-domain: 形式を優先
+        domainMap.set(domain, property);
+      }
+      // https:// 形式で既に sc-domain: が登録されている場合はスキップ
+    }
+    
+    // 統合されたプロパティ一覧を返す
+    const mergedProperties = Array.from(domainMap.values());
+    
+    console.log("[GSC] Properties merged:", {
+      originalCount: properties.length,
+      mergedCount: mergedProperties.length,
+      duplicatesRemoved: properties.length - mergedProperties.length,
+    });
+    
+    return NextResponse.json({ properties: mergedProperties });
   } catch (error: any) {
     console.error("[GSC] Error fetching properties:", error);
     const { locale: errorLocale } = await getSessionAndLocale(request);
