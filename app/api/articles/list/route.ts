@@ -118,10 +118,19 @@ export async function GET(request: NextRequest) {
     };
     
     const normalizedSiteUrl = normalizeSiteUrlForComparison(siteUrl);
-    const site = sites.find((s) => {
+    
+    // 同じドメインに対して複数のエントリがある場合、sc-domain: 形式を優先
+    // （sc-domain: 形式はGSC APIで403エラーが発生しにくい）
+    const matchingSites = sites.filter((s) => {
       const normalizedDbUrl = normalizeSiteUrlForComparison(s.site_url);
       return normalizedDbUrl === normalizedSiteUrl;
     });
+    
+    // sc-domain: 形式を優先して選択
+    let site = matchingSites.find((s) => s.site_url.startsWith("sc-domain:"));
+    if (!site && matchingSites.length > 0) {
+      site = matchingSites[0];
+    }
 
     if (!site) {
       console.error("[Articles List API] Site not found:", {
@@ -169,16 +178,31 @@ export async function GET(request: NextRequest) {
           const domainPropertyUrl = convertUrlPropertyToDomainProperty(site.site_url);
           if (domainPropertyUrl) {
             console.log(`[Articles List] 403 error with URL property format, retrying with domain property format: ${domainPropertyUrl}`);
+            
+            // GSC APIのリトライ
+            let gscRetrySucceeded = false;
             try {
               gscData = await gscClient.getPageUrls(domainPropertyUrl, startDate, endDate, 1000);
-              // 再試行が成功した場合、サイトURLを更新
-              await updateSiteUrl(site.id, domainPropertyUrl);
-              // メモリ上のsite.site_urlも更新（後続の処理で使用されるため）
-              site.site_url = domainPropertyUrl;
-              console.log(`[Articles List] Site URL updated from ${site.site_url} to ${domainPropertyUrl}`);
-            } catch (retryError: any) {
-              // 再試行も失敗した場合、元のエラーを再スロー
+              gscRetrySucceeded = true;
+              console.log(`[Articles List] GSC API retry succeeded with domain property format`);
+            } catch (gscRetryError: any) {
+              // GSC APIリトライが失敗した場合、元のエラーを再スロー
+              console.error(`[Articles List] GSC API retry failed:`, gscRetryError.message);
               throw error;
+            }
+            
+            // GSC APIが成功した場合のみ、サイトURLの更新を試みる
+            if (gscRetrySucceeded) {
+              const oldSiteUrl = site.site_url;
+              try {
+                await updateSiteUrl(site.id, domainPropertyUrl);
+                console.log(`[Articles List] Site URL updated from ${oldSiteUrl} to ${domainPropertyUrl}`);
+              } catch (updateError: any) {
+                // updateSiteUrl のエラーは警告のみ（GSC APIは成功しているため処理を続行）
+                console.warn(`[Articles List] Failed to update site URL, but GSC API succeeded. Continuing...`, updateError.message);
+              }
+              // メモリ上のsite.site_urlを更新（後続の処理で使用されるため）
+              site.site_url = domainPropertyUrl;
             }
           } else {
             throw error;

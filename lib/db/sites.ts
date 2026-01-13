@@ -115,11 +115,32 @@ export async function saveOrUpdateSite(
     .eq('user_id', userId)
     .eq('is_active', true);
   
-  // 比較用正規化で同じドメインのサイトを検索
-  const existingSite = allSites?.find(s => {
+  // 比較用正規化で同じドメインのサイトを全て検索
+  const matchingSites = (allSites || []).filter(s => {
     const normalizedExisting = normalizeSiteUrlForComparison(s.site_url);
     return normalizedExisting === normalizedForComparison;
   });
+  
+  // sc-domain: 形式のサイトを優先して選択（GSC APIで403エラーが発生しにくい）
+  let existingSite = matchingSites.find(s => s.site_url.startsWith("sc-domain:"));
+  if (!existingSite && matchingSites.length > 0) {
+    existingSite = matchingSites[0];
+  }
+  
+  // 重複エントリがある場合、選択されなかったエントリを非アクティブにする
+  if (matchingSites.length > 1 && existingSite) {
+    const duplicateSites = matchingSites.filter(s => s.id !== existingSite!.id);
+    for (const dupSite of duplicateSites) {
+      console.log(`[Sites DB] Deactivating duplicate site entry: ${dupSite.id} (${dupSite.site_url}), keeping: ${existingSite.id} (${existingSite.site_url})`);
+      await supabase
+        .from('sites')
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', dupSite.id);
+    }
+  }
 
   if (existingSite) {
     // 更新（既存のsite_urlを保持してユニーク制約違反を防ぐ）
@@ -216,6 +237,7 @@ export async function saveOrUpdateSite(
 
 /**
  * ユーザーのサイト一覧を取得
+ * 既存の重複エントリ（同じドメインで sc-domain: と https:// の両方がある場合）を自動的に統合
  */
 export async function getSitesByUserId(userId: string): Promise<Site[]> {
   const supabase = createSupabaseClient();
@@ -231,8 +253,69 @@ export async function getSitesByUserId(userId: string): Promise<Site[]> {
     throw new Error(`Failed to get sites: ${error.message}`);
   }
 
-  // 取得したサイトのURLをそのまま返す（sc-domain:形式を保持するため、正規化しない）
-  return (data || []) as Site[];
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // 重複エントリを検出して統合
+  const domainMap = new Map<string, Site>();
+  const duplicatesToDeactivate: Site[] = [];
+
+  for (const site of data as Site[]) {
+    const normalizedDomain = normalizeSiteUrlForComparison(site.site_url);
+    const existing = domainMap.get(normalizedDomain);
+
+    if (!existing) {
+      // 初めてのドメイン
+      domainMap.set(normalizedDomain, site);
+    } else if (site.site_url.startsWith("sc-domain:") && !existing.site_url.startsWith("sc-domain:")) {
+      // sc-domain: 形式を優先（既存の https:// 形式を非アクティブ化対象に追加）
+      duplicatesToDeactivate.push(existing);
+      domainMap.set(normalizedDomain, site);
+    } else if (!site.site_url.startsWith("sc-domain:") && existing.site_url.startsWith("sc-domain:")) {
+      // 既に sc-domain: 形式がある場合、https:// 形式を非アクティブ化対象に追加
+      duplicatesToDeactivate.push(site);
+    } else {
+      // 同じ形式の重複（通常は発生しないが、念のため）
+      // より古いエントリを非アクティブ化対象に追加
+      const existingDate = new Date(existing.created_at);
+      const currentDate = new Date(site.created_at);
+      if (currentDate < existingDate) {
+        duplicatesToDeactivate.push(site);
+      } else {
+        duplicatesToDeactivate.push(existing);
+        domainMap.set(normalizedDomain, site);
+      }
+    }
+  }
+
+  // 重複エントリを非アクティブ化（非同期で実行、エラーはログのみ）
+  if (duplicatesToDeactivate.length > 0) {
+    console.log(`[getSitesByUserId] Found ${duplicatesToDeactivate.length} duplicate site entries for user ${userId}, deactivating...`);
+    
+    // 非同期で非アクティブ化（パフォーマンスへの影響を最小化）
+    Promise.all(
+      duplicatesToDeactivate.map(async (dupSite) => {
+        try {
+          await supabase
+            .from('sites')
+            .update({
+              is_active: false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', dupSite.id);
+          console.log(`[getSitesByUserId] Deactivated duplicate site: ${dupSite.id} (${dupSite.site_url})`);
+        } catch (err: any) {
+          console.error(`[getSitesByUserId] Failed to deactivate duplicate site ${dupSite.id}:`, err.message);
+        }
+      })
+    ).catch((err) => {
+      console.error(`[getSitesByUserId] Error deactivating duplicate sites:`, err);
+    });
+  }
+
+  // 統合されたサイト一覧を返す（sc-domain: 形式を優先）
+  return Array.from(domainMap.values());
 }
 
 /**
@@ -367,10 +450,57 @@ export function convertUrlPropertyToDomainProperty(urlProperty: string): string 
 
 /**
  * サイトのURLを更新
+ * 重複エントリがある場合は、古いエントリを非アクティブにしてから更新
  */
 export async function updateSiteUrl(siteId: string, newSiteUrl: string): Promise<void> {
   const supabase = createSupabaseClient();
 
+  // まず、更新対象のサイト情報を取得
+  const { data: currentSite, error: getSiteError } = await supabase
+    .from('sites')
+    .select('user_id, site_url')
+    .eq('id', siteId)
+    .single();
+
+  if (getSiteError) {
+    throw new Error(`Failed to get site info: ${getSiteError.message}`);
+  }
+
+  // 同じユーザーで同じURLを持つ別のサイトが存在するかチェック
+  const { data: duplicateSites, error: dupCheckError } = await supabase
+    .from('sites')
+    .select('id, site_url')
+    .eq('user_id', currentSite.user_id)
+    .eq('site_url', newSiteUrl)
+    .eq('is_active', true)
+    .neq('id', siteId);
+
+  if (dupCheckError) {
+    throw new Error(`Failed to check duplicate sites: ${dupCheckError.message}`);
+  }
+
+  // 重複エントリがある場合は、現在のサイトを非アクティブにして重複エントリを使用
+  if (duplicateSites && duplicateSites.length > 0) {
+    console.log(`[updateSiteUrl] Found duplicate site with URL ${newSiteUrl}, deactivating current site ${siteId} and keeping existing site ${duplicateSites[0].id}`);
+    
+    // 現在のサイト（古いURL）を非アクティブにする
+    const { error: deactivateError } = await supabase
+      .from('sites')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', siteId);
+
+    if (deactivateError) {
+      console.error(`[updateSiteUrl] Failed to deactivate site: ${deactivateError.message}`);
+      // エラーが発生しても処理は続行（重複エントリが存在するため、GSC APIは成功している）
+    }
+    
+    return; // 重複エントリを使用するため、更新は不要
+  }
+
+  // 重複がない場合は通常の更新を実行
   const { error } = await supabase
     .from('sites')
     .update({
@@ -380,6 +510,11 @@ export async function updateSiteUrl(siteId: string, newSiteUrl: string): Promise
     .eq('id', siteId);
 
   if (error) {
+    // ユニーク制約違反の場合は警告のみ（GSC APIは成功しているため）
+    if (error.code === '23505') {
+      console.warn(`[updateSiteUrl] Unique constraint violation when updating site URL to ${newSiteUrl}. GSC API succeeded, continuing...`);
+      return;
+    }
     throw new Error(`Failed to update site URL: ${error.message}`);
   }
 }
