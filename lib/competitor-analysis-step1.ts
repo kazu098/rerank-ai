@@ -2,6 +2,7 @@ import { getGSCClient } from "./gsc-api";
 import { RankDropDetector } from "./rank-drop-detection";
 import { KeywordPrioritizer } from "./keyword-prioritizer";
 import { Step1Result } from "./competitor-analysis";
+import { convertUrlPropertyToDomainProperty } from "./db/sites";
 
 /**
  * Step 1: GSCデータ取得 + キーワード選定 + 時系列データ取得
@@ -31,12 +32,39 @@ export async function analyzeStep1(
   const detector = new RankDropDetector(client);
   const keywordPrioritizer = new KeywordPrioritizer();
 
-  // 順位下落を検知
+  // 順位下落を検知（403エラー時の自動変換処理付き）
   const step1Start = Date.now();
-  const rankDropResult = await detector.detectRankDrop(siteUrl, pageUrl);
+  let rankDropResult;
+  let actualSiteUrl = siteUrl; // 実際に使用するサイトURL（変換された可能性がある）
+  try {
+    rankDropResult = await detector.detectRankDrop(siteUrl, pageUrl);
+  } catch (error: any) {
+    const errorMessage = error.message || String(error);
+    const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('permission');
+    
+    // 403エラーでURLプロパティ形式の場合、ドメインプロパティ形式に変換して再試行
+    if (is403Error && siteUrl.startsWith('https://')) {
+      const domainPropertyUrl = convertUrlPropertyToDomainProperty(siteUrl);
+      if (domainPropertyUrl) {
+        console.log(`[CompetitorAnalysis] 403 error with URL property format, retrying with domain property format: ${domainPropertyUrl}`);
+        try {
+          rankDropResult = await detector.detectRankDrop(domainPropertyUrl, pageUrl);
+          actualSiteUrl = domainPropertyUrl; // 成功した場合は更新されたURLを使用
+          console.log(`[CompetitorAnalysis] Retry successful with domain property format`);
+        } catch (retryError: any) {
+          // 再試行も失敗した場合、元のエラーを再スロー
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    } else {
+      throw error;
+    }
+  }
   console.log(`[CompetitorAnalysis] ⏱️ Step 1.1 (Rank drop detection): ${Date.now() - step1Start}ms`);
 
-  // キーワードデータを取得
+  // キーワードデータを取得（403エラー時の自動変換処理付き）
   const endDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
@@ -45,12 +73,38 @@ export async function analyzeStep1(
     .split("T")[0];
 
   const step2Start = Date.now();
-  const keywordData = await client.getKeywordData(
-    siteUrl,
-    pageUrl,
-    startDate,
-    endDate
-  );
+  let keywordData;
+  try {
+    keywordData = await client.getKeywordData(
+      actualSiteUrl,
+      pageUrl,
+      startDate,
+      endDate
+    );
+  } catch (error: any) {
+    const errorMessage = error.message || String(error);
+    const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('permission');
+    
+    // 403エラーでURLプロパティ形式の場合、ドメインプロパティ形式に変換して再試行
+    if (is403Error && actualSiteUrl.startsWith('https://')) {
+      const domainPropertyUrl = convertUrlPropertyToDomainProperty(actualSiteUrl);
+      if (domainPropertyUrl) {
+        console.log(`[CompetitorAnalysis] 403 error with URL property format in getKeywordData, retrying with domain property format: ${domainPropertyUrl}`);
+        try {
+          keywordData = await client.getKeywordData(domainPropertyUrl, pageUrl, startDate, endDate);
+          actualSiteUrl = domainPropertyUrl; // 成功した場合は更新されたURLを使用
+          console.log(`[CompetitorAnalysis] Retry successful with domain property format in getKeywordData`);
+        } catch (retryError: any) {
+          // 再試行も失敗した場合、元のエラーを再スロー
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    } else {
+      throw error;
+    }
+  }
   console.log(`[CompetitorAnalysis] ⏱️ Step 1.2 (GSC keyword data): ${Date.now() - step2Start}ms`);
 
   // キーワードを優先順位付け
@@ -196,13 +250,39 @@ export async function analyzeStep1(
   if (prioritizedKeywords.length > 0) {
     try {
       const selectedKeywords = prioritizedKeywords.map((kw) => kw.keyword);
-      const timeSeriesData = await client.getKeywordTimeSeriesData(
-        siteUrl,
-        pageUrl,
-        startDate,
-        endDate,
-        selectedKeywords
-      );
+      let timeSeriesData;
+      try {
+        timeSeriesData = await client.getKeywordTimeSeriesData(
+          actualSiteUrl,
+          pageUrl,
+          startDate,
+          endDate,
+          selectedKeywords
+        );
+      } catch (error: any) {
+        const errorMessage = error.message || String(error);
+        const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('permission');
+        
+        // 403エラーでURLプロパティ形式の場合、ドメインプロパティ形式に変換して再試行
+        if (is403Error && actualSiteUrl.startsWith('https://')) {
+          const domainPropertyUrl = convertUrlPropertyToDomainProperty(actualSiteUrl);
+          if (domainPropertyUrl) {
+            console.log(`[CompetitorAnalysis] 403 error with URL property format in getKeywordTimeSeriesData, retrying with domain property format: ${domainPropertyUrl}`);
+            try {
+              timeSeriesData = await client.getKeywordTimeSeriesData(domainPropertyUrl, pageUrl, startDate, endDate, selectedKeywords);
+              actualSiteUrl = domainPropertyUrl; // 成功した場合は更新されたURLを使用
+              console.log(`[CompetitorAnalysis] Retry successful with domain property format in getKeywordTimeSeriesData`);
+            } catch (retryError: any) {
+              // 再試行も失敗した場合、元のエラーを再スロー
+              throw error;
+            }
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
 
       // キーワードごとに時系列データをグループ化
       const timeSeriesMap = new Map<string, Array<{ date: string; position: number; impressions: number; clicks: number }>>();
@@ -289,6 +369,7 @@ export async function analyzeStep1(
     prioritizedKeywords,
     topRankingKeywords: topRankingKeywords.length > 0 ? topRankingKeywords : undefined,
     keywordTimeSeries: keywordTimeSeries.length > 0 ? keywordTimeSeries : undefined,
+    updatedSiteUrl: actualSiteUrl !== siteUrl ? actualSiteUrl : undefined, // サイトURLが更新された場合のみ返す
   };
 }
 

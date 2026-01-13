@@ -85,6 +85,7 @@ export interface Step1Result {
       serperApiNotFound?: boolean; // Serper APIで見つからなかった（100位以下に転落している可能性）
     };
   }>;
+  updatedSiteUrl?: string; // 403エラー時にドメインプロパティ形式に変換された場合の更新されたサイトURL
 }
 
 // Step 2の結果

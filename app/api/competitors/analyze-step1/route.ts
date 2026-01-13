@@ -5,6 +5,7 @@ import { checkUserPlanLimit, isTrialActive } from "@/lib/billing/plan-limits";
 import { getArticleByUrl } from "@/lib/db/articles";
 import { getUserById } from "@/lib/db/users";
 import { getPlanById } from "@/lib/db/plans";
+import { getSitesByUserId, updateSiteUrl } from "@/lib/db/sites";
 
 /**
  * Step 1: GSCデータ取得 + キーワード選定 + 時系列データ取得
@@ -115,12 +116,51 @@ export async function POST(request: NextRequest) {
 
     const result = await analyzeStep1(siteUrl, pageUrl, maxKeywords, articleTitle, selectedKeywords);
 
+    // サイトURLが更新された場合（403エラー時にドメインプロパティ形式に変換された場合）、DBを更新
+    if (result.updatedSiteUrl) {
+      try {
+        const sites = await getSitesByUserId(session.userId);
+        // URLを正規化して比較（https://形式に統一）
+        const normalizeSiteUrlForComparison = (url: string): string => {
+          if (url.startsWith("https://")) {
+            return url.replace(/\/$/, "");
+          }
+          if (url.startsWith("sc-domain:")) {
+            const domain = url.replace("sc-domain:", "");
+            return `https://${domain}`;
+          }
+          if (url.startsWith("http://")) {
+            return url.replace("http://", "https://").replace(/\/$/, "");
+          }
+          return url.replace(/\/$/, "");
+        };
+        
+        const normalizedSiteUrl = normalizeSiteUrlForComparison(siteUrl);
+        const site = sites.find((s) => {
+          const normalizedDbUrl = normalizeSiteUrlForComparison(s.site_url);
+          return normalizedDbUrl === normalizedSiteUrl;
+        });
+        
+        if (site) {
+          await updateSiteUrl(site.id, result.updatedSiteUrl);
+          console.log(`[API] Site URL updated from ${site.site_url} to ${result.updatedSiteUrl}`);
+        } else {
+          console.warn(`[API] Site not found for URL: ${siteUrl}, cannot update to ${result.updatedSiteUrl}`);
+        }
+      } catch (updateError: any) {
+        console.error(`[API] Failed to update site URL:`, updateError);
+        // サイトURLの更新に失敗しても、分析結果は返す
+      }
+    }
+
     const apiTotalTime = Date.now() - apiStartTime;
     console.log(
       `[API] ⏱️ Step 1 complete: ${apiTotalTime}ms (${(apiTotalTime / 1000).toFixed(2)}s)`
     );
 
-    return NextResponse.json(result);
+    // updatedSiteUrlはレスポンスから除外（内部処理用）
+    const { updatedSiteUrl, ...responseResult } = result;
+    return NextResponse.json(responseResult);
   } catch (error: any) {
     console.error("Error in Step 1:", error);
     return NextResponse.json(
