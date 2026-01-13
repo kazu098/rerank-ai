@@ -173,6 +173,8 @@ export async function GET(request: NextRequest) {
               gscData = await gscClient.getPageUrls(domainPropertyUrl, startDate, endDate, 1000);
               // 再試行が成功した場合、サイトURLを更新
               await updateSiteUrl(site.id, domainPropertyUrl);
+              // メモリ上のsite.site_urlも更新（後続の処理で使用されるため）
+              site.site_url = domainPropertyUrl;
               console.log(`[Articles List] Site URL updated from ${site.site_url} to ${domainPropertyUrl}`);
             } catch (retryError: any) {
               // 再試行も失敗した場合、元のエラーを再スロー
