@@ -11,6 +11,7 @@ import { getNotificationSettings, getNotificationSettingsByChannel } from "@/lib
 import { getUserAlertSettings } from "@/lib/db/alert-settings";
 import { getSlackIntegrationByUserId } from "@/lib/db/slack-integrations";
 import { getCurrentTimeSlot } from "@/lib/cron/slot-calculator";
+import { RisenKeyword, DroppedKeyword } from "@/lib/rank-drop-detection";
 
 /**
  * 認証エラー（401/403）を処理し、必要に応じてユーザーに通知を送る
@@ -611,7 +612,7 @@ export async function GET(request: NextRequest) {
               baseAveragePosition: checkResult.rankRiseResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankRiseResult.currentAveragePosition,
               riseAmount: checkResult.rankRiseResult.riseAmount,
-              risenKeywords: checkResult.rankRiseResult.risenKeywords.map((kw) => ({
+              risenKeywords: checkResult.rankRiseResult.risenKeywords.map((kw: RisenKeyword) => ({
                 keyword: kw.keyword,
                 position: kw.position,
                 impressions: kw.impressions,
@@ -626,7 +627,7 @@ export async function GET(request: NextRequest) {
             articleId: article.id,
             notificationType: 'rank_drop',
             analysisResult: {
-              prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+              prioritizedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw: DroppedKeyword) => ({
                 keyword: kw.keyword,
                 priority: kw.impressions,
                 impressions: kw.impressions,
@@ -640,7 +641,7 @@ export async function GET(request: NextRequest) {
               baseAveragePosition: checkResult.rankDropResult.baseAveragePosition,
               currentAveragePosition: checkResult.rankDropResult.currentAveragePosition,
               dropAmount: checkResult.rankDropResult.dropAmount,
-              droppedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw) => ({
+              droppedKeywords: checkResult.rankDropResult.droppedKeywords.map((kw: DroppedKeyword) => ({
                 keyword: kw.keyword,
                 position: kw.position,
                 impressions: kw.impressions,
