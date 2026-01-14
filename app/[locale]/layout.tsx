@@ -26,7 +26,9 @@ export async function generateMetadata({
     : "SEO, search engine optimization, AI, automation, Google Search Console, rank monitoring, competitor analysis, article improvement, SEO tool, rewrite suggestions";
 
   const url = `${baseUrl}/${locale}`;
-  const ogImage = `${baseUrl}/logo.svg`;
+  const ogImage = isJapanese
+    ? `${baseUrl}/ogp_jp.png`
+    : `${baseUrl}/ogp_en.png`;
 
   return {
     title: {
@@ -59,8 +61,8 @@ export async function generateMetadata({
       images: [
         {
           url: ogImage,
-          width: 500,
-          height: 500,
+          width: 1200,
+          height: 630,
           alt: title,
         },
       ],
