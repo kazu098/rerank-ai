@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { saveAnalysisResult } from "@/lib/db/analysis-results";
 import { saveOrUpdateArticle, getArticleByUrl } from "@/lib/db/articles";
-import { getSitesByUserId } from "@/lib/db/sites";
+import { getSitesByUserId, normalizeSiteUrlForComparison } from "@/lib/db/sites";
 import { createSupabaseClient } from "@/lib/supabase";
 import { CompetitorAnalysisSummary } from "@/lib/competitor-analysis";
 import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
@@ -43,24 +43,7 @@ export async function POST(request: NextRequest) {
     // siteUrlからsiteIdを取得
     const sites = await getSitesByUserId(session.userId);
     
-    // URLを正規化して比較（https://形式に統一）
-    const normalizeSiteUrlForComparison = (url: string): string => {
-      // 既にhttps://形式の場合はそのまま返す
-      if (url.startsWith("https://")) {
-        return url.replace(/\/$/, ""); // 末尾のスラッシュを除去
-      }
-      // sc-domain:形式をhttps://形式に変換
-      if (url.startsWith("sc-domain:")) {
-        const domain = url.replace("sc-domain:", "");
-        return `https://${domain}`;
-      }
-      // http://形式をhttps://形式に変換
-      if (url.startsWith("http://")) {
-        return url.replace("http://", "https://").replace(/\/$/, "");
-      }
-      return url.replace(/\/$/, "");
-    };
-    
+    // URLを正規化して比較（共通関数を使用）
     const normalizedSiteUrl = normalizeSiteUrlForComparison(siteUrl);
     const site = sites.find((s) => {
       const normalizedDbUrl = normalizeSiteUrlForComparison(s.site_url);

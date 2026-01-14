@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getGSCClient, GSCRow } from "@/lib/gsc-api";
-import { getSitesByUserId, getSiteById, convertUrlPropertyToDomainProperty, updateSiteUrl } from "@/lib/db/sites";
+import { getSitesByUserId, getSiteById, convertUrlPropertyToDomainProperty, updateSiteUrl, normalizeSiteUrlForComparison } from "@/lib/db/sites";
 import { getArticlesBySiteId, getArticleByUrl } from "@/lib/db/articles";
 import { getCache, generateCacheKey } from "@/lib/cache";
 import { getSessionAndLocale, getErrorMessage } from "@/lib/api-helpers";
@@ -99,24 +99,7 @@ export async function GET(request: NextRequest) {
     // サイト情報を取得
     const sites = await getSitesByUserId(session.userId as string);
     
-    // URLを正規化して比較（https://形式に統一）
-    const normalizeSiteUrlForComparison = (url: string): string => {
-      // 既にhttps://形式の場合はそのまま返す
-      if (url.startsWith("https://")) {
-        return url.replace(/\/$/, ""); // 末尾のスラッシュを除去
-      }
-      // sc-domain:形式をhttps://形式に変換
-      if (url.startsWith("sc-domain:")) {
-        const domain = url.replace("sc-domain:", "");
-        return `https://${domain}`;
-      }
-      // http://形式をhttps://形式に変換
-      if (url.startsWith("http://")) {
-        return url.replace("http://", "https://").replace(/\/$/, "");
-      }
-      return url.replace(/\/$/, "");
-    };
-    
+    // URLを正規化して比較（共通関数を使用）
     const normalizedSiteUrl = normalizeSiteUrlForComparison(siteUrl);
     
     // 同じドメインに対して複数のエントリがある場合、sc-domain: 形式を優先
