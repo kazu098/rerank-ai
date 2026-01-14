@@ -57,8 +57,11 @@ function normalizeSiteUrl(siteUrl: string): string {
 /**
  * サイトURLを正規化して比較用のドメインを抽出（重複チェック用）
  * sc-domain:形式とhttps://形式を同じドメインとして扱う
+ * 
+ * この関数は、同じドメインの異なる形式（sc-domain:example.com と https://example.com/）を
+ * 同一のドメインとして識別するために使用します。
  */
-function normalizeSiteUrlForComparison(url: string): string {
+export function normalizeSiteUrlForComparison(url: string): string {
   try {
     // sc-domain:形式の場合
     if (url.startsWith("sc-domain:")) {
@@ -606,6 +609,39 @@ export async function getAnalyzedDomainCountByUserId(userId: string): Promise<nu
   });
 
   return domains.size;
+}
+
+/**
+ * GSCプロパティ一覧を統合して重複を除去
+ * 同じドメインに対して sc-domain: と https:// の両方がある場合、sc-domain: を優先
+ * 
+ * @param properties GSC APIから取得したプロパティ一覧
+ * @returns 統合されたプロパティ一覧（sc-domain:形式を優先）
+ */
+export function mergeGSCProperties(properties: Array<{ siteUrl: string; [key: string]: any }>): Array<{ siteUrl: string; [key: string]: any }> {
+  // 同じドメインに対して sc-domain: と https:// の両方がある場合、sc-domain: を優先
+  // sc-domain: 形式の方がGSC APIで403エラーが発生しにくいため
+  const domainMap = new Map<string, { siteUrl: string; [key: string]: any }>();
+  
+  for (const property of properties) {
+    const siteUrl = property.siteUrl;
+    
+    // ドメインを抽出して正規化（既存の関数を使用）
+    const domain = normalizeSiteUrlForComparison(siteUrl);
+    
+    const existing = domainMap.get(domain);
+    if (!existing) {
+      // 初めてのドメイン
+      domainMap.set(domain, property);
+    } else if (siteUrl.startsWith("sc-domain:") && !existing.siteUrl.startsWith("sc-domain:")) {
+      // sc-domain: 形式を優先
+      domainMap.set(domain, property);
+    }
+    // https:// 形式で既に sc-domain: が登録されている場合はスキップ
+  }
+  
+  // 統合されたプロパティ一覧を返す
+  return Array.from(domainMap.values());
 }
 
 

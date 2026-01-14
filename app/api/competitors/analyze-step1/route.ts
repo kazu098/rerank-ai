@@ -5,7 +5,7 @@ import { checkUserPlanLimit, isTrialActive } from "@/lib/billing/plan-limits";
 import { getArticleByUrl } from "@/lib/db/articles";
 import { getUserById } from "@/lib/db/users";
 import { getPlanById } from "@/lib/db/plans";
-import { getSitesByUserId, updateSiteUrl } from "@/lib/db/sites";
+import { getSitesByUserId, updateSiteUrl, normalizeSiteUrlForComparison } from "@/lib/db/sites";
 
 /**
  * Step 1: GSCデータ取得 + キーワード選定 + 時系列データ取得
@@ -120,21 +120,7 @@ export async function POST(request: NextRequest) {
     if (result.updatedSiteUrl) {
       try {
         const sites = await getSitesByUserId(session.userId);
-        // URLを正規化して比較（https://形式に統一）
-        const normalizeSiteUrlForComparison = (url: string): string => {
-          if (url.startsWith("https://")) {
-            return url.replace(/\/$/, "");
-          }
-          if (url.startsWith("sc-domain:")) {
-            const domain = url.replace("sc-domain:", "");
-            return `https://${domain}`;
-          }
-          if (url.startsWith("http://")) {
-            return url.replace("http://", "https://").replace(/\/$/, "");
-          }
-          return url.replace(/\/$/, "");
-        };
-        
+        // URLを正規化して比較（共通関数を使用）
         const normalizedSiteUrl = normalizeSiteUrlForComparison(siteUrl);
         const site = sites.find((s) => {
           const normalizedDbUrl = normalizeSiteUrlForComparison(s.site_url);
