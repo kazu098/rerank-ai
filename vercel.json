@@ -5,7 +5,7 @@
   "framework": "nextjs",
   "functions": {
     "app/api/**/*.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "app/api/competitors/analyze/route.ts": {
       "maxDuration": 300
@@ -30,6 +30,18 @@
     },
     "app/api/cron/check-rank/test/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/article-improvement/generate/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/article-suggestions/generate/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/gsc/properties/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/analysis/detailed/route.ts": {
+      "maxDuration": 300
     }
   }
 }
