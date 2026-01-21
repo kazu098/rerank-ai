@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
     );
 
     if (!response.ok) {
+      // エラー時はtext()で読み込み、成功時はjson()で読み込むため、clone()は不要
+      // ただし、エラーレスポンスを読み込んだ後はreturnするため、成功時の処理には影響しない
       const errorText = await response.text();
       let errorData;
       try {
