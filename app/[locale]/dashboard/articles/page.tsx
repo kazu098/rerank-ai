@@ -218,10 +218,31 @@ export default function ArticlesPage() {
     }
     prevPathnameRef.current = currentPathname;
 
+    // 分析開始・完了時の通知をリッスン
+    const handleMessage = (event: MessageEvent) => {
+      // セキュリティのため、同じオリジンのメッセージのみ処理
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data.type === 'articleCreated' || event.data.type === 'analysisCompleted') {
+        // 記事が作成された、または分析が完了した場合、記事一覧を更新
+        fetchArticles();
+        
+        // ハイライトする記事IDを設定（分析完了の場合）
+        if (event.data.type === 'analysisCompleted' && event.data.articleId) {
+          // URLにhighlightパラメータを追加（既に存在する場合は更新）
+          const url = new URL(window.location.href);
+          url.searchParams.set('highlight', event.data.articleId);
+          window.history.replaceState({}, '', url.toString());
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
 
     return () => {
+      window.removeEventListener("message", handleMessage);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
     };
@@ -422,10 +443,10 @@ export default function ArticlesPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-80">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '250px', minWidth: '250px', maxWidth: '250px' }}>
                     {t("dashboard.articles.titleUrl")}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '100px', minWidth: '100px' }}>
                     <div className="flex items-center gap-1">
                       <span>{t("dashboard.articles.averagePosition")}</span>
                       <div className="group relative inline-block">
@@ -452,22 +473,22 @@ export default function ArticlesPage() {
                       </div>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '100px', minWidth: '100px' }}>
                     {t("dashboard.articles.previousPosition")}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '100px', minWidth: '100px' }}>
                     {t("dashboard.articles.positionChange")}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '120px', minWidth: '120px' }}>
                     {t("dashboard.articles.lastAnalyzed")}
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '120px', minWidth: '120px' }}>
                     {t("dashboard.articles.emailNotification")}
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '120px', minWidth: '120px' }}>
                     {t("dashboard.articles.slackNotification")}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '120px', minWidth: '120px' }}>
                     <div className="flex items-center gap-1">
                       <span>{t("dashboard.articles.autoCheck")}</span>
                       <div className="group relative inline-block">
@@ -494,7 +515,7 @@ export default function ArticlesPage() {
                       </div>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '80px', minWidth: '80px' }}>
                     {t("dashboard.articles.delete")}
                   </th>
                 </tr>
@@ -508,13 +529,13 @@ export default function ArticlesPage() {
                       highlightedArticleId === article.id ? "bg-yellow-50 border-l-4 border-yellow-400" : ""
                     }`}
                   >
-                    <td className="px-6 py-4 w-80">
+                    <td className="px-4 py-4" style={{ width: '250px', minWidth: '250px', maxWidth: '250px' }}>
                       <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-900 break-words line-clamp-2">
-                      {article.title || article.url}
+                        <div className="flex-1 min-w-0" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                          <div className="text-sm font-medium text-gray-900 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', lineHeight: '1.4' }}>
+                            {article.title || article.url}
                           </div>
-                          <div className="text-sm text-gray-500 truncate mt-1">
+                          <div className="text-xs text-gray-500 break-words mt-1" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', lineHeight: '1.3' }}>
                             {article.url}
                           </div>
                         </div>
@@ -533,7 +554,7 @@ export default function ArticlesPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {article.latestAnalysis &&
                         article.latestAnalysis.average_position !== null &&
@@ -542,7 +563,7 @@ export default function ArticlesPage() {
                           : t("dashboard.articles.noData")}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {article.latestAnalysis &&
                         article.latestAnalysis.previous_average_position !== null &&
@@ -556,7 +577,7 @@ export default function ArticlesPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       {article.latestAnalysis &&
                       article.latestAnalysis.position_change !== null &&
                       article.latestAnalysis.position_change !== undefined ? (
@@ -574,14 +595,14 @@ export default function ArticlesPage() {
                         <div className="text-sm text-gray-400">-</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
                         {article.last_analyzed_at
                           ? new Date(article.last_analyzed_at).toLocaleDateString()
                           : "-"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
@@ -678,7 +699,7 @@ export default function ArticlesPage() {
                         />
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                       <div className="group relative inline-block">
                         <button
                           onClick={async (e) => {

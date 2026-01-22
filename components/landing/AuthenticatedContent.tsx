@@ -574,6 +574,32 @@ export function AuthenticatedContent() {
       const siteUrl = selectedSiteUrl.replace(/\/$/, "");
       const pageUrl = urlObj.pathname + (urlObj.search || "") + (urlObj.hash || "");
       
+      // 分析開始時に記事を作成または取得（記事一覧に即座に表示されるように）
+      try {
+        const createArticleResponse = await fetch("/api/articles/create-or-get", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            articleUrl,
+            siteUrl,
+          }),
+        });
+
+        if (createArticleResponse.ok) {
+          const createResult = await createArticleResponse.json();
+          if (createResult.articleId) {
+            setAnalyzedArticleId(createResult.articleId);
+            // 記事一覧ページに通知（記事が作成されたことを知らせる）
+            window.postMessage({ type: 'articleCreated', articleId: createResult.articleId }, window.location.origin);
+          }
+        }
+      } catch (createError: any) {
+        console.error("[Analysis] Error creating article:", createError);
+        // 記事作成に失敗しても分析は続行
+      }
+      
       setCurrentStep(1);
       
       // 手動選択されたキーワードがある場合はそれを使用、ない場合は自動選定
@@ -779,6 +805,12 @@ export function AuthenticatedContent() {
             const saveResult = await saveResponse.json();
             if (saveResult.articleId) {
               setAnalyzedArticleId(saveResult.articleId);
+              // 記事一覧ページに通知（分析完了と記事更新を通知）
+              window.postMessage({ 
+                type: 'analysisCompleted', 
+                articleId: saveResult.articleId,
+                analysisResultId: saveResult.analysisResultId 
+              }, window.location.origin);
             }
             if (saveResult.analysisResultId) {
               setAnalyzedAnalysisResultId(saveResult.analysisResultId);
