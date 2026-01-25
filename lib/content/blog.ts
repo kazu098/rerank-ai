@@ -82,8 +82,8 @@ export async function getBlogPost(
   const fileContents = fs.readFileSync(fullPath, "utf8");
   const { data, content } = matter(fileContents);
 
-  // MarkdownをHTMLに変換
-  const processedContent = await remark().use(remarkHtml).process(content);
+  // MarkdownをHTMLに変換（表をサポート）
+  const processedContent = await remark().use(remarkGfm).use(remarkHtml).process(content);
   const htmlContent = processedContent.toString();
 
   return {
