@@ -130,6 +130,7 @@ export default async function LocaleLayout({
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
+            window.gtag = gtag;
             gtag('js', new Date());
             gtag('config', 'G-0WFJ5YTDF0');
           `}
