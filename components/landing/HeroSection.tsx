@@ -3,6 +3,7 @@
 import { useTranslations, useLocale } from "next-intl";
 import { signIn } from "next-auth/react";
 import { useSession } from "next-auth/react";
+import { trackCtaClick } from "@/lib/analytics";
 
 export function HeroSection() {
   const t = useTranslations();
@@ -51,6 +52,7 @@ export function HeroSection() {
       <div className="text-center mb-8">
         <button
           onClick={() => {
+            trackCtaClick("hero");
             const sessionAny = session as any;
             if (sessionAny?.user?.email) {
               localStorage.setItem('lastEmail', sessionAny.user.email);

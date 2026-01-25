@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { signIn, useSession } from "next-auth/react";
 import { Link } from "@/src/i18n/routing";
 import Image from "next/image";
+import { trackCtaClick } from "@/lib/analytics";
 
 export function Navigation() {
   const t = useTranslations();
@@ -50,6 +51,7 @@ export function Navigation() {
             ) : (
               <button
                 onClick={() => {
+                  trackCtaClick("nav_desktop");
                   const sessionAny = session as any;
                   if (sessionAny?.user?.email) {
                     localStorage.setItem('lastEmail', sessionAny.user.email);
@@ -73,6 +75,7 @@ export function Navigation() {
             ) : (
               <button
                 onClick={() => {
+                  trackCtaClick("nav_mobile");
                   const sessionAny = session as any;
                   if (sessionAny?.user?.email) {
                     localStorage.setItem('lastEmail', sessionAny.user.email);
