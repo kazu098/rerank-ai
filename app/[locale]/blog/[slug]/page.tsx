@@ -141,7 +141,7 @@ export default async function BlogPostPage({
 
         {/* 記事本文 */}
         <div
-          className="prose prose-lg max-w-none mb-12"
+          className="prose prose-lg max-w-none mb-12 prose-a:text-blue-600 prose-a:underline hover:prose-a:text-blue-700 prose-img:border prose-img:border-gray-200 prose-img:rounded-lg"
           dangerouslySetInnerHTML={{ __html: post.htmlContent }}
         />
 
