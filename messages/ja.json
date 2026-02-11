@@ -311,6 +311,7 @@
     "description": "あなたのサイトの順位データを取得し、自動で分析・改善案を提示します",
     "accountInfo": "使用するGoogleアカウントについて",
     "accountInfoDescription": "Search Consoleプロパティにアクセス権限が付与されているGoogleアカウントでログインしてください。",
+    "ctaTrustNote": "Googleでログインするだけ。Search Consoleのデータはあなたの許可がある場合のみ使います。",
     "accountInfoNote": "権限がないアカウントでは、サイトの順位データを取得できません。",
     "flow": "連携の流れ",
     "step1": "Googleアカウントでログイン",

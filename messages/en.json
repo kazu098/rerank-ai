@@ -308,6 +308,7 @@
     "description": "Retrieve your site's ranking data and automatically analyze and suggest improvements",
     "accountInfo": "About the Google Account to Use",
     "accountInfoDescription": "Please sign in with a Google account that has access rights to Search Console properties.",
+    "ctaTrustNote": "Sign in with Google only. We use Search Console data only when you grant access.",
     "accountInfoNote": "Accounts without rights cannot retrieve site ranking data.",
     "flow": "Linking Flow",
     "step1": "Sign in with Google account",

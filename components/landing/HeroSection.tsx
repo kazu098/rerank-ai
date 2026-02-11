@@ -66,7 +66,7 @@ export function HeroSection() {
           {t("home.ctaButton")}
         </button>
         <p className="mt-2 text-xs text-gray-500">
-          {t("auth.accountInfoDescription")}
+          {t("auth.ctaTrustNote")}
         </p>
       </div>
 
