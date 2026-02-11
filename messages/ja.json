@@ -44,7 +44,23 @@
     "loginWithGoogle": "Googleでログインして始める",
     "heroTitle": "SEO順位を自動で改善",
     "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します。\nAI検索（AIO）や新規記事の提案にも対応。",
+    "ctaOrLabel": "または",
     "ctaButton": "Googleアカウントで無料開始",
+    "trySection": {
+      "title": "まず順位を確認（無料・登録不要）",
+      "articleUrlPlaceholder": "記事のURL",
+      "keywordPlaceholder": "調べたいキーワード（例: 記事のメインキーワード）",
+      "keywordHint": "複数キーワードはカンマ区切りで入力できます（最大5件）",
+      "submitButton": "順位を確認する",
+      "loading": "確認中...",
+      "resultTitle": "「{keyword}」での順位",
+      "resultItem": "「{keyword}」: {positionLabel}",
+      "resultCtaMessage": "詳細な改善案・リライト原稿を見るには無料登録してください。",
+      "resultCtaButton": "無料で続きを見る",
+      "errorRateLimit": "リクエストが多すぎます。しばらくしてからお試しください。",
+      "errorInvalidUrl": "正しいURLを入力してください。",
+      "errorGeneric": "取得できませんでした。しばらくしてからお試しください。"
+    },
     "demoVideoTitle": "ReRank AI デモ動画",
     "videoNotSupported": "お使いのブラウザは動画の再生をサポートしていません。",
     "features": {

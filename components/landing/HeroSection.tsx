@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { signIn } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import { trackCtaClick } from "@/lib/analytics";
+import { TryBeforeSignupSection } from "@/components/landing/TryBeforeSignupSection";
 
 export function HeroSection() {
   const t = useTranslations();
@@ -39,6 +40,9 @@ export function HeroSection() {
         </p>
       </div>
 
+      {/* 未ログイン: まず順位を確認（登録不要） */}
+      <TryBeforeSignupSection />
+
       {/* 簡単な説明 */}
       <div className="max-w-2xl mx-auto mb-6">
         <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
@@ -48,8 +52,9 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* CTAボタン */}
+      {/* または Googleで無料開始（従の導線） */}
       <div className="text-center mb-8">
+        <p className="text-sm text-gray-500 mb-3">{t("home.ctaOrLabel")}</p>
         <button
           onClick={() => {
             trackCtaClick("hero");

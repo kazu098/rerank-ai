@@ -44,7 +44,23 @@
     "loginWithGoogle": "Sign in with Google to get started",
     "heroTitle": "Automatically Improve SEO Rankings",
     "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements.\nSupports AI search (AIO) and new article suggestions.",
+    "ctaOrLabel": "Or",
     "ctaButton": "Get Started Free with Google Account",
+    "trySection": {
+      "title": "Check your rank first (free, no signup)",
+      "articleUrlPlaceholder": "Article URL",
+      "keywordPlaceholder": "Keyword to check (e.g. main keyword for the article)",
+      "keywordHint": "Multiple keywords: separate with commas (max 5)",
+      "submitButton": "Check rank",
+      "loading": "Checking...",
+      "resultTitle": "Position for \"{keyword}\"",
+      "resultItem": "\"{keyword}\": {positionLabel}",
+      "resultCtaMessage": "Sign up free to see detailed improvement suggestions and rewrite drafts.",
+      "resultCtaButton": "See more for free",
+      "errorRateLimit": "Too many requests. Please try again later.",
+      "errorInvalidUrl": "Please enter a valid URL.",
+      "errorGeneric": "Could not fetch. Please try again later."
+    },
     "demoVideoTitle": "ReRank AI Demo Video",
     "videoNotSupported": "Your browser does not support video playback.",
     "features": {

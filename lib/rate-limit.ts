@@ -1,6 +1,6 @@
 import { createSupabaseClient } from '@/lib/supabase';
 
-export type RateLimitAction = 'login' | 'register' | 'password_reset' | 'email_verification';
+export type RateLimitAction = 'login' | 'register' | 'password_reset' | 'email_verification' | 'try_analysis';
 
 interface RateLimitConfig {
   maxAttempts: number;
@@ -22,6 +22,10 @@ const RATE_LIMIT_CONFIGS: Record<RateLimitAction, RateLimitConfig> = {
   },
   email_verification: {
     maxAttempts: 10, // 1時間に10回まで
+    windowMinutes: 60,
+  },
+  try_analysis: {
+    maxAttempts: 5, // 1時間に5回まで（未ログイン体験）
     windowMinutes: 60,
   },
 };
