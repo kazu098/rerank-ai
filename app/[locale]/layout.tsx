@@ -19,8 +19,8 @@ export async function generateMetadata({
 
   const title = "ReRank AI";
   const description = isJapanese
-    ? "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します。AI検索（AIO）や新規記事の提案にも対応。"
-    : "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements. Supports AI search (AIO) and new article suggestions.";
+    ? "順位が下がる前に、AIが教える。記事のメンテが手が回らない人向けに、毎日チェック・下落検知・改善案の自動提案。まず無料で順位を確認できます。"
+    : "Don't wait for rankings to drop—AI tells you what to fix. Daily checks, drop alerts, and improvement suggestions. Check your rank free, no signup required.";
   const keywords = isJapanese
     ? "SEO, 検索エンジン最適化, AI, 自動化, Google Search Console, 順位監視, 競合分析, 記事改善, SEOツール, リライト提案"
     : "SEO, search engine optimization, AI, automation, Google Search Console, rank monitoring, competitor analysis, article improvement, SEO tool, rewrite suggestions";
