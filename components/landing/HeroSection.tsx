@@ -43,15 +43,6 @@ export function HeroSection() {
       {/* 未ログイン: まず順位を確認（登録不要） */}
       <TryBeforeSignupSection />
 
-      {/* 簡単な説明 */}
-      <div className="max-w-2xl mx-auto mb-6">
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
-          <p className="text-xs text-blue-700 whitespace-nowrap">
-            <strong>{t("auth.accountInfoDescription")}</strong>
-          </p>
-        </div>
-      </div>
-
       {/* または Googleで無料開始（従の導線） */}
       <div className="text-center mb-8">
         <p className="text-sm text-gray-500 mb-3">{t("home.ctaOrLabel")}</p>
@@ -74,6 +65,9 @@ export function HeroSection() {
           </svg>
           {t("home.ctaButton")}
         </button>
+        <p className="mt-2 text-xs text-gray-500">
+          {t("auth.accountInfoDescription")}
+        </p>
       </div>
 
       {/* デモ動画 */}

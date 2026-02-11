@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SerperApiClient } from "@/lib/serper-api";
 import { checkRateLimit, getClientIpAddress } from "@/lib/rate-limit";
+import { ArticleScraper } from "@/lib/article-scraper";
+import { DiffAnalyzer } from "@/lib/diff-analyzer";
 
 function normalizeUrl(url: string): string {
   try {
@@ -78,19 +80,52 @@ export async function POST(request: NextRequest) {
     const normalizedInput = normalizeUrl(articleUrl);
     const client = new SerperApiClient();
     const results: Array<{ keyword: string; position: number | null; positionLabel: string }> = [];
+    let firstKeywordSearchResults: Array<{ url: string; title: string; position: number }> | null = null;
 
     for (const keyword of keywords) {
       const searchResults = await client.search(keyword, "Japan", 20);
+      if (keywords.indexOf(keyword) === 0) {
+        firstKeywordSearchResults = searchResults;
+      }
       const found = searchResults.find((r) => normalizeUrl(r.url) === normalizedInput);
       const position = found?.position ?? null;
       const positionLabel = position !== null ? `${position}位` : "20位以下";
       results.push({ keyword, position, positionLabel });
     }
 
+    let hint: string | null = null;
+    if (firstKeywordSearchResults && firstKeywordSearchResults.length > 0) {
+      const firstCompetitor = firstKeywordSearchResults.find(
+        (r) => normalizeUrl(r.url) !== normalizedInput
+      );
+      if (firstCompetitor) {
+        try {
+          const scraper = new ArticleScraper();
+          const [ownArticle, competitorArticle] = await Promise.allSettled([
+            scraper.scrapeArticle(articleUrl, false),
+            scraper.scrapeArticle(firstCompetitor.url, false),
+          ]);
+          if (
+            ownArticle.status === "fulfilled" &&
+            competitorArticle.status === "fulfilled" &&
+            competitorArticle.value
+          ) {
+            const diffAnalyzer = new DiffAnalyzer();
+            const diff = diffAnalyzer.analyze(ownArticle.value, [competitorArticle.value]);
+            if (diff.recommendations.length > 0) {
+              hint = diff.recommendations[0];
+            }
+          }
+        } catch (e) {
+          console.warn("[try-analysis] Hint generation failed:", e);
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         results,
-        hint: null,
+        hint,
         ctaMessage: "full_analysis_after_signup",
       },
       { headers: { "X-RateLimit-Remaining": String(remaining) } }

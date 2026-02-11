@@ -11,6 +11,14 @@ const nextConfig = {
   images: {
     domains: [],
   },
+  // dev時の vendor-chunks/tslib 解決エラー対策
+  webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      tslib: require.resolve('tslib'),
+    };
+    return config;
+  },
 }
 
 module.exports = withNextIntl(nextConfig);

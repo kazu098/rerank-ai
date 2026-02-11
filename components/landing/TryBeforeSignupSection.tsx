@@ -15,7 +15,7 @@ type TryResult = {
   results: TryResultItem[];
   hint: string | null;
   ctaMessage: string;
-};
+}
 
 export function TryBeforeSignupSection() {
   const t = useTranslations("home.trySection");
@@ -92,6 +92,12 @@ export function TryBeforeSignupSection() {
                 ? t("resultTitle", { keyword: result.results[0].keyword })
                 : null}
             </p>
+            {result.hint && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs font-semibold text-amber-800 mb-1">{t("resultHintLabel")}</p>
+                <p className="text-sm text-gray-800">{result.hint}</p>
+              </div>
+            )}
             <ul className="space-y-2 mb-4">
               {result.results.map((item) => {
                 const positionDisplay =

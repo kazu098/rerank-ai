@@ -55,6 +55,7 @@
       "loading": "Checking...",
       "resultTitle": "Position for \"{keyword}\"",
       "resultItem": "\"{keyword}\": {positionLabel}",
+      "resultHintLabel": "Improvement hint",
       "resultCtaMessage": "Sign up free to see detailed improvement suggestions and rewrite drafts.",
       "resultCtaButton": "See more for free",
       "errorRateLimit": "Too many requests. Please try again later.",

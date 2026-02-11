@@ -55,6 +55,7 @@
       "loading": "確認中...",
       "resultTitle": "「{keyword}」での順位",
       "resultItem": "「{keyword}」: {positionLabel}",
+      "resultHintLabel": "改善のヒント",
       "resultCtaMessage": "詳細な改善案・リライト原稿を見るには無料登録してください。",
       "resultCtaButton": "無料で続きを見る",
       "errorRateLimit": "リクエストが多すぎます。しばらくしてからお試しください。",
