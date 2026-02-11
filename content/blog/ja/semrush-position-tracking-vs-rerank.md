@@ -1,0 +1,97 @@
+---
+title: "SEMrush 順位監視（Position Tracking）vs ReRank AI：手動確認と自動改善の違い"
+description: "SEMrushのPosition TrackingとReRank AIの順位監視を比較。日次更新と手動確認の運用と、自動通知・改善案まで届くReRankの違いを解説します。"
+date: "2026-02-11"
+category: "比較"
+tags: ["SEMrush", "Position Tracking", "順位監視", "ReRank AI", "SEOツール"]
+author: "ReRank AI"
+image: "/blog-images/semrush-position-tracking-vs-rerank.jpg"
+---
+
+# SEMrush 順位監視（Position Tracking）vs ReRank AI：手動確認と自動改善の違い
+
+「記事の順位を定期的にチェックしたい」「順位が下がったらすぐ気づきたい」——そんなニーズに応えるのが順位監視機能です。SEMrushの**Position Tracking**と**ReRank AI**はどちらも順位を追跡しますが、**確認の仕方**と**下落後のアクション**が大きく違います。この記事では、両者の仕様と、自分に合う選び方を解説します。
+
+## この記事でわかること
+
+- **SEMrush Position Tracking**の仕様（日次更新・プロジェクト・キーワード上限）
+- **ReRank AI**の順位監視（GSC連携・自動通知・改善案まで一気通貫）
+- どちらを選ぶかの判断基準と併用の役割分担
+
+## SEMrush Position Trackingとは
+
+SEMrushの**Position Tracking**は、指定したドメイン・キーワード・地域の組み合わせで、検索順位の推移を記録・表示する機能です（出典：SEMrush [Position Tracking の更新頻度](https://www.semrush.com/kb/326-how-often-does-the-position-tracker-update-its-data)、[制限について](https://semrush.com/kb/696-what-are-the-limits-of-my-position-tracking-campaign)）。
+
+### 仕様の詳細（公式情報に基づく）
+
+- **更新頻度**：**日次**で自動更新（約24〜48時間以内）。Ahrefs Rank Trackerの週1回より頻度は高いです。手動で更新タイミングを指定することはできません。
+- **プロジェクト・キーワード数**：プランごとに上限あり。Pro 5プロジェクト・500キーワード、Guru 15プロジェクト・1,500キーワード、Business 40プロジェクト・5,000キーワードなど。
+- **データ保持**：日次データは60日間、その後は週次（水曜日など）で最大約140週分の履歴が利用可能。
+- **通知**：「順位が下がりました」といった**自動通知**の有無はプランや設定によるため、ダッシュボードを開いて自分で変化を確認する運用が基本になります。
+- **改善案**：Position Trackingは**順位の記録・表示のみ**。競合分析や「何を直すか」の提案は、別機能（Content Analyzer 等）で手動で行う必要があります。
+
+### 運用のイメージ
+
+1. SEMrushのダッシュボードにログインする
+2. Position Tracking（該当キャンペーン）を開く
+3. 順位の変化をグラフや表で**自分で確認**する
+4. 下がっているキーワードがあれば、**自分で原因を調べ**、改善案を考える
+
+つまり、**「見に行く」＋「分析する」は手動**です。日次でデータは更新されますが、見に行く頻度と改善案の検討は自分で行う必要があります。
+
+## ReRank AIの順位監視の特徴
+
+ReRank AIは、**Google Search Console（GSC）と連携**して、登録した記事・キーワードの順位を自動で取得し、変化を監視します。
+
+### 仕様の詳細（サービス仕様に基づく）
+
+- **順位データの取得元**：**GSCの検索パフォーマンスデータ**。Googleが集計した実際の検索順位・クリック・インプレッションと同じデータです。
+- **監視単位**：**記事（URL）ごと**にキーワードを登録。監視記事数はプランにより無料3記事、スターター20記事、スタンダード100記事、ビジネス300記事まで。
+- **通知**：順位下落（または上昇）を検知したら**メールで通知**。ダッシュボードを開かなくても「何が下がったか」「何を直すか」が分かります。
+- **改善案**：下落時に**上位競合を自動分析**し、**不足している要素を1件ずつテキストで提案**。リライトのヒントとしてそのまま使えます。
+
+### 運用のイメージ
+
+1. 初回だけGSC連携と記事・キーワードの登録を行う
+2. あとは**自動で順位を監視**
+3. 順位が下がった記事があれば**通知が届く**
+4. 通知またはダッシュボードから**改善案を確認**し、記事を修正する
+
+「見に行く」頻度を減らし、「何を直すか」までツールが提案してくれる点が、Position Trackingとの大きな違いです。
+
+## 比較表：Position Tracking vs ReRank AI（順位監視まわり）
+
+| 項目 | SEMrush Position Tracking | ReRank AI |
+|------|---------------------------|-----------|
+| 順位データの取得元 | SEMrushのデータベース | Google Search Console |
+| 更新頻度 | 日次（約24〜48時間以内） | GSC連携のためサービス側の設計に依存 |
+| 追跡単位・上限 | プロジェクト・キーワード数（Pro 500 / Guru 1,500 / Business 5,000） | 記事数（無料3 / スターター20 / スタンダード100 / ビジネス300） |
+| 順位下落の通知 | 標準では通知なし（自分でダッシュボードを確認） | あり（メールで通知） |
+| 下落時のアクション | 自分で競合分析・改善案を検討 | 競合分析・改善案を自動提案 |
+| 向いている人 | すでにSEMrushを使っていて、順位は自分でチェックしたい人 | 記事メンテの時間を減らしたい・自動で改善案まで欲しい人 |
+
+## どちらを選ぶか・併用の考え方
+
+- **「毎日〜週に1回、SEMrushを開いて順位を確認する」運用で問題ない**  
+  → Position Trackingのままでもよい。すでにSEMrush契約があるなら、そのまま活用してよい。
+
+- **「気づいたら順位が下がっていた」を防ぎたい・メンテまで手が回らない**  
+  → ReRank AIの自動監視＋改善案の方が向いています。通知が届くので、見に行き忘れが減ります。
+
+- **キーワード調査や広告分析はSEMrushで続けたいが、順位監視だけ自動化したい**  
+  → SEMrushは調査・広告用、ReRank AIは順位監視・改善案用に**併用**する形がおすすめです。
+
+## まとめ
+
+- **SEMrush Position Tracking**：順位は日次で更新されるが、**確認も分析も手動**。定期的に画面を開く運用向き。
+- **ReRank AI**：GSC連携で**自動監視**し、**下落時に通知＋改善案**まで届く。メンテの手間を減らしたい人向き。
+
+まずは[ReRank AIの無料プラン](https://rerank-ai.com)で、数記事だけ監視を試してみるのもおすすめです。
+
+## 関連記事
+
+- [SEMrush vs ReRank AI：機能比較と選び方](/ja/blog/semrush-comparison)（総合比較）
+- [SEMrushが高い人向けの代替ツール・ReRank AI](/ja/blog/semrush-alternative-price)
+- [SEMrush キーワード調査とReRankの使い分け](/ja/blog/semrush-keyword-research-vs-rerank)
+- [SEMrush 競合分析・広告分析とReRankの位置づけ](/ja/blog/semrush-competitor-advertising-vs-rerank)
+- [Ahrefs vs SEMrush：違いと選び方](/ja/blog/ahrefs-vs-semrush)
