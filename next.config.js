@@ -7,6 +7,10 @@ const nextConfig = {
   reactStrictMode: true,
   // Vercelでのデプロイ最適化
   output: 'standalone',
+  // standaloneビルドに content/ を含める（本番で /ja/docs 等が404にならないように）
+  outputFileTracingIncludes: {
+    '/*': ['content/docs/**', 'content/blog/**'],
+  },
   // 画像最適化
   images: {
     domains: [],
