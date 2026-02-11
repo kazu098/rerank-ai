@@ -989,40 +989,32 @@ export function AuthenticatedContent() {
                 <p className="mt-4 text-gray-600">{t("home.propertyLoading")}</p>
               </div>
             ) : gscProperties.length === 0 ? (
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-yellow-800">
-                      {t("gsc.noPropertiesFound")}
-                    </h3>
-                    <div className="mt-2 text-sm text-yellow-700">
-                      <p className="mb-2">
-                        {t("gsc.noAccessRights")}
-                      </p>
-                      <p>
-                        <strong>{t("gsc.solution")}:</strong>
-                      </p>
-                      <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>{t("gsc.solution1")}</li>
-                        <li>{t("gsc.solution2")}</li>
-                        <li>{t("gsc.solution3")}</li>
-                      </ul>
-                      <a 
-                        href="https://search.google.com/search-console" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="mt-3 inline-block text-purple-600 hover:underline font-semibold"
-                      >
-                        Search Consoleを開く →
-                      </a>
-                    </div>
-                  </div>
-                </div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6">
+                <h3 className="text-lg font-semibold text-amber-900 mb-2">
+                  {t("auth.noAccessRightsTitle")}
+                </h3>
+                <p className="text-sm text-amber-800 mb-4">
+                  {t("gsc.noAccessRights")}
+                </p>
+                <p className="text-sm font-medium text-amber-900 mb-2">
+                  {t("gsc.solution")}:
+                </p>
+                <ul className="list-disc list-inside text-sm text-amber-800 space-y-1 mb-4">
+                  <li>{t("gsc.solution1")}</li>
+                  <li>{t("gsc.solution2")}</li>
+                  <li>{t("gsc.solution3")}</li>
+                </ul>
+                <a
+                  href="https://search.google.com/search-console"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-purple-600 hover:underline"
+                >
+                  {t("gsc.openSearchConsole")}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
               </div>
             ) : (
               <div className="space-y-3">
