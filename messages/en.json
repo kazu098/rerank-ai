@@ -40,10 +40,10 @@
   },
   "home": {
     "title": "ReRank AI",
-    "subtitle": "From preventing ranking drops to boosting rankings, AI automatically identifies differences.",
+    "subtitle": "Don't wait for rankings to drop—AI tells you what to fix.",
     "loginWithGoogle": "Sign in with Google to get started",
-    "heroTitle": "Automatically Improve SEO Rankings",
-    "heroSubtitle": "Simply connect with Google Search Console, and AI will detect ranking drops and automatically suggest improvements.\nSupports AI search (AIO) and new article suggestions.",
+    "heroTitle": "Don't wait for rankings to drop—AI tells you what to fix.",
+    "heroSubtitle": "Written content but can't keep up with maintenance? ReRank AI checks daily, detects drops, and suggests improvements.\nCheck your rank free—no signup required.",
     "ctaOrLabel": "Or",
     "ctaButton": "Get Started Free with Google Account",
     "trySection": {

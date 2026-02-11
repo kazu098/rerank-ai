@@ -40,10 +40,10 @@
   },
   "home": {
     "title": "ReRank AI",
-    "subtitle": "「順位下落の防止」から「上位への引き上げ」まで、AIが差分を自動特定。",
+    "subtitle": "順位が下がる前に、AIが教える。",
     "loginWithGoogle": "Googleでログインして始める",
-    "heroTitle": "SEO順位を自動で改善",
-    "heroSubtitle": "Google Search Consoleと連携するだけで、AIが順位下落を検知し、改善案を自動提案します。\nAI検索（AIO）や新規記事の提案にも対応。",
+    "heroTitle": "順位が下がる前に、AIが教える。",
+    "heroSubtitle": "記事を書いたあと、メンテまで手が回らない。ReRank AIが毎日チェックし、下落を検知したら改善案を自動提案。\nまずは無料で順位を確認できます。",
     "ctaOrLabel": "または",
     "ctaButton": "Googleアカウントで無料開始",
     "trySection": {
