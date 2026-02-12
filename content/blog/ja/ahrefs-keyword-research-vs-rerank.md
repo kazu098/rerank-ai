@@ -1,5 +1,5 @@
 ---
-title: "Ahrefs キーワード調査とReRank AIの使い分け"
+title: "Ahrefs キーワード調査とReRank AIの使い分け【併用】役割分担を解説"
 description: "AhrefsのKeywords ExplorerとReRank AIの役割の違いを解説。キーワード調査はAhrefs、順位メンテと改善案はReRank、という併用パターンを紹介します。"
 date: "2026-02-11"
 category: "比較"
@@ -18,6 +18,16 @@ SEOでは「どのキーワードを狙うか」の調査と、「すでに書�
 - ReRank AIがカバーする範囲（順位監視・改善案。キーワード調査は補助的）
 - 「キーワード調査はAhrefs、順位メンテはReRank」の役割分担
 - 併用する場合のワークフロー例
+
+## 目次
+
+1. Ahrefs キーワード調査（Keywords Explorer）でできること
+2. ReRank AIでできること（キーワードまわり）
+3. 役割分担の整理
+4. 併用する場合のワークフロー例
+5. キーワード調査だけ欲しい場合・順位メンテだけ欲しい場合
+6. まとめ
+7. 関連記事
 
 ## Ahrefs キーワード調査（Keywords Explorer）でできること
 

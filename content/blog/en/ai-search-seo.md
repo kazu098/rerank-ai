@@ -1,5 +1,5 @@
 ---
-title: "SEO Strategies for the AI Search (AIO) Era: Latest Trends for 2025"
+title: "AI Search (AIO) SEO Strategies [2025]: Click Decline & Response Trends"
 description: "With the rise of AI search (AIO), SEO strategies have changed significantly. This article explains the latest trends and strategies for 2025. Includes practical data and improvement examples from ReRank AI."
 date: "2025-01-05"
 category: "SEO"

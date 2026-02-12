@@ -1,5 +1,5 @@
 ---
-title: "SEMrush 競合分析・広告分析とReRank AIの位置づけ"
+title: "SEMrush 競合分析・広告分析とReRank AIの違い【役割】どちらを選ぶか"
 description: "SEMrushの競合分析・広告分析機能とReRank AIの違いを解説。ReRankは広告・競合トラフィック分析を提供せず、コンテンツ・順位のメンテに特化している理由を説明します。"
 date: "2026-02-11"
 category: "比較"
@@ -18,6 +18,16 @@ image: "/blog-images/semrush-competitor-advertising-vs-rerank.jpg"
 - ReRank AIが競合・広告を扱わない理由と、代わりにできること
 - 競合・広告までやりたい人・コンテンツメンテだけしたい人の選び方
 - 併用する場合の役割分担
+
+## 目次
+
+1. SEMrushの競合分析でできること
+2. SEMrushの広告分析でできること
+3. ReRank AIが競合・広告機能を持たない理由
+4. 比較：競合・広告まわり
+5. どちらを選ぶか・併用の考え方
+6. まとめ
+7. 関連記事
 
 ## SEMrushの競合分析でできること
 
