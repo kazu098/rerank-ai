@@ -1,5 +1,5 @@
 ---
-title: "SEMrush 順位監視（Position Tracking）vs ReRank AI：手動確認と自動改善の違い"
+title: "SEMrush Position Tracking vs ReRank AI【比較】手動確認と自動改善の違い"
 description: "SEMrushのPosition TrackingとReRank AIの順位監視を比較。日次更新と手動確認の運用と、自動通知・改善案まで届くReRankの違いを解説します。"
 date: "2026-02-11"
 category: "比較"
@@ -17,6 +17,15 @@ image: "/blog-images/semrush-position-tracking-vs-rerank.jpg"
 - **SEMrush Position Tracking**の仕様（日次更新・プロジェクト・キーワード上限）
 - **ReRank AI**の順位監視（GSC連携・自動通知・改善案まで一気通貫）
 - どちらを選ぶかの判断基準と併用の役割分担
+
+## 目次
+
+1. SEMrush Position Trackingとは
+2. ReRank AIの順位監視の特徴
+3. 比較表：Position Tracking vs ReRank AI（順位監視まわり）
+4. どちらを選ぶか・併用の考え方
+5. まとめ
+6. 関連記事
 
 ## SEMrush Position Trackingとは
 

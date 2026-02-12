@@ -1,5 +1,5 @@
 ---
-title: "Ahrefs バックリンク分析とReRank AIの位置づけ"
+title: "Ahrefs バックリンク分析とReRank AIの違い【役割】併用の選び方"
 description: "Ahrefsのバックリンク分析（Site Explorer・DR）とReRank AIの違いを解説。ReRankはバックリンク機能を持たず、コンテンツ・順位のメンテに特化している理由を説明します。"
 date: "2026-02-11"
 category: "比較"
@@ -18,6 +18,15 @@ image: "/blog-images/ahrefs-backlink-vs-rerank.jpg"
 - ReRank AIがバックリンクを扱わない理由と、代わりにできること
 - バックリンク戦略が必要な人・コンテンツメンテだけしたい人の選び方
 - 併用する場合の役割分担
+
+## 目次
+
+1. Ahrefsのバックリンク分析でできること
+2. ReRank AIがバックリンク機能を持たない理由
+3. 比較：バックリンクまわり
+4. どちらを選ぶか・併用の考え方
+5. まとめ
+6. 関連記事
 
 ## Ahrefsのバックリンク分析でできること
 

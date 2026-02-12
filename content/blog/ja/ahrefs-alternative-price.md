@@ -1,5 +1,5 @@
 ---
-title: "Ahrefsが高いと感じる人向けの代替ツール・ReRank AI"
+title: "Ahrefsが高い人向けの代替【ReRank AI】料金比較とコスト削減の目安"
 description: "Ahrefsの料金が高いと感じている方向けに、順位監視と改善案に特化した代替としてReRank AIを紹介。無料〜月額2,980円で始められる選択肢を解説します。"
 date: "2026-02-11"
 category: "比較"
@@ -18,6 +18,15 @@ image: "/blog-images/ahrefs-alternative-price.jpg"
 - 「順位監視＋改善案だけ欲しい」場合にAhrefsが過剰になりがちな理由
 - ReRank AIの料金・制限の詳細と**コスト比較（約47〜81%削減の目安）**
 - 無料で試す方法と、どちらを選ぶかの判断基準
+
+## 目次
+
+1. Ahrefsの料金（2026年・公式情報に基づく）
+2. 「順位監視＋改善案」だけなら代替を検討する価値あり
+3. ReRank AIの価格と機能の詳細
+4. AhrefsとReRank AI、どちらを選ぶか
+5. まとめ
+6. 関連記事
 
 ## Ahrefsの料金（2026年・公式情報に基づく）
 

@@ -1,5 +1,5 @@
 ---
-title: "SEMrush vs ReRank AI: Feature Comparison and Selection Guide"
+title: "SEMrush vs ReRank AI [Comparison]: Features, Pricing & How to Choose"
 description: "A detailed comparison of the popular digital marketing tool SEMrush and ReRank AI. Introduces the strengths of each and how to use them. A practical comparison article with actual data and improvement examples."
 date: "2025-01-12"
 category: "Comparison"

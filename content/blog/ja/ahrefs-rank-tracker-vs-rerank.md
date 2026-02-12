@@ -1,5 +1,5 @@
 ---
-title: "Ahrefs 順位監視（Rank Tracker）vs ReRank AI：手動と自動の違い"
+title: "Ahrefs Rank Tracker vs ReRank AI【比較】手動と自動監視・改善案の違い"
 description: "AhrefsのRank TrackerとReRank AIの順位監視機能を比較。手動で確認する運用と、自動監視・改善案まで届く運用の違いを解説します。"
 date: "2026-02-11"
 category: "比較"
@@ -18,6 +18,16 @@ image: "/blog-images/ahrefs-rank-tracker-vs-rerank.jpg"
 - **ReRank AI**の順位監視（GSC連携・自動通知・改善案まで一気通貫）
 - どちらを選ぶかの判断基準（「メンテまで手が回らない」ならReRank向き）
 - 併用する場合の役割分担
+
+## 目次
+
+1. Ahrefs Rank Trackerとは
+2. ReRank AIの順位監視の特徴
+3. 比較表：Rank Tracker vs ReRank AI（順位監視まわり）
+4. どちらを選ぶか：判断の目安
+5. 併用する場合の役割分担
+6. まとめ
+7. 関連記事
 
 ## Ahrefs Rank Trackerとは
 
