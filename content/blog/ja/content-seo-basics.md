@@ -1,7 +1,7 @@
 ---
 title: "コンテンツSEOの基本【上位表示】必要な要素と対策を解説"
 description: "コンテンツSEOの基本を解説し、上位表示に必要な要素を詳しく紹介します。ReRank AIの実際の分析データと改善事例を含む実践的なガイドです。"
-date: "2025-01-03"
+date: "2026-01-03"
 category: "SEO対策"
 tags: ["コンテンツSEO", "SEO基本", "上位表示"]
 author: "ReRank AI"
@@ -476,4 +476,4 @@ Google. https://search.google.com/search-console
 ReRank AI. https://rerank-ai.com  
 （機能詳細、料金プラン）
 
-最終更新日：2025年1月18日
+最終更新日：2026年1月18日

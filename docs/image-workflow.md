@@ -300,7 +300,7 @@ npm run insert-images
    - ReRank AIのトップページをキャプチャ
 
 2. **ファイル名を変更**
-   - `スクリーンショット 2025-01-15 10.30.45.png` → `getting-started-top-page.png`
+   - `スクリーンショット 2026-01-15 10.30.45.png` → `getting-started-top-page.png`
 
 3. **`images/raw/`に保存**
    - `images/raw/getting-started-top-page.png`として保存

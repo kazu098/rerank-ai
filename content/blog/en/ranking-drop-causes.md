@@ -1,7 +1,7 @@
 ---
-title: "Ranking Drop Causes & Solutions [2025]: Competitor Analysis with ReRank AI"
+title: "Ranking Drop Causes & Solutions [2026]: Competitor Analysis with ReRank AI"
 description: "A detailed explanation of why search rankings drop and effective solution methods through competitor analysis. Includes practical data and improvement examples from ReRank AI."
-date: "2025-01-08"
+date: "2026-01-08"
 category: "SEO"
 tags: ["ranking drop", "competitor analysis", "SEO"]
 author: "ReRank AI"

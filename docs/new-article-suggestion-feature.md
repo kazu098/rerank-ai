@@ -757,7 +757,7 @@ CREATE INDEX idx_article_suggestions_status ON article_suggestions(status);
 
 ### 4. エラーハンドリング
 
-**GSC APIの制限（2025年現在）**:
+**GSC APIの制限（2026年現在）**:
 - **サイト単位**: 1,200 QPM（1分あたり1,200リクエスト）
 - **ユーザー単位**: 1,200 QPM（1分あたり1,200リクエスト）
 - **プロジェクト単位**: 100,000,000 QPD（1日あたり1億リクエスト）

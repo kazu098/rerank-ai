@@ -1,7 +1,7 @@
 ---
 title: "Content SEO Basics [Top Rankings]: Essential Elements & Best Practices"
 description: "An explanation of content SEO basics and essential elements for top rankings. Includes practical data and improvement examples from ReRank AI."
-date: "2025-01-03"
+date: "2026-01-03"
 category: "SEO"
 tags: ["content SEO", "SEO basics", "top rankings"]
 author: "ReRank AI"

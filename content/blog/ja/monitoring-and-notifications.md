@@ -1,7 +1,7 @@
 ---
 title: "ReRank AIの監視・通知の設定方法【手順】メール・Slackで順位下落を検知"
 description: "ReRank AIで記事を監視対象に追加し、ダッシュボードで確認して通知を設定する方法を詳しく解説します。実際の画面スクリーンショット付きで、5分で設定できます。"
-date: "2025-01-25"
+date: "2026-01-25"
 category: "使い方"
 tags: ["監視", "通知", "設定"]
 author: "ReRank AI"
@@ -239,7 +239,7 @@ ReRank AI. https://rerank-ai.com
 Google. https://search.google.com/search-console  
 （GSC連携、データ取得について）
 
-最終更新日：2025年1月25日
+最終更新日：2026年1月25日
 
 ## トラブルシューティング
 
