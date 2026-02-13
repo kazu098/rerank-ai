@@ -128,7 +128,7 @@
 - ReRank AI vs Rank Tracker
 - ReRank AI vs Surfer SEO
 - ReRank AI vs MarketMuse
-- 「SEOツール 比較 2025」
+- 「SEOツール 比較 2026」
 - 「SEO自動化ツール おすすめ」
 - 「順位監視ツール 比較」
 

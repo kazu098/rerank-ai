@@ -20,14 +20,14 @@ Google Search Console APIを使用することで、以下のデータを取得�
 {
   "rows": [
     {
-      "keys": ["2025-12-11"],
+      "keys": ["2026-12-11"],
       "impressions": 703,
       "clicks": 26,
       "ctr": 0.03698435277382646,
       "position": 4.199146514935989
     },
     {
-      "keys": ["2025-12-22"],
+      "keys": ["2026-12-22"],
       "impressions": 936,
       "clicks": 23,
       "ctr": 0.024572649572649572,
@@ -75,8 +75,8 @@ Google Search Console APIを使用することで、以下のデータを取得�
 
 ```javascript
 // 順位下落の検知
-const baseDate = '2025-12-11';
-const currentDate = '2025-12-22';
+const baseDate = '2026-12-11';
+const currentDate = '2026-12-22';
 const basePosition = 4.1;
 const currentPosition = 6.7;
 

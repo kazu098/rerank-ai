@@ -1,7 +1,7 @@
 ---
 title: "ReRank AI Guide [Beginner]: Sign Up, GSC & Analysis in 5 Minutes"
 description: "A detailed guide for first-time users, covering account creation, GSC integration, and notification settings. Includes actual screenshots, get started in 5 minutes."
-date: "2025-01-15"
+date: "2026-01-15"
 category: "Tutorial"
 tags: ["beginner", "guide", "setup"]
 author: "ReRank AI"

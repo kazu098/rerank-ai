@@ -1,7 +1,7 @@
 ---
 title: "ReRank AIの使い方【初心者向け】登録・GSC連携・分析まで5分で始める"
 description: "ReRank AIを初めて使う方向けに、アカウント作成からGSC連携、記事登録、分析結果の確認まで詳しく解説します。実際の画面スクリーンショット付きで、5分で始められます。"
-date: "2025-01-15"
+date: "2026-01-15"
 category: "使い方"
 tags: ["初心者", "ガイド", "セットアップ"]
 author: "ReRank AI"
@@ -235,7 +235,7 @@ ReRank AI. https://rerank-ai.com
 Google. https://search.google.com/search-console  
 （GSC連携、データ取得について）
 
-最終更新日：2025年1月18日
+最終更新日：2026年1月18日
 
 ## トラブルシューティング
 
