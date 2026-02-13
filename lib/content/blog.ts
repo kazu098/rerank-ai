@@ -2,8 +2,10 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import { remark } from "remark";
-import remarkHtml from "remark-html";
 import remarkGfm from "remark-gfm";
+import remarkRehype from "remark-rehype";
+import rehypeRaw from "rehype-raw";
+import rehypeStringify from "rehype-stringify";
 
 export interface BlogPost {
   slug: string;
@@ -38,8 +40,13 @@ export async function getBlogPosts(locale: string = "ja"): Promise<BlogPost[]> {
         const fileContents = fs.readFileSync(fullPath, "utf8");
         const { data, content } = matter(fileContents);
 
-        // MarkdownをHTMLに変換（表をサポート）
-        const processedContent = await remark().use(remarkGfm).use(remarkHtml).process(content);
+        // MarkdownをHTMLに変換（表をサポート）。rehype-raw で記事内の生HTML（例: video）を通す
+        const processedContent = await remark()
+          .use(remarkGfm)
+          .use(remarkRehype, { allowDangerousHtml: true })
+          .use(rehypeRaw)
+          .use(rehypeStringify)
+          .process(content);
         const htmlContent = processedContent.toString();
 
         return {
@@ -82,8 +89,13 @@ export async function getBlogPost(
   const fileContents = fs.readFileSync(fullPath, "utf8");
   const { data, content } = matter(fileContents);
 
-  // MarkdownをHTMLに変換（表をサポート）
-  const processedContent = await remark().use(remarkGfm).use(remarkHtml).process(content);
+  // MarkdownをHTMLに変換（表をサポート）。rehype-raw で記事内の生HTML（例: video）を通す
+  const processedContent = await remark()
+    .use(remarkGfm)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeStringify)
+    .process(content);
   const htmlContent = processedContent.toString();
 
   return {
