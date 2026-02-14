@@ -8,8 +8,6 @@ author: "ReRank AI"
 image: "/blog-images/ubersuggest-comparison.jpg"
 ---
 
-# Ubersuggest vs ReRank AI：機能比較と選び方
-
 「AhrefsやSEMrushは高い。もう少し安いツールで十分」——そんな方に名前が挙がるのが**Ubersuggest**です。Neil Patel（NP Digital）が提供するオールインワン型SEOツールで、**手頃な価格**が強みの一方、企業向けツールと比べると**データ量・機能の深さには制限**があります。この記事では、Ubersuggestでできることを整理したうえで、**ReRank AI**との違いと選び方を解説します。
 
 ## この記事でわかること
@@ -21,13 +19,14 @@ image: "/blog-images/ubersuggest-comparison.jpg"
 
 ## 目次
 
-1. Ubersuggestとは
-2. ReRank AIとの主な違い
-3. 料金の比較（目安）
-4. どちらを選ぶか
-5. まとめ
-6. 関連記事
+1. [Ubersuggestとは](#ubersuggest)
+2. [ReRank AIとの主な違い](#違い)
+3. [料金の比較（目安）](#料金)
+4. [どちらを選ぶか](#選び方)
+5. [まとめ](#まとめ)
+6. [関連記事](#関連記事)
 
+<a id="ubersuggest"></a>
 ## Ubersuggestとは
 
 Ubersuggestは、**Neil Patel**が2017年に買収し、NP Digitalのもとで開発・運営されているSEOツールです（出典：Neil Patel [The Future of Ubersuggest](https://neilpatel.com/blog/ubersuggest-update/)）。「競合のMoz、Ahrefs、SEMrushは年間$950〜$9,900かかるので、約90%安い料金でオールインワンSEOを」という位置づけで、**個人〜中小企業向け**に提供されています。
@@ -77,6 +76,7 @@ Ubersuggestは、**Neil Patel**が2017年に買収し、NP Digitalのもとで�
 
 ※ 開発はNeil Patel/NP Digitalチームによるもので、「個人開発」というより「競合より安く・シンプルに」を売りにした製品という位置づけです。
 
+<a id="違い"></a>
 ## ReRank AIとの主な違い
 
 ReRank AIは、**順位監視と「順位が下がったときの改善案」に特化**したツールです。Google Search Console（GSC）と連携し、登録した記事・キーワードの順位を自動監視し、**下落時にメール通知と改善案を1件ずつ自動提案**します。
@@ -93,6 +93,7 @@ ReRank AIは、**順位監視と「順位が下がったときの改善案」に
 
 **まとめ**：キーワード調査・サイト監査・バックリンクまで一式やりたいならUbersuggestが向く。**「順位を見に行く手間を減らしたい」「下がったら改善案が欲しい」**ならReRank AIが向く。両方使う場合は、Ubersuggestで調査・監査、ReRankで順位監視・改善案、という併用も可能です。
 
+<a id="料金"></a>
 ## 料金の比較（目安）
 
 |  | Ubersuggest | ReRank AI |
@@ -103,6 +104,7 @@ ReRank AIは、**順位監視と「順位が下がったときの改善案」に
 
 Ubersuggestは「オールインワンで安い」、ReRankは「順位監視＋改善案だけに絞ってさらに安く」という違いです。
 
+<a id="選び方"></a>
 ## どちらを選ぶか
 
 - **キーワード調査・サイト監査・バックリンクもまとめてやりたい。予算は抑えめにしたい**  
@@ -114,6 +116,7 @@ Ubersuggestは「オールインワンで安い」、ReRankは「順位監視＋
 - **Ubersuggestで調査しているが、順位チェックと改善案の自動化だけ別ツールに任せたい**  
   → **Ubersuggest＋ReRank AI**の併用。調査・監査はUbersuggest、順位監視・改善案はReRank、という役割分担が現実的です。
 
+<a id="まとめ"></a>
 ## まとめ
 
 - **Ubersuggest**：Neil Patel/NP DigitalのオールインワンSEOツール。安い（$29〜）が、Ahrefs/SEMrushと比べるとデータ規模・機能の深さは限定的。キーワード・順位・監査・バックリンク・コンテンツを一通りカバーするが、順位下落の自動通知や改善案の自動提案はない。
@@ -122,6 +125,7 @@ Ubersuggestは「オールインワンで安い」、ReRankは「順位監視＋
 
 まずは[ReRank AIの無料プラン](https://rerank-ai.com)で、数記事だけ監視を試してみることもできます。
 
+<a id="関連記事"></a>
 ## 関連記事
 
 - [Ahrefs vs ReRank AI：違いと使い分け方](/ja/blog/ahrefs-comparison)

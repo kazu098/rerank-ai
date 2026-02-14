@@ -8,8 +8,6 @@ author: "ReRank AI"
 image: "/blog-images/getting-started.jpg"
 ---
 
-# ReRank AI Guide: Complete Beginner's Tutorial
-
 The most time-consuming part of SEO is monitoring rankings and considering improvement suggestions. ReRank AI automates this process. This guide provides a detailed explanation of basic usage with actual screenshots for first-time users.
 
 ## What You'll Learn
@@ -20,6 +18,17 @@ The most time-consuming part of SEO is monitoring rankings and considering impro
 - **Notification Settings**: Automatically receive notifications when ranking drops are detected
 - **Using Analysis Results**: Improve articles based on AI-proposed improvement suggestions
 
+## Table of Contents
+
+1. [Account Creation (1 minute)](#account)
+2. [Integration with Google Search Console (2 minutes)](#gsc)
+3. [Article Registration (1 minute)](#articles)
+4. [Notification Settings (1 minute)](#notifications)
+5. [Reviewing and Using Analysis Results](#analysis)
+6. [Summary](#summary)
+7. [Frequently Asked Questions](#faq)
+
+<a id="account"></a>
 ## 1. Account Creation (1 minute)
 
 Creating a ReRank AI account is free and easy.
@@ -40,6 +49,7 @@ Registering with a Google account eliminates additional authentication steps whe
 
 After creating your account, a confirmation email will be sent. Click the link in the email to verify your email address. Once verification is complete, you can access the dashboard.
 
+<a id="gsc"></a>
 ## 2. Integration with Google Search Console (2 minutes)
 
 The main feature of ReRank AI is automatically monitoring rankings by integrating with Google Search Console (GSC). This integration eliminates the need to manually check rankings.
@@ -65,6 +75,7 @@ A: Verify that site ownership verification is complete in Google Search Console.
 **Q: Can I integrate multiple sites?**
 A: Yes, you can integrate multiple sites. The number of sites you can monitor depends on your plan.
 
+<a id="articles"></a>
 ## 3. Article Registration (1 minute)
 
 Register the articles you want to monitor. Registered articles will have their rankings checked automatically every day.
@@ -92,6 +103,7 @@ Register the articles you want to monitor. Registered articles will have their r
 - **Standard Plan**: Up to 20 articles, maximum 10 keywords per article
 - **Pro Plan**: Unlimited, maximum 20 keywords per article
 
+<a id="notifications"></a>
 ## 4. Notification Settings (1 minute)
 
 Configure settings to receive notifications when rankings drop. Receiving notifications allows you to respond quickly.
@@ -124,6 +136,7 @@ Notifications include the following information:
 - Summary of improvement suggestions
 - Link to detailed analysis results
 
+<a id="analysis"></a>
 ## 5. Reviewing and Using Analysis Results
 
 When rankings drop, ReRank AI automatically performs analysis and proposes improvement suggestions.
@@ -153,6 +166,7 @@ Real improvement examples from ReRank AI users (anonymized):
 - **Example 1**: Ranking improved from 15th to 8th (effects appeared 2 weeks after implementing suggestions)
 - **Example 2**: Ranking improved from 20th to 5th (added missing elements based on competitor analysis)
 
+<a id="summary"></a>
 ## Summary
 
 Using ReRank AI automates SEO efforts and eliminates the need to manually check rankings. Follow this guide to get started in 5 minutes.
@@ -165,6 +179,7 @@ Using ReRank AI automates SEO efforts and eliminates the need to manually check 
 
 Try the free plan first and experience the benefits.
 
+<a id="faq"></a>
 ## Frequently Asked Questions
 
 **Q: How many articles can I monitor on the free plan?**

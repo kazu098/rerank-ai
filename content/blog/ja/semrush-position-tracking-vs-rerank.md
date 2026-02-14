@@ -8,8 +8,6 @@ author: "ReRank AI"
 image: "/blog-images/semrush-position-tracking-vs-rerank.jpg"
 ---
 
-# SEMrush 順位監視（Position Tracking）vs ReRank AI：手動確認と自動改善の違い
-
 「記事の順位を定期的にチェックしたい」「順位が下がったらすぐ気づきたい」——そんなニーズに応えるのが順位監視機能です。SEMrushの**Position Tracking**と**ReRank AI**はどちらも順位を追跡しますが、**確認の仕方**と**下落後のアクション**が大きく違います。この記事では、両者の仕様と、自分に合う選び方を解説します。
 
 ## この記事でわかること
@@ -20,13 +18,14 @@ image: "/blog-images/semrush-position-tracking-vs-rerank.jpg"
 
 ## 目次
 
-1. SEMrush Position Trackingとは
-2. ReRank AIの順位監視の特徴
-3. 比較表：Position Tracking vs ReRank AI（順位監視まわり）
-4. どちらを選ぶか・併用の考え方
-5. まとめ
-6. 関連記事
+1. [SEMrush Position Trackingとは](#semrush-position-tracking)
+2. [ReRank AIの順位監視の特徴](#rerank)
+3. [比較表：Position Tracking vs ReRank AI（順位監視まわり）](#比較表)
+4. [どちらを選ぶか・併用の考え方](#選び方)
+5. [まとめ](#まとめ)
+6. [関連記事](#関連記事)
 
+<a id="semrush-position-tracking"></a>
 ## SEMrush Position Trackingとは
 
 SEMrushの**Position Tracking**は、指定したドメイン・キーワード・地域の組み合わせで、検索順位の推移を記録・表示する機能です（出典：SEMrush [Position Tracking の更新頻度](https://www.semrush.com/kb/326-how-often-does-the-position-tracker-update-its-data)、[制限について](https://semrush.com/kb/696-what-are-the-limits-of-my-position-tracking-campaign)）。
@@ -48,6 +47,7 @@ SEMrushの**Position Tracking**は、指定したドメイン・キーワード�
 
 つまり、**「見に行く」＋「分析する」は手動**です。日次でデータは更新されますが、見に行く頻度と改善案の検討は自分で行う必要があります。
 
+<a id="rerank"></a>
 ## ReRank AIの順位監視の特徴
 
 ReRank AIは、**Google Search Console（GSC）と連携**して、登録した記事・キーワードの順位を自動で取得し、変化を監視します。
@@ -68,6 +68,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 
 「見に行く」頻度を減らし、「何を直すか」までツールが提案してくれる点が、Position Trackingとの大きな違いです。
 
+<a id="比較表"></a>
 ## 比較表：Position Tracking vs ReRank AI（順位監視まわり）
 
 | 項目 | SEMrush Position Tracking | ReRank AI |
@@ -79,6 +80,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 | 下落時のアクション | 自分で競合分析・改善案を検討 | 競合分析・改善案を自動提案 |
 | 向いている人 | すでにSEMrushを使っていて、順位は自分でチェックしたい人 | 記事メンテの時間を減らしたい・自動で改善案まで欲しい人 |
 
+<a id="選び方"></a>
 ## どちらを選ぶか・併用の考え方
 
 - **「毎日〜週に1回、SEMrushを開いて順位を確認する」運用で問題ない**  
@@ -90,6 +92,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 - **キーワード調査や広告分析はSEMrushで続けたいが、順位監視だけ自動化したい**  
   → SEMrushは調査・広告用、ReRank AIは順位監視・改善案用に**併用**する形がおすすめです。
 
+<a id="まとめ"></a>
 ## まとめ
 
 - **SEMrush Position Tracking**：順位は日次で更新されるが、**確認も分析も手動**。定期的に画面を開く運用向き。
@@ -97,6 +100,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 
 まずは[ReRank AIの無料プラン](https://rerank-ai.com)で、数記事だけ監視を試してみるのもおすすめです。
 
+<a id="関連記事"></a>
 ## 関連記事
 
 - [SEMrush vs ReRank AI：機能比較と選び方](/ja/blog/semrush-comparison)（総合比較）

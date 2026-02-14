@@ -8,8 +8,6 @@ author: "ReRank AI"
 image: "/blog-images/ahrefs-rank-tracker-vs-rerank.jpg"
 ---
 
-# Ahrefs 順位監視（Rank Tracker）vs ReRank AI：手動と自動の違い
-
 「記事の順位を定期的にチェックしたい」「順位が下がったらすぐ気づきたい」——そんなニーズに応えるのが順位監視機能です。Ahrefsの**Rank Tracker**と**ReRank AI**はどちらも順位を追跡しますが、**確認の仕方**と**その先のアクション**が大きく違います。この記事では、両者の違いと、自分に合う選び方を解説します。
 
 ## この記事でわかること
@@ -21,14 +19,15 @@ image: "/blog-images/ahrefs-rank-tracker-vs-rerank.jpg"
 
 ## 目次
 
-1. Ahrefs Rank Trackerとは
-2. ReRank AIの順位監視の特徴
-3. 比較表：Rank Tracker vs ReRank AI（順位監視まわり）
-4. どちらを選ぶか：判断の目安
-5. 併用する場合の役割分担
-6. まとめ
-7. 関連記事
+1. [Ahrefs Rank Trackerとは](#rank-tracker)
+2. [ReRank AIの順位監視の特徴](#rerank)
+3. [比較表：Rank Tracker vs ReRank AI（順位監視まわり）](#比較表)
+4. [どちらを選ぶか：判断の目安](#選び方)
+5. [併用する場合の役割分担](#併用)
+6. [まとめ](#まとめ)
+7. [関連記事](#関連記事)
 
+<a id="rank-tracker"></a>
 ## Ahrefs Rank Trackerとは
 
 Ahrefsの**Rank Tracker**は、指定したキーワードとURL（プロジェクト）の組み合わせについて、検索順位の推移を記録・表示する機能です（出典：Ahrefs [Plans & pricing](https://ahrefs.com/pricing)、[Help - How frequently do my tracked keywords get updated?](https://help.ahrefs.com/en/articles/604245-how-frequently-do-my-tracked-keywords-get-updated)）。
@@ -50,6 +49,7 @@ Ahrefsの**Rank Tracker**は、指定したキーワードとURL（プロジェ�
 
 つまり、**「見に行く」＋「分析する」は手動**です。定期的に画面を開いてチェックする運用になります。
 
+<a id="rerank"></a>
 ## ReRank AIの順位監視の特徴
 
 ReRank AIは、**Google Search Console（GSC）と連携**して、登録した記事・キーワードの順位を自動で取得し、変化を監視します。
@@ -71,6 +71,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 
 「見に行く」頻度を減らし、「何を直すか」までツールが提案してくれる点が、Rank Trackerとの大きな違いです。
 
+<a id="比較表"></a>
 ## 比較表：Rank Tracker vs ReRank AI（順位監視まわり）
 
 | 項目 | Ahrefs Rank Tracker | ReRank AI |
@@ -83,6 +84,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 | 設定の手間 | プロジェクト・キーワードの登録が必要 | GSC連携後、記事・キーワードを登録 |
 | 向いている人 | すでにAhrefsを使っていて、順位は自分でチェックしたい人 | 記事メンテの時間を減らしたい・自動で改善案まで欲しい人 |
 
+<a id="選び方"></a>
 ## どちらを選ぶか：判断の目安
 
 - **「毎週決まった時間にAhrefsを開いて順位を確認する」運用で問題ない**  
@@ -94,6 +96,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 - **キーワード調査やバックリンクはAhrefsで続けたいが、順位監視だけ自動化したい**  
   → Ahrefsはキーワード調査・バックリンク用、ReRank AIは順位監視・改善案用に併用する形がおすすめです。
 
+<a id="併用"></a>
 ## 併用する場合の役割分担
 
 1. **Ahrefs**：キーワード調査（Keywords Explorer）、バックリンク分析（Site Explorer）、サイト監査など
@@ -101,6 +104,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 
 順位の「数値」をAhrefsとReRankの両方で見る必要はなく、**日々のメンテはReRankの通知と改善案に集中**し、必要に応じてAhrefsでキーワードやリンクを深掘りする、という使い分けが現実的です。
 
+<a id="まとめ"></a>
 ## まとめ
 
 - **Ahrefs Rank Tracker**：順位を追跡できるが、**確認も分析も手動**。定期的に画面を開く運用向き。
@@ -108,6 +112,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 
 「順位が下がってからじゃ遅い。今日から、AIが差分を教えます。」——まずは[ReRank AIの無料プラン](https://rerank-ai.com)で、数記事だけ監視を試してみるのもおすすめです。
 
+<a id="関連記事"></a>
 ## 関連記事
 
 - [Ahrefs vs ReRank AI：違いと使い分け方](/ja/blog/ahrefs-comparison)（総合比較）

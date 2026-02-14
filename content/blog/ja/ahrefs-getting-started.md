@@ -20,20 +20,22 @@ image: "/blog-images/ahrefs-getting-started.png"
 
 ## 目次
 
-1. Ahrefsとは
-2. サインインとGoogle Search Console（GSC）連携
-3. ログイン後のダッシュボードと基本操作
-4. 無料でどこまでできるか／どこからアップグレードが必要か
-5. 料金の目安
-6. ReRank AI について
-7. まとめ
+1. [Ahrefsとは](#ahrefs)
+2. [サインインとGoogle Search Console（GSC）連携](#gsc連携)
+3. [ログイン後のダッシュボードと基本操作](#ダッシュボード)
+4. [無料でどこまでできるか／どこからアップグレードが必要か](#無料範囲)
+5. [料金の目安](#料金)
+6. [ReRank AI について](#rerank)
+7. [まとめ](#まとめ)
 
+<a id="ahrefs"></a>
 ## Ahrefsとは
 
 Ahrefsは、世界で最も人気のあるSEOツールの一つです。200以上の国・地域で利用されており、キーワード調査とバックリンク分析に強みがあります。自社のクローラーと大規模なデータベースを持ち、検索ボリューム・難易度・競合の被リンク状況などを分析できます。
 
 - 公式サイト: <a href="https://ahrefs.com/" target="_blank" rel="noopener noreferrer">Ahrefs</a>
 
+<a id="gsc連携"></a>
 ## サインインとGoogle Search Console（GSC）連携
 
 - AhrefsにはメールアドレスまたはGoogleアカウントでサインインできます。
@@ -54,6 +56,7 @@ Googleアカウントでサインインすると、任意でGSC連携の案内�
 
 ![Ahrefs GSC連携：「Select projects to import」でプロパティを選択する画面](/blog-images/ahrefs-getting-started-gsc-select-projects.png)
 
+<a id="ダッシュボード"></a>
 ## ログイン後のダッシュボードと基本操作
 
 サインイン後、<a href="https://app.ahrefs.com/" target="_blank" rel="noopener noreferrer">app.ahrefs.com</a> のダッシュボードで作業します。ここでは画面の構成と、よく使う操作の流れを説明します。
@@ -172,6 +175,7 @@ Site Explorer の左メニューで「Organic search」→「Organic keywords」
 
 Organic keywords で「どのキーワードで流入しているか」を把握し、Organic competitors で「誰が同じキーワードで競っているか・どの程度強いか」を確認する流れで使うと、次のコンテンツ施策や順位改善の優先順位をつけやすくなります。
 
+<a id="無料範囲"></a>
 ## 無料でどこまでできるか／どこからアップグレードが必要か
 
 公式ヘルプ（<a href="https://help.ahrefs.com/en/articles/13002606-what-can-i-use-for-free-in-ahrefs" target="_blank" rel="noopener noreferrer">What can I use for free in Ahrefs?</a>）に基づき、無料で使える範囲と、有料プランが必要になる境目を整理します。
@@ -212,12 +216,14 @@ Competitive Analysis の「Content gap」など、競合とキーワードの重
 
 有料プランは Starter（$29/月〜、クレジット制）や Lite（$129/月、年間契約なら最大約17%割引で月額換算約$107〜）などから選べます。日本円表示では Lite が約¥19,900/月前後です。無料の AWT で自サイトの状態を確認し、競合分析やキーワード調査を本格的にやりたくなったタイミングでアップグレードを検討する流れが現実的です。
 
+<a id="料金"></a>
 ## 料金の目安
 
 Ahrefsの有料サブスクリプションは、2026年2月時点の公式料金（<a href="https://ahrefs.com/pricing" target="_blank" rel="noopener noreferrer">Plans & pricing</a>）で、月額は **Lite $129/月**・**Standard $249/月**・**Advanced $449/月**です。年間契約なら「最大約17%割引」となり、月額換算で Lite 約$107〜、Standard 約$207〜、Advanced 約$373〜程度になります。Starter は $29/月〜で、クレジット制のため利用量に応じて課金されます。
 
 - 料金の詳細・「Ahrefsが高い」と感じる場合の代替案は、[Ahrefsが高い人向けの代替ツール・ReRank AI](/ja/blog/ahrefs-alternative-price) をご覧ください。ReRank AI は順位監視と改善案の自動提案に特化しており、無料プランから始められ、有料でも月額数千円程度で利用できます。
 
+<a id="rerank"></a>
 ## ReRank AI について
 
 ReRank AI は、Google Search Console と連携して順位を監視し、**順位が下がったときに競合を分析して改善案を自動で提案**するツールです。Ahrefs の Rank Tracker は順位の推移は見られますが「なぜ下がったか」「何を直せばよいか」は自分で調べる必要があります。ReRank はそこを自動化するため、手動で競合記事を比較する時間を減らしたい方や、予算を抑えつつ順位メンテに集中したい方に向いています。キーワード調査・バックリンク分析は Ahrefs のまま使い、順位監視と改善案だけ ReRank に任せる併用も可能です。
@@ -231,6 +237,7 @@ ReRank AI は、Google Search Console と連携して順位を監視し、**順�
 
 順位監視と「下がったときの改善案」に特化したツールとの比較に興味がある方は、[Ahrefs vs ReRank AI：違いと使い分け方](/ja/blog/ahrefs-comparison) もあわせてご覧ください。
 
+<a id="まとめ"></a>
 ## まとめ
 
 - Ahrefsはキーワード調査・バックリンク分析を中心としたSEO総合ツール。公式サイトは <a href="https://ahrefs.com/" target="_blank" rel="noopener noreferrer">Ahrefs</a>。
