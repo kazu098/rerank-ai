@@ -5,7 +5,7 @@ date: "2026-02-11"
 category: "比較"
 tags: ["Ahrefs", "バックリンク", "Site Explorer", "ReRank AI", "SEOツール"]
 author: "ReRank AI"
-image: "/blog-images/ahrefs-backlink-vs-rerank.jpg"
+image: "/blog-images/ahrefs-broken-backlinks.png"
 ---
 
 「Ahrefs バックリンク」「Ahrefs DR」などで検索する方は、被リンクの状況を把握したり、競合のリンクプロファイルを分析したりしたい方だと思います。Ahrefsはバックリンク分析に強く、ReRank AIはバックリンク機能を提供していません。この記事では、その違いと、ReRankが「コンテンツ・順位のメンテ」に特化している理由を整理します。
