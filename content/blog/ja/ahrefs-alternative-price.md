@@ -37,7 +37,7 @@ Ahrefsは2026年現在、<a href="https://ahrefs.com/pricing" target="_blank" re
 | **Standard** | 38,400円/月 | 20 | 2年 |
 | **Advanced** | 68,900円/月 | 50 | 5年 |
 
-![Ahrefsの料金プラン（Plans & pricing）](blog-images/ahrefs-pricing.png)
+![Ahrefsの料金プラン（Plans & pricing）](/blog-images/ahrefs-getting-started-pricing-plans.png)
 
 ※出典：<a href="https://ahrefs.com/pricing" target="_blank" rel="noopener noreferrer">Ahrefs Plans & pricing</a>
 
