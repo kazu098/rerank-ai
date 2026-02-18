@@ -103,6 +103,7 @@ ReRank AIは、**Google Search Console（GSC）と連携**して、登録した�
 <a id="関連記事"></a>
 ## 関連記事
 
+- [SEMrushの使い方【入門】サインイン・GSC連携・無料範囲まで](/ja/blog/semrush-getting-started)
 - [SEMrush vs ReRank AI：機能比較と選び方](/ja/blog/semrush-comparison)（総合比較）
 - [SEMrushが高い人向けの代替ツール・ReRank AI](/ja/blog/semrush-alternative-price)
 - [SEMrush キーワード調査とReRankの使い分け](/ja/blog/semrush-keyword-research-vs-rerank)
