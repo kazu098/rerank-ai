@@ -504,6 +504,7 @@ SEMrushとReRank AIは、それぞれ異なる強みを持っています。
 
 ### 関連記事（機能別の比較）
 
+- [SEMrushの使い方【入門】サインイン・GSC連携・無料範囲まで](/ja/blog/semrush-getting-started)：初めて使う方向けの基本操作
 - [SEMrush 順位監視（Position Tracking）vs ReRank AI](/ja/blog/semrush-position-tracking-vs-rerank)：手動確認と自動改善の違い
 - [SEMrushが高い人向けの代替ツール・ReRank AI](/ja/blog/semrush-alternative-price)：料金とコスト削減率
 - [SEMrush キーワード調査とReRankの使い分け](/ja/blog/semrush-keyword-research-vs-rerank)：調査はSEMrush、メンテはReRank
